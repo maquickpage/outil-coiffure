@@ -147,6 +147,15 @@ export async function sendSignupSuccessEmail({ to, salonName, liveHostname, plan
     <a href="https://maquickpage.fr/legal/mentions-legales.html" style="color: #9ca3af;">Mentions légales</a> ·
     <a href="https://maquickpage.fr/legal/privacy.html" style="color: #9ca3af;">Confidentialité</a>
   </p>
+
+  <div style="text-align: center; margin: 36px 0 8px;">
+    <a href="https://maquickpage.fr/" style="text-decoration: none; border: 0;">
+      <img src="https://maquickpage.fr/_assets/email/logo-signature.png"
+           alt="MaQuickPage"
+           width="120"
+           style="display: inline-block; max-width: 120px; height: auto; border: 0; outline: none; text-decoration: none;">
+    </a>
+  </div>
 </body></html>`;
 
   const text = `Bonjour ${salonName},
