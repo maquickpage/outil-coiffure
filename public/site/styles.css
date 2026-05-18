@@ -1406,21 +1406,26 @@ body {
         from { opacity: 0; }
         to   { opacity: 1; }
     }
-    /* Tassement automatique du contenu selon la hauteur du conteneur.
-       cqh = container query height = % de la hauteur du nearest container. */
+    /* Tassement automatique du contenu.
+       - font-size en vw : stable au scroll (la largeur viewport ne change pas
+         quand le ribbon CTA arrive → le titre ne change pas de nombre de
+         lignes au scroll).
+       - margins / gap en cqh : se tassent quand l'espace dispo vertical se
+         réduit (par ex. arrivée du ribbon), sans impact visible sur la taille
+         du texte. */
     .hero-tagline {
-        font-size: clamp(0.65rem, 1.5cqh, 0.9rem);
+        font-size: clamp(0.65rem, 0.85vw, 0.9rem);
         margin-bottom: clamp(8px, 3cqh, 24px);
-        letter-spacing: clamp(2px, 0.8cqh, 5px);
+        letter-spacing: clamp(2px, 0.4vw, 5px);
     }
     .hero-title {
-        font-size: clamp(1.5rem, 12cqh, 6rem);
+        font-size: clamp(1.5rem, 4.3vw, 5.5rem);
         line-height: 1.05;
         margin-bottom: clamp(10px, 3cqh, 24px);
-        letter-spacing: clamp(1px, 0.5cqh, 3px);
+        letter-spacing: clamp(1px, 0.25vw, 3px);
     }
     .hero-subtitle {
-        font-size: clamp(0.9rem, 3cqh, 1.5rem);
+        font-size: clamp(0.9rem, 1.3vw, 1.5rem);
         margin-bottom: clamp(16px, 6cqh, 48px);
     }
     .hero-buttons {
