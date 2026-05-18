@@ -344,6 +344,44 @@ function applyHeroImage(src) {
   if (hero) hero.style.backgroundImage = `url('${src}')`;
 }
 
+/* Mesure dynamique de la hauteur du "header" (navbar + ribbon éventuel) et
+   du "scroll bottom" (flèche DÉCOUVRIR), puis les expose en CSS variables.
+   `.hero-content` (desktop) utilise ces vars pour se caler entre les deux,
+   et son contenu interne se tasse automatiquement via container queries. */
+function syncHeroBounds() {
+  const nav = document.querySelector('.navbar');
+  const ribbon = document.getElementById('mqs-ribbon');
+  const scroll = document.querySelector('.hero-scroll');
+  if (nav) {
+    const navH = Math.round(nav.getBoundingClientRect().height);
+    const ribbonH = ribbon ? Math.round(ribbon.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty('--mqs-header-h', `${navH + ribbonH}px`);
+  }
+  if (scroll) {
+    const scrollH = Math.round(scroll.getBoundingClientRect().height);
+    const scrollBottom = parseInt(getComputedStyle(scroll).bottom, 10) || 40;
+    document.documentElement.style.setProperty('--mqs-scroll-h', `${scrollH + scrollBottom}px`);
+  }
+}
+
+// Init au load + re-sync au resize + à l'arrivée du ribbon (banner.js dispatche
+// l'event après avoir mounté le ribbon → fait re-mesurer ici).
+let _heroBoundsTimer = null;
+function _scheduleHeroSync() {
+  if (_heroBoundsTimer) clearTimeout(_heroBoundsTimer);
+  _heroBoundsTimer = setTimeout(syncHeroBounds, 50);
+}
+window.addEventListener('resize', _scheduleHeroSync);
+window.addEventListener('mqs-header-changed', syncHeroBounds);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', syncHeroBounds, { once: true });
+} else {
+  syncHeroBounds();
+}
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(syncHeroBounds).catch(() => {});
+}
+
 
 function renderSalon(view) {
   const c = view.content;
