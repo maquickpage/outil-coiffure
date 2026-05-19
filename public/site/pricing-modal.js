@@ -21,7 +21,7 @@
       features: [
         'Site 100 % personnalisable',
         'Domaine .fr ou .com offert',
-        'Hebergement haute performance',
+        'Hébergement haute performance',
       ],
     },
     {
@@ -34,20 +34,20 @@
       features: [
         'Site 100 % personnalisable',
         'Domaine .fr ou .com offert',
-        'Hebergement haute performance',
+        'Hébergement haute performance',
       ],
     },
     {
       key: 'FLEX',
       eyebrow: 'Sans engagement',
       monthlyPriceTtc: 29.00,
-      description: 'Resiliable a tout moment.',
+      description: 'Résiliable à tout moment.',
       cta: 'Choisir',
       isPopular: false,
       features: [
         'Site 100 % personnalisable',
         'Domaine .fr ou .com offert',
-        'Hebergement haute performance',
+        'Hébergement haute performance',
       ],
     },
   ];
@@ -309,26 +309,34 @@
       }
     }
 
+    // On ouvre le volet automatiquement s'il y a déjà une saisie/résultat,
+    // pour ne pas masquer l'interaction en cours.
+    const isOpen = state.customResult || state.customError || state.customQuery;
     return `
-      <div class="mqs-custom-block">
-        <label class="mqs-custom-label" for="mqs-custom-input">J'ai déjà une idée précise</label>
-        <div class="mqs-custom-input-row">
-          <input
-            type="text"
-            id="mqs-custom-input"
-            class="mqs-custom-input"
-            placeholder="monsalon"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <select id="mqs-custom-tld" class="mqs-custom-tld">
-            <option value=".fr">.fr</option>
-            <option value=".com">.com</option>
-          </select>
-          <button id="mqs-custom-check-btn" type="button" class="mqs-btn-check">Vérifier</button>
+      <details class="mqs-custom-block" ${isOpen ? 'open' : ''}>
+        <summary class="mqs-custom-toggle">
+          <span class="mqs-custom-toggle-icon" aria-hidden="true">＋</span>
+          <span class="mqs-custom-toggle-label">Ou choisir mon adresse web moi-même</span>
+        </summary>
+        <div class="mqs-custom-content">
+          <div class="mqs-custom-input-row">
+            <input
+              type="text"
+              id="mqs-custom-input"
+              class="mqs-custom-input"
+              placeholder="monsalon"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <select id="mqs-custom-tld" class="mqs-custom-tld">
+              <option value=".fr">.fr</option>
+              <option value=".com">.com</option>
+            </select>
+            <button id="mqs-custom-check-btn" type="button" class="mqs-btn-check">Vérifier</button>
+          </div>
+          <div class="mqs-custom-result">${resultHtml}</div>
         </div>
-        <div class="mqs-custom-result">${resultHtml}</div>
-      </div>
+      </details>
     `;
   }
 

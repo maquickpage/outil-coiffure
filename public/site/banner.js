@@ -115,8 +115,8 @@
             Site de démonstration · ${getSalonName().replace(/[<>]/g, '')}
           </span>
         </div>
-        <button class="mqs-ribbon-cta" type="button" aria-label="Voir les tarifs">
-          Voir les tarifs
+        <button class="mqs-ribbon-cta" type="button" aria-label="Publier mon site">
+          Publier mon site
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
             <path d="M2.5 6h7M6 2.5L9.5 6 6 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -147,7 +147,7 @@
               <span class="mqs-bar-extra">— installation et domaine offerts</span>
             </div>
           </div>
-          <button class="mqs-bar-cta" type="button">Publier mon site →</button>
+          <button class="mqs-bar-cta" type="button">Voir les offres →</button>
         </div>
       </div>
     `;
@@ -170,7 +170,7 @@
     if (mounted) return;
     mounted = true;
 
-    // Ribbon (top noir "DÉMO + Voir les tarifs") : visible uniquement en /preview/{slug}.
+    // Ribbon (top noir "DÉMO + Publier mon site") : visible uniquement en /preview/{slug}.
     // Pas dans l'éditeur /admin/{slug} où l'utilisateur est déjà en train de
     // personnaliser son site — le ribbon serait redondant et visuellement parasite.
     if (isPreview && !document.getElementById('mqs-ribbon')) {

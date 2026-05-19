@@ -12,7 +12,17 @@
 (function () {
   'use strict';
 
-  const LS_KEY = 'mqs_onboarding_v2_done';
+  // Key localStorage scopée par slug : chaque coiffeur voit le tuto à sa
+  // première ouverture, indépendamment des autres salons visités sur le même
+  // browser (= utile en démo agence pour re-tester sur différents slugs).
+  const LS_KEY_PREFIX = 'mqs_onboarding_v2_done_';
+  function getCurrentSlug() {
+    const m = (window.location.pathname || '').match(/^\/admin\/([^/?#]+)/);
+    return m ? m[1] : 'unknown';
+  }
+  function lsKey() {
+    return LS_KEY_PREFIX + getCurrentSlug();
+  }
 
   const STEPS = [
     {
@@ -70,13 +80,13 @@
   };
 
   function isDone() {
-    return localStorage.getItem(LS_KEY) === '1';
+    return localStorage.getItem(lsKey()) === '1';
   }
   function markDone() {
-    localStorage.setItem(LS_KEY, '1');
+    localStorage.setItem(lsKey(), '1');
   }
   function clearDone() {
-    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(lsKey());
   }
 
   function injectHelpButton() {
