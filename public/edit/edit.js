@@ -110,6 +110,16 @@ async function apiUploadImage(blob, kind) {
 let cropper = null;
 let cropResolve = null;
 
+// Helper : masquer/afficher la CTA bar MaQuickPage (banner.js) en démo.
+// On réutilise les events existants pricing-modal-open/close — sans impact
+// sur les sites coiffeur live (banner.js exit là-bas via isDemoHost).
+function dispatchOverlayOpen() {
+  window.dispatchEvent(new CustomEvent('mqs-pricing-modal-open'));
+}
+function dispatchOverlayClose() {
+  window.dispatchEvent(new CustomEvent('mqs-pricing-modal-close'));
+}
+
 function openCropModal(imageSrc, aspectRatio = 16/9) {
   return new Promise((resolve) => {
     cropResolve = resolve;
@@ -117,6 +127,7 @@ function openCropModal(imageSrc, aspectRatio = 16/9) {
     const img = $('cropper-image');
     img.src = imageSrc;
     modal.hidden = false;
+    dispatchOverlayOpen();
 
     if (cropper) cropper.destroy();
     cropper = new Cropper(img, {
@@ -135,6 +146,7 @@ function openCropModal(imageSrc, aspectRatio = 16/9) {
 
 function closeCropModal(result) {
   $('crop-modal').hidden = true;
+  dispatchOverlayClose();
   if (cropper) { cropper.destroy(); cropper = null; }
   if (cropResolve) { cropResolve(result); cropResolve = null; }
 }
@@ -159,8 +171,10 @@ function confirmDialog(title, message) {
     $('confirm-title').textContent = title;
     $('confirm-message').textContent = message;
     $('confirm-modal').hidden = false;
+    dispatchOverlayOpen();
     const cleanup = (val) => {
       $('confirm-modal').hidden = true;
+      dispatchOverlayClose();
       $('btn-confirm-ok').onclick = null;
       $('btn-confirm-cancel').onclick = null;
       resolve(val);
@@ -355,9 +369,9 @@ function buildServiceItem(s, idx) {
       </button>
     </summary>
     <div class="service-item-body">
-      <input type="text" placeholder="Nom du service (ex : Coupe Femme)" value="${escapeAttr(s.name || '')}" data-field="name">
-      <input type="text" placeholder="Description (optionnelle)" value="${escapeAttr(s.description || '')}" data-field="description">
-      <input type="text" placeholder="Tarif (ex : 35€ ou À partir de 35€)" value="${escapeAttr(s.price || '')}" data-field="price">
+      <input type="text" placeholder="Nom du service (ex : Coupe Femme)" value="${escapeAttr(s.name || '')}" data-field="name" maxlength="80">
+      <input type="text" placeholder="Description (optionnelle)" value="${escapeAttr(s.description || '')}" data-field="description" maxlength="200">
+      <input type="text" placeholder="Tarif (ex : 35€ ou À partir de 35€)" value="${escapeAttr(s.price || '')}" data-field="price" maxlength="40">
     </div>
   `;
 
@@ -374,7 +388,6 @@ function buildServiceItem(s, idx) {
   const nameInput = item.querySelector('[data-field="name"]');
   const priceInput = item.querySelector('[data-field="price"]');
   const nameDisplay = item.querySelector('.service-name-display');
-  const priceDisplayEl = item.querySelector('.service-price-display');
 
   nameInput.addEventListener('input', () => {
     const v = nameInput.value.trim();
@@ -388,15 +401,22 @@ function buildServiceItem(s, idx) {
   });
   priceInput.addEventListener('input', () => {
     const v = priceInput.value.trim();
-    if (priceDisplayEl) {
-      priceDisplayEl.textContent = v;
-    } else if (v) {
-      // Creer le span s'il n'existait pas
-      const sum = item.querySelector('.service-item-summary');
-      const newSpan = document.createElement('span');
-      newSpan.className = 'service-price-display';
-      newSpan.textContent = v;
-      sum.insertBefore(newSpan, removeBtn);
+    // BUG FIX : re-query le span à chaque input. La variable figée au load
+    // restait null tant que le prix initial était vide → chaque keystroke
+    // créait un NOUVEAU span → accumulation des valeurs dans le titre.
+    let displayEl = item.querySelector('.service-price-display');
+    if (v) {
+      if (!displayEl) {
+        const sum = item.querySelector('.service-item-summary');
+        displayEl = document.createElement('span');
+        displayEl.className = 'service-price-display';
+        sum.insertBefore(displayEl, removeBtn);
+      }
+      displayEl.textContent = v;
+    } else if (displayEl) {
+      // Si la valeur a été vidée, retirer le span pour ne pas laisser un
+      // élément vide qui prend de l'espace dans le titre.
+      displayEl.remove();
     }
   });
 
@@ -576,10 +596,10 @@ function renderTestimonials(testimonials) {
         <span class="testimonial-item-preview">${escapeAttr(preview)}</span>
       </summary>
       <div class="testimonial-item-body">
-        <textarea placeholder="Ex : Une expérience top, équipe adorable, je recommande !" data-field="text">${escapeAttr(t.text || '')}</textarea>
+        <textarea placeholder="Ex : Une expérience top, équipe adorable, je recommande !" data-field="text" maxlength="350">${escapeAttr(t.text || '')}</textarea>
         <div class="testimonial-meta">
-          <input type="text" placeholder="Prénom + initiale (ex : Marie L.)" data-field="author" value="${escapeAttr(t.author || '')}">
-          <input type="text" placeholder="Date (ex : Il y a 2 semaines)" data-field="date" value="${escapeAttr(t.date || '')}">
+          <input type="text" placeholder="Prénom + initiale (ex : Marie L.)" data-field="author" value="${escapeAttr(t.author || '')}" maxlength="40">
+          <input type="text" placeholder="Date (ex : Il y a 2 semaines)" data-field="date" value="${escapeAttr(t.date || '')}" maxlength="30">
         </div>
       </div>
     `;
@@ -623,7 +643,7 @@ function renderContact(contact, socials) {
     if (!v || v === 'closed' || v === null) display = 'Fermé';
     else display = String(v).replace(/-am-/g, ':00 - ').replace(/-am$/g, ':00').replace(/-pm-/g, ':00 - ').replace(/-pm$/g, ':00').replace(/^(\d+)(\d{2})/, '$1h$2').replace(/(\d+):00/g, '$1h').replace(/-/g, ' à ');
     const row = document.createElement('label');
-    row.innerHTML = `<span class="day">${label}</span><input type="text" data-day="${k}" value="${escapeAttr(display)}" placeholder="9h - 18h ou 9h - 12h, 14h - 19h">`;
+    row.innerHTML = `<span class="day">${label}</span><input type="text" data-day="${k}" value="${escapeAttr(display)}" placeholder="9h - 18h ou 9h - 12h, 14h - 19h" maxlength="80">`;
     hg.appendChild(row);
   }
 

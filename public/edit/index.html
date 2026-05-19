@@ -148,7 +148,7 @@
                     </label>
                     <label class="edit-field">
                         <span class="edit-label">Texte de présentation</span>
-                        <textarea id="intro-description" rows="5" placeholder="Décrivez votre salon, votre équipe, votre approche…"></textarea>
+                        <textarea id="intro-description" rows="5" placeholder="Décrivez votre salon, votre équipe, votre approche…" maxlength="500"></textarea>
                         <span class="edit-help">3 à 5 lignes suffisent. Soyez authentique et chaleureux.</span>
                     </label>
                 </div>
@@ -172,7 +172,7 @@
 
                     <label class="edit-field" id="intro-fallback-block">
                         <span class="edit-label">Phrase qui apparaît à la place de la note</span>
-                        <input type="text" id="intro-fallback" maxlength="120" placeholder="Ex : Une qualité de service reconnue par nos clients fidèles.">
+                        <input type="text" id="intro-fallback" maxlength="100" placeholder="Ex : Une qualité de service reconnue par nos clients fidèles.">
                         <span class="edit-help">S'affiche uniquement si la note Google est masquée.</span>
                     </label>
 
@@ -309,24 +309,24 @@
                 <div class="accordion-body">
                     <label class="edit-field">
                         <span class="edit-label">Adresse *</span>
-                        <input type="text" id="contact-address" placeholder="Ex : 12 rue des Lilas">
+                        <input type="text" id="contact-address" placeholder="Ex : 12 rue des Lilas" maxlength="120">
                     </label>
                     <label class="edit-field">
                         <span class="edit-label">Code postal &amp; Ville</span>
-                        <input type="text" id="contact-address2" placeholder="Ex : 01000 Bourg-en-Bresse">
+                        <input type="text" id="contact-address2" placeholder="Ex : 01000 Bourg-en-Bresse" maxlength="80">
                         <span class="edit-help">L'adresse est toujours visible sur le site (avec la carte Google Maps).</span>
                     </label>
                     <label class="edit-field">
                         <span class="edit-label">Téléphone</span>
-                        <input type="tel" id="contact-phone" placeholder="Ex : 04 74 12 34 56">
+                        <input type="tel" id="contact-phone" placeholder="Ex : 04 74 12 34 56" maxlength="30">
                     </label>
                     <label class="edit-field">
                         <span class="edit-label">Email</span>
-                        <input type="email" id="contact-email" placeholder="Ex : contact@monsalon.fr">
+                        <input type="email" id="contact-email" placeholder="Ex : contact@monsalon.fr" maxlength="100">
                     </label>
                     <label class="edit-field">
                         <span class="edit-label">Réservation en ligne (optionnel)</span>
-                        <input type="url" id="contact-booking-url" placeholder="Ex : https://www.planity.com/votre-salon">
+                        <input type="url" id="contact-booking-url" placeholder="Ex : https://www.planity.com/votre-salon" maxlength="250">
                         <span class="edit-help">Si vous avez Planity, Booksy, Treatwell, etc. : collez votre lien de réservation. Le bouton « Réserver » du site dirigera directement vos clients vers votre planning.</span>
                     </label>
                 </div>
@@ -352,7 +352,7 @@
                     <span class="edit-help">Activez/désactivez l'affichage de chaque réseau. Laissez vide pour masquer.</span>
                     <div class="social-row" data-social="facebook">
                         <span class="social-name">Facebook</span>
-                        <input type="url" placeholder="https://facebook.com/votresalon">
+                        <input type="url" placeholder="https://facebook.com/votresalon" maxlength="250">
                         <label class="edit-toggle compact">
                             <input type="checkbox">
                             <span class="toggle-slider"></span>
@@ -360,7 +360,7 @@
                     </div>
                     <div class="social-row" data-social="instagram">
                         <span class="social-name">Instagram</span>
-                        <input type="url" placeholder="https://instagram.com/votresalon">
+                        <input type="url" placeholder="https://instagram.com/votresalon" maxlength="250">
                         <label class="edit-toggle compact">
                             <input type="checkbox">
                             <span class="toggle-slider"></span>
@@ -368,7 +368,7 @@
                     </div>
                     <div class="social-row" data-social="tiktok">
                         <span class="social-name">TikTok</span>
-                        <input type="url" placeholder="https://tiktok.com/@votresalon">
+                        <input type="url" placeholder="https://tiktok.com/@votresalon" maxlength="250">
                         <label class="edit-toggle compact">
                             <input type="checkbox">
                             <span class="toggle-slider"></span>
@@ -376,7 +376,7 @@
                     </div>
                     <div class="social-row" data-social="youtube">
                         <span class="social-name">YouTube</span>
-                        <input type="url" placeholder="https://youtube.com/@votresalon">
+                        <input type="url" placeholder="https://youtube.com/@votresalon" maxlength="250">
                         <label class="edit-toggle compact">
                             <input type="checkbox">
                             <span class="toggle-slider"></span>
@@ -425,7 +425,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="/edit-app/edit.js"></script>
+<script src="/edit-app/edit.js?v=2"></script>
 <script src="/edit-app/onboarding.js?v=5" defer></script>
 <!-- Bannière commerciale (s'affiche dès l'ouverture du menu d'édition, mêmes
      règles close/reappear qu'en /preview). La modal pricing est chargée en

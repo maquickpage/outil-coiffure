@@ -1012,18 +1012,38 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Stat fallback (pas de note Google) */
+/* Stat fallback (pas de note Google) — garde la même hauteur que .stat-item
+   normal et adapte la taille du texte selon sa longueur (via container query
+   sur la taille de la box + line-clamp pour ne jamais déborder en bas).
+   Limite côté éditeur : maxlength=100 sur intro-fallback. */
 .stat-item.stat-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 0 16px;
+    padding: 16px 18px;
+    container-type: inline-size;
 }
 .stat-fallback-text {
-    display: block;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
     font-family: var(--font-heading);
-    font-size: 1.15rem;
     font-style: italic;
     color: var(--color-secondary);
-    line-height: 1.45;
+    line-height: 1.4;
+    /* Taille adaptative : si la phrase est courte → grande, si longue → plus
+       petite. cqi = % de inline-size du container (= largeur de la box stat). */
+    font-size: clamp(0.85rem, 5.5cqi, 1.4rem);
+    letter-spacing: -0.005em;
+}
+/* Sur container plus large (= desktop, ≈ 480px+), permet d'aller jusqu'à 1.6rem
+   sans déborder, tout en restant lisible. */
+@container (min-width: 380px) {
+    .stat-fallback-text {
+        font-size: clamp(0.95rem, 4.5cqi, 1.6rem);
+    }
 }
 
 /* SERVICES — wrapper carousel
