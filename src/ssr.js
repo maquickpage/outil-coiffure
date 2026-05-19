@@ -217,11 +217,15 @@ export function renderSalonHtml(view, options = {}) {
   // sections répétitives (services, gallery, testimonials, hours…) sans avoir
   // à refaire un fetch /api/salon. Indispensable sur custom hostnames
   // (Falkenstein) où l'URL est `/` et où main.js ne peut pas inférer un slug.
-  // Le SSR a déjà inscrit les champs simples (hero-title, contact NAP, etc.)
-  // via replaceElementById ; ce <script> permet à main.js de remplir le reste.
+  //
+  // IMPORTANT : on injecte dans <head> (pas avant </body>) parce que main.js
+  // est chargé en mode bloquant dans le body et son IIFE s'exécute AVANT
+  // les scripts en bas de page. En mettant ce script dans <head>, on garantit
+  // qu'il s'exécute en premier et que window.__SALON_VIEW__ est défini quand
+  // main.js démarre.
   const safeView = JSON.stringify(view).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e');
   const viewScript = `<script>window.__SALON_VIEW__=${safeView};</script>`;
-  html = html.replace(/<\/body>/i, `${viewScript}</body>`);
+  html = html.replace(/<\/head>/i, `${viewScript}</head>`);
 
   return html;
 }
