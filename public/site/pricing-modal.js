@@ -74,6 +74,7 @@
     suggestions: [],          // resultats /api/domain/suggestions/:slug
     customResult: null,       // dernier resultat /api/domain/check-custom
     customError: null,
+    customQuery: '',          // dernière saisie utilisateur (pour la garder visible en cas d'erreur)
     loading: false,
     email: '',
     cgvAccepted: false,       // case CGV cochée
@@ -266,7 +267,7 @@
     } else if (taken) {
       badge = `<span class="mqs-badge mqs-badge-pris">Déjà pris</span>`;
     } else {
-      badge = `<span class="mqs-badge mqs-badge-offert">Disponible · Offert</span>`;
+      badge = `<span class="mqs-badge mqs-badge-offert">Offert</span>`;
     }
     const classes = ['mqs-domain-row'];
     if (isSelected) classes.push('mqs-domain-selected');
@@ -316,7 +317,7 @@
       <details class="mqs-custom-block" ${isOpen ? 'open' : ''}>
         <summary class="mqs-custom-toggle">
           <span class="mqs-custom-toggle-icon" aria-hidden="true">＋</span>
-          <span class="mqs-custom-toggle-label">Ou choisir mon adresse web moi-même</span>
+          <span class="mqs-custom-toggle-label">Choisir mon nom de domaine moi-même</span>
         </summary>
         <div class="mqs-custom-content">
           <div class="mqs-custom-input-row">
@@ -327,6 +328,7 @@
               placeholder="monsalon"
               autocomplete="off"
               spellcheck="false"
+              value="${escapeHtml(state.customQuery || '')}"
             />
             <select id="mqs-custom-tld" class="mqs-custom-tld">
               <option value=".fr">.fr</option>
@@ -470,6 +472,24 @@
           onCustomCheck();
         }
       });
+      // Persiste la saisie en cours dans state.customQuery (sans re-render
+      // pour ne pas perdre focus/curseur). Garantit que l'input garde sa
+      // valeur après les re-render déclenchés par d'autres interactions.
+      m.querySelector('#mqs-custom-input')?.addEventListener('input', (e) => {
+        state.customQuery = e.target.value;
+      });
+      // Quand l'utilisateur ferme le volet "custom" manuellement (clic sur
+      // la croix du summary), on purge l'état pour qu'aucun message d'erreur
+      // périmé ne réapparaisse à la prochaine ouverture / re-render.
+      // Invariant : un message d'erreur ne doit JAMAIS être visible avec un
+      // champ de recherche vide.
+      m.querySelector('.mqs-custom-block')?.addEventListener('toggle', (e) => {
+        if (!e.target.open) {
+          state.customError = null;
+          state.customResult = null;
+          state.customQuery = '';
+        }
+      });
     }
 
     if (state.step === 'C') {
@@ -524,6 +544,7 @@
     state.selectedHostnameInfo = null;
     state.customResult = null;
     state.customError = null;
+    state.customQuery = '';
     state.loading = true;
     state.suggestions = [];
     // Si l'utilisateur revient en arrière et change de plan, l'acceptation des CGV
@@ -589,13 +610,23 @@
   function selectDomain(hostname) {
     // Cherche les infos dans suggestions, sinon dans customResult
     let info = state.suggestions.find(s => s.hostname === hostname);
-    if (!info && state.customResult && state.customResult.hostname === hostname) {
+    const isFromCustom = !info && state.customResult && state.customResult.hostname === hostname;
+    if (isFromCustom) {
       info = state.customResult;
     }
     // Refuse la sélection d'un domaine indisponible
     if (info && info.available === false) return;
     state.selectedHostname = hostname;
     state.selectedHostnameInfo = info || null;
+    // Si la sélection vient d'une suggestion régulière (pas du résultat custom),
+    // on nettoie l'état du volet "custom" pour qu'aucun message d'erreur
+    // périmé ne reste affiché (le volet se refermera automatiquement au
+    // prochain renderModal car isOpen sera false).
+    if (!isFromCustom) {
+      state.customError = null;
+      state.customResult = null;
+      state.customQuery = '';
+    }
     renderModal();
   }
 
@@ -605,6 +636,10 @@
     const input = m.querySelector('#mqs-custom-input');
     const tld = m.querySelector('#mqs-custom-tld').value;
     const raw = (input?.value || '').trim().toLowerCase();
+    // Conserve la saisie dans state pour qu'elle reste affichée même après
+    // le re-render qui suit (sinon l'input se réinitialiserait à vide alors
+    // que le message d'erreur, lui, resterait visible — violation de l'invariant).
+    state.customQuery = raw;
     if (!raw) {
       state.customError = 'Tapez un nom avant de vérifier.';
       renderModal();
@@ -704,6 +739,7 @@
     state.suggestions = [];
     state.customResult = null;
     state.customError = null;
+    state.customQuery = '';
     state.loading = false;
     state.email = '';
     state.cgvAccepted = false;
