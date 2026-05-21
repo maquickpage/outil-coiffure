@@ -76,12 +76,55 @@
     const el = document.querySelector(`.mqs-waiting-step[data-step="${id}"]`);
     if (!el) return;
     el.classList.add('mqs-step-done');
+    el.classList.remove('mqs-step-active');
     const icon = el.querySelector('.mqs-step-icon');
     if (icon) icon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="#10B981" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
+  // Marque une étape comme "en cours" (= spinner visible + classe .mqs-step-active
+  // pour mettre en avant la ligne avec un style typo gras et un fond léger).
+  function setStepActive(id) {
+    const el = document.querySelector(`.mqs-waiting-step[data-step="${id}"]`);
+    if (!el || el.classList.contains('mqs-step-done')) return;
+    el.classList.add('mqs-step-active');
+    const icon = el.querySelector('.mqs-step-icon');
+    if (icon) icon.innerHTML = `<span class="mqs-spinner"></span>`;
+  }
+
   function setAllStepsDone() {
     STEPS.forEach(s => setStepDone(s.id));
+  }
+
+  // Mapping step backend → UI : quelle étape afficher comme "done" et laquelle
+  // est "active" (spinner). Le backend expose ces steps via /api/signup/status.
+  //   - init / ovh_register / ovh_poll : achat domaine OVH en cours
+  //   - ovh_dns                        : config DNS en cours
+  //   - sync_falkenstein               : sync vers le serveur LIVE
+  //   - verify_live                    : Caddy obtient le cert + Helsinki poll
+  //   - finalize                       : flip subscription_status=live en DB
+  //   - done                           : terminé (subscription=live)
+  function applyStepProgress(backendStep) {
+    setStepDone('paid'); // toujours done à ce stade (la waiting screen démarre après Stripe success)
+
+    const map = {
+      init:             { done: [],                              active: 'domain' },
+      ovh_register:     { done: [],                              active: 'domain' },
+      ovh_poll:         { done: [],                              active: 'domain' },
+      ovh_dns:          { done: ['domain'],                      active: 'dns' },
+      sync_falkenstein: { done: ['domain', 'dns'],               active: 'ssl' },
+      verify_live:      { done: ['domain', 'dns'],               active: 'ssl' },
+      finalize:         { done: ['domain', 'dns', 'ssl'],        active: 'live' },
+      done:             { done: ['domain', 'dns', 'ssl', 'live'], active: null },
+    };
+    const m = map[backendStep];
+    if (!m) {
+      // step inconnu (peut arriver si le job en mémoire a expiré ou serveur restart) :
+      // on laisse 'paid' done et on met 'domain' en active par défaut.
+      setStepActive('domain');
+      return;
+    }
+    m.done.forEach(id => setStepDone(id));
+    if (m.active) setStepActive(m.active);
   }
 
   function showFinalSuccess(liveHostname) {
@@ -147,25 +190,23 @@
       const res = await fetch(url);
       if (!res.ok) return; // retry au prochain tick
       const data = await res.json();
-      // Update visual progress according to status
-      // status: 'pending' | 'provisioning' | 'live' | 'error'
-      setStepDone('paid');
-      if (data.status === 'provisioning') {
-        // On simule la progression visuelle (les vraies étapes sont async côté serveur)
-        // Au moins on coche 'paid' visuellement.
-        if (elapsedSec > 12) setStepDone('domain');
-        if (elapsedSec > 60) setStepDone('dns');
-        if (elapsedSec > 120) setStepDone('ssl');
-      }
+      // data : { status, step?, error?, liveHostname?, ... }
+      //   - status : 'pending' | 'provisioning' | 'live' | 'error' (depuis subscription_status DB)
+      //   - step   : étape détaillée du provisioning en mémoire ('ovh_dns', 'verify_live', etc.)
+      //              Peut être null si le job en mémoire n'existe plus (serveur restart, etc.)
       if (data.status === 'live') {
         clearInterval(pollInterval);
         setAllStepsDone();
         setTimeout(() => showFinalSuccess(data.liveHostname), 800);
+        return;
       }
       if (data.status === 'error') {
         clearInterval(pollInterval);
-        showError('Erreur de configuration côté serveur.');
+        showError(data.error || 'Erreur de configuration côté serveur.');
+        return;
       }
+      // 'pending' ou 'provisioning' → on update la progression visuelle selon le step réel
+      applyStepProgress(data.step);
     } catch (err) {
       // Réseau : retry au prochain tick
     }

@@ -19,6 +19,7 @@
 import express from 'express';
 import db from '../db.js';
 import { checkDomainsParallel, checkDomainAvailability } from '../ovh-client.js';
+import { getProvisioningStatus } from '../provisioning-worker.js';
 import Stripe from 'stripe';
 
 const router = express.Router();
@@ -446,9 +447,22 @@ router.get('/signup/status', (req, res) => {
     `).get(sessionId);
   }
   if (!row) return res.status(404).json({ error: 'Inconnu' });
+
+  // Lit le step en cours du provisioning job (en mémoire, peut être null si :
+  //   - le webhook Stripe n'a pas encore créé le job (race au tout début)
+  //   - le job est terminé et a été nettoyé/expiré
+  //   - le serveur a redémarré pendant le provisioning
+  // → dans ces cas le frontend tombera en fallback sur subscription_status seul.
+  const job = getProvisioningStatus(row.slug);
+
   res.json({
     slug: row.slug,
     status: row.subscription_status || 'pending',
+    // step détaillé pour la waiting screen progressive :
+    // 'init' | 'ovh_register' | 'ovh_poll' | 'ovh_dns' | 'sync_falkenstein'
+    // | 'verify_live' | 'finalize' | 'done'
+    step: job?.step || null,
+    error: job?.error || null,
     liveHostname: row.live_hostname,
     plan: row.plan,
     signedUpAt: row.signed_up_at,

@@ -101,6 +101,17 @@
     background: #f0fdf4;
 }
 
+/* Étape en cours : fond légèrement teinté + label en gras pour signaler
+   "c'est ICI que ça se passe en ce moment". Le spinner est déjà visible
+   via .mqs-step-icon (par défaut), pas besoin de l'ajouter explicitement. */
+.mqs-waiting-step.mqs-step-active {
+    background: #fef3c7;
+}
+.mqs-waiting-step.mqs-step-active .mqs-step-label {
+    color: #92400e;
+    font-weight: 600;
+}
+
 .mqs-step-icon {
     width: 24px;
     height: 24px;

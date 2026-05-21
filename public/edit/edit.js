@@ -768,24 +768,6 @@ function extractCurrentOverrides() {
 $$('.btn-save').forEach(b => b.onclick = () => save(b.dataset.section));
 
 // ===========================================================
-// RESET
-// ===========================================================
-$('btn-reset').onclick = async () => {
-  const ok = await confirmDialog(
-    'Tout réinitialiser ?',
-    'Toutes vos modifications seront perdues et le site reviendra aux valeurs d\'origine. Continuer ?'
-  );
-  if (!ok) return;
-  try {
-    await apiResetOverrides();
-    await load();
-    toast('Site réinitialisé.', 'success');
-  } catch (e) {
-    toast(e.message, 'error');
-  }
-};
-
-// ===========================================================
 // TABS
 // ===========================================================
 $$('.edit-tab').forEach(tab => {
