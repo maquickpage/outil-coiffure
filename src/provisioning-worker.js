@@ -488,18 +488,38 @@ async function configureOvhDns(hostname, _fallbackOrigin) {
 async function pollHttpsReachable(hostname, timeoutMs = 20 * 60 * 1000) {
   // Bug observé : fetch() utilise dns.lookup → cache OS systemd-resolved obsolète.
   // Résultat : Helsinki résout ancien IP (213.186.33.5 default OVH) pendant
-  // jusqu'à 1h TTL. On bypass en faisant dns.resolve4 explicite vers 1.1.1.1 + 8.8.8.8
-  // (court-circuite le cache OS), puis on connecte sur l'IP avec SNI=hostname.
+  // jusqu'à 1h TTL. On bypass en faisant dns.resolve4 explicite.
+  //
+  // Bug observé v2 (21/05/2026, test la-ravoire-paternum) : si on configure
+  // setServers(['1.1.1.1', '8.8.8.8']), Node n'essaie le 2ème serveur QUE en
+  // cas de timeout réseau — il accepte tel quel un NXDOMAIN/ENOTFOUND du 1er,
+  // car c'est une "réponse définitive". Or 1.1.1.1 met souvent 5-10 min à
+  // propager une nouvelle zone (cache négatif) alors que 8.8.8.8 et 9.9.9.9
+  // sont quasi instantanés. → on bloquait 7-11 min en boucle ENOTFOUND.
+  //
+  // Fix : Promise.any sur 3 resolvers en PARALLELE. On prend la première
+  // réponse valide (ignore les rejets). Si tous rejettent → checkOnce() retry.
   const dns = await import('node:dns');
   const https = await import('node:https');
-  const resolver = new dns.promises.Resolver();
-  resolver.setServers(['1.1.1.1', '8.8.8.8']);
+
+  // Resolvers indépendants (chacun avec son socket UDP/TCP) → vraiment parallèles
+  const resolvers = [['1.1.1.1'], ['8.8.8.8'], ['9.9.9.9']].map(servers => {
+    const r = new dns.promises.Resolver();
+    r.setServers(servers);
+    return r;
+  });
+
+  async function resolveFastest(host) {
+    // Promise.any retourne la première promise qui résout (= 1ère IP trouvée)
+    // et ignore les rejets. Si tous rejettent → throw AggregateError.
+    return await Promise.any(resolvers.map(r => r.resolve4(host)));
+  }
 
   function checkOnce() {
     return new Promise(async (resolve) => {
       let ip;
       try {
-        const addrs = await resolver.resolve4(hostname);
+        const addrs = await resolveFastest(hostname);
         if (!addrs?.length) return resolve(false);
         ip = addrs[0];
       } catch { return resolve(false); }
