@@ -306,6 +306,11 @@ async function sendSignupConfirmation(slug, hostname) {
     // premier clic depuis l'email. Passé 24 h ou après usage, le coiffeur
     // demande un nouveau magic link via le form "/admin/{slug}".
     const setupToken = generateRecoveryToken(slug, 24 * 60); // 24h
+    // CRITIQUE : on doit re-sync vers Falkenstein APRES generateRecoveryToken
+    // pour que le token soit présent côté Falkenstein. Sinon le coiffeur clique
+    // sur le lien du mail → Falkenstein ne connaît pas le token → 401 → form
+    // "entrez votre email" au lieu de l'accès direct à l'éditeur.
+    await syncSalonToFalkenstein(slug);
     const result = await sendSignupSuccessEmail({
       to: row.owner_email,
       salonName: row.nom_clean || row.nom || 'votre salon',

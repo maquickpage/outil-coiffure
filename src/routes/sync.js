@@ -58,6 +58,10 @@ router.post('/sync/:slug', express.json({ limit: '2mb' }), requireSyncAuth, (req
     'domain_suggestions_json', 'domain_suggestions_at',
     'cgv_accepted_at', 'cgv_version', 'cgv_accepted_ip',
     'suspended_at', 'suspended_reason',
+    // Magic link token doit être propagé vers Falkenstein, sinon le lien dans
+    // l'email "site en ligne" (généré par Helsinki) est inconnu de Falkenstein
+    // → coiffeur tombe sur le form "entrez votre email" au lieu d'accès direct.
+    'recovery_token', 'recovery_token_expires_at',
     'created_at', 'updated_at',
   ];
 
