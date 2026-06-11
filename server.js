@@ -296,6 +296,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// === Tracking funnel maquettes (observe-only, JAMAIS bloquant) ===
+// Middleware : log preview_ouvert / editeur_ouvert / editeur_modifie (gated
+// routingMode==='public' → uniquement le funnel prospect). Router : POST
+// /api/track (beacons navigateur). Module isolé, n'altère aucune route.
+const { trackingMiddleware, default: trackingRouter } = await import('./src/routes/tracking.js');
+app.use(trackingMiddleware);
+app.use('/api', trackingRouter);
+
 // Routes always available regardless of host
 app.use('/screenshots', express.static(SCREENSHOTS_DIR, { maxAge: '1h' }));
 app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '1h' }));

@@ -625,3 +625,30 @@ function setupNavbar() {
     }
   }
 })();
+
+// === Tracking profondeur de scroll (best-effort, uniquement sur /preview/) ===
+// Envoie le % de scroll max atteint quand l'utilisateur quitte/masque la page.
+// Permet de savoir "jusqu'où il a fait défiler la maquette". Non bloquant.
+(function () {
+  'use strict';
+  try {
+    const path = (window.location.pathname || '').replace(/^\/+|\/+$/g, '');
+    if (path.split('/')[0] !== 'preview') return;
+    let maxPct = 0, sent = false;
+    function compute() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight);
+      const pct = scrollable > 0 ? Math.round((window.scrollY / scrollable) * 100) : 100;
+      if (pct > maxPct) maxPct = Math.min(100, pct);
+    }
+    window.addEventListener('scroll', compute, { passive: true });
+    function flush() {
+      if (sent) return;
+      sent = true;
+      try { window.mqsTrack && window.mqsTrack('scroll_max', { pct: maxPct }); } catch (e) {}
+    }
+    // sendBeacon fiable sur visibilitychange (mobile) + pagehide (desktop)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+    window.addEventListener('pagehide', flush);
+  } catch (e) { /* silencieux */ }
+})();

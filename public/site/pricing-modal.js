@@ -452,7 +452,10 @@
     if (state.step === 'B') {
       m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('A'));
       m.querySelector('#mqs-continue-btn')?.addEventListener('click', () => {
-        if (state.selectedHostname) goToStep('C');
+        if (state.selectedHostname) {
+          try { window.mqsTrack && window.mqsTrack('etape_email', { hostname: state.selectedHostname }); } catch (e) {}
+          goToStep('C');
+        }
       });
       m.querySelectorAll('.mqs-domain-row[data-hostname]').forEach(row => {
         // Skip les rows "déjà pris" : non-cliquables
@@ -537,6 +540,8 @@
   async function selectPlanAndAdvance(planKey) {
     const plan = planByKey(planKey);
     if (!plan) return;
+    // Tracking (best-effort) : a choisi un plan → arrive sur l'écran domaines.
+    try { window.mqsTrack && window.mqsTrack('etape_domaine', { plan: planKey }); } catch (e) {}
     state.selectedPlan = planKey;
     state.step = 'B';
     state.suggestions = [];
@@ -688,6 +693,8 @@
     if (state.submitting) return;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email)) return;
     if (!state.cgvAccepted) return;
+    // Tracking (best-effort) : a cliqué "Procéder au paiement".
+    try { window.mqsTrack && window.mqsTrack('paiement_initie', { plan: state.selectedPlan, hostname: state.selectedHostname }); } catch (e) {}
     state.submitting = true;
     renderModal();
 
@@ -764,6 +771,9 @@
 
     // Notifie le banner (top ribbon + bottom bar) de se cacher pendant la modal
     window.dispatchEvent(new CustomEvent('mqs-pricing-modal-open'));
+
+    // Tracking (best-effort) : a ouvert la modale = a vu l'écran des tarifs (étape A).
+    try { window.mqsTrack && window.mqsTrack('pricing_ouvert'); } catch (e) {}
   }
 
   function closeModal() {

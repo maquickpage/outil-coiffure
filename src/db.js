@@ -185,6 +185,31 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_stripe_events_type ON stripe_events(type);
   `);
 
+  // === Suivi funnel maquettes (tracking visites + comportement) ===
+  // Marquage "envoyé en cold-mail" (date du batch Smartlead). Permet de savoir
+  // côté DB quels salons sont déjà partis, sans ouvrir Smartlead.
+  if (!cols.includes('cold_mail_sent_at')) db.exec("ALTER TABLE salons ADD COLUMN cold_mail_sent_at TEXT");
+  // Événements de visite : 1 ligne par event (preview_ouvert, editeur_ouvert,
+  // editeur_modifie, pricing_ouvert, etape_prix/domaine/email, paiement_initie,
+  // scroll_max…). Table ISOLÉE, aucun lien FK dur (slug en texte). Purge 90j
+  // possible via DELETE WHERE ts < date. Écriture best-effort (jamais bloquante).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS preview_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts TEXT DEFAULT (datetime('now')),
+      event TEXT NOT NULL,
+      slug TEXT,
+      token TEXT,
+      src TEXT,
+      meta TEXT,
+      ip TEXT,
+      user_agent TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_preview_events_slug ON preview_events(slug);
+    CREATE INDEX IF NOT EXISTS idx_preview_events_event ON preview_events(event);
+    CREATE INDEX IF NOT EXISTS idx_preview_events_ts ON preview_events(ts);
+  `);
+
   // 3. Index sur edit_token : seulement maintenant que la colonne existe
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_salons_edit_token ON salons(edit_token) WHERE edit_token IS NOT NULL");
   // Index sur live_hostname : lookup rapide par domaine custom
