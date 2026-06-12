@@ -103,7 +103,7 @@
       recall:'À rappeler',th_salon:'Salon',th_level:'Niveau atteint',th_count:'Nb',th_scroll:'Scroll',th_date:'Dernière activité',
       st_client:'✅ Client',st_pay:'🔥 Paiement initié',st_editsave:'🔥 A édité sa démo',st_editopen:'A ouvert l\'éditeur',st_custom:'Domaine perso tapé',st_email:'Étape email',st_domains:'A vu les domaines',st_pricing:'A vu les tarifs',st_scroll:'A scrollé',st_view:'A vu la page',
       e_view:'Vue page',e_scroll:'Scroll',e_pricing:'Tarifs',e_domains:'Domaines',e_custom:'Domaine perso',e_email:'Étape email',e_editopen:'Éditeur ouvert',e_editsave:'Démo éditée',e_pay:'Paiement initié',
-      d_events:'Événements',d_ip:'IP',d_device:'Appareil',
+      d_events:'Événements',d_ip:'IP',d_device:'Appareil',d_plan:'Plan choisi',
       see:'Voir →',none:'Aucune visite pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j'},
     en:{brand:'Mockup tracking',refresh:'Refresh',exp:'CSV',maj:'upd.',search:'Search salon, city, email…',humans:'Humans only',auto:'Auto (60s)',loading:'Loading…',
       k_visited:'Salons visited',k_pricing:'Saw pricing',k_domains:'Saw domains',k_custom:'Typed custom domain',k_edited:'Edited demo',k_pay:'Payment started',k_clients:'Became clients',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
@@ -111,7 +111,7 @@
       recall:'To call',th_salon:'Salon',th_level:'Stage reached',th_count:'#',th_scroll:'Scroll',th_date:'Last activity',
       st_client:'✅ Client',st_pay:'🔥 Payment started',st_editsave:'🔥 Edited demo',st_editopen:'Opened editor',st_custom:'Typed custom domain',st_email:'Email step',st_domains:'Saw domains',st_pricing:'Saw pricing',st_scroll:'Scrolled',st_view:'Viewed page',
       e_view:'Page view',e_scroll:'Scroll',e_pricing:'Pricing',e_domains:'Domains',e_custom:'Custom domain',e_email:'Email step',e_editopen:'Editor opened',e_editsave:'Demo edited',e_pay:'Payment started',
-      d_events:'Events',d_ip:'IP',d_device:'Device',
+      d_events:'Events',d_ip:'IP',d_device:'Device',d_plan:'Chosen plan',
       see:'View →',none:'No visits yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: ',u_min:'min',u_h:'h',u_d:'d'},
     zh:{brand:'样板追踪',refresh:'刷新',exp:'CSV',maj:'更新',search:'搜索沙龙、城市、邮箱…',humans:'仅真人',auto:'自动 (60秒)',loading:'加载中…',
       k_visited:'已访问的沙龙',k_pricing:'查看了价格',k_domains:'查看了域名',k_custom:'输入了自定义域名',k_edited:'编辑了样板',k_pay:'已发起付款',k_clients:'已成为客户',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
@@ -119,7 +119,7 @@
       recall:'待联系',th_salon:'沙龙',th_level:'最高阶段',th_count:'次数',th_scroll:'滚动',th_date:'最近活动',
       st_client:'✅ 客户',st_pay:'🔥 已发起付款',st_editsave:'🔥 编辑了样板',st_editopen:'打开了编辑器',st_custom:'输入了自定义域名',st_email:'邮箱步骤',st_domains:'查看了域名',st_pricing:'查看了价格',st_scroll:'已滚动',st_view:'查看了页面',
       e_view:'页面浏览',e_scroll:'滚动',e_pricing:'价格',e_domains:'域名',e_custom:'自定义域名',e_email:'邮箱步骤',e_editopen:'打开编辑器',e_editsave:'编辑样板',e_pay:'发起付款',
-      d_events:'事件',d_ip:'IP',d_device:'设备',
+      d_events:'事件',d_ip:'IP',d_device:'设备',d_plan:'所选套餐',
       see:'查看 →',none:'暂无访问。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：',u_min:'分钟',u_h:'小时',u_d:'天'}
   };
   var lang=(function(){try{var s=localStorage.getItem('outil-coiffure-lang');return T[s]?s:'fr';}catch(e){return 'fr';}})();
@@ -133,7 +133,8 @@
   }
   function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(raw.length)render();}
 
-  var STAGE={preview_ouvert:1,scroll_max:2,pricing_ouvert:3,etape_domaine:4,etape_email:5,domaine_perso:6,editeur_ouvert:7,editeur_modifie:8,paiement_initie:9};
+  var STAGE={preview_ouvert:1,pricing_ouvert:3,etape_domaine:4,etape_email:5,domaine_perso:6,editeur_ouvert:7,editeur_modifie:8,paiement_initie:9};
+  var PLAN={TWO_YEAR:'9,90€ · 24 mois',ONE_YEAR:'17,90€ · 12 mois',FLEX:'29€ · sans engagement'};
   var EVENT_KEY={preview_ouvert:'e_view',scroll_max:'e_scroll',pricing_ouvert:'e_pricing',etape_domaine:'e_domains',domaine_perso:'e_custom',etape_email:'e_email',editeur_ouvert:'e_editopen',editeur_modifie:'e_editsave',paiement_initie:'e_pay'};
   var HEATLBL={9:['b-hot','st_pay'],8:['b-hot','st_editsave'],7:['b-warm','st_editopen'],6:['b-warm','st_custom'],5:['b-warm','st_email'],4:['b-tiede','st_domains'],3:['b-tiede','st_pricing'],2:['b-cold','st_scroll'],1:['b-cold','st_view']};
   function stageLabel(score,client){if(client)return['b-client',t('st_client')];var h=HEATLBL[score]||HEATLBL[1];return[h[0],t(h[1])];}
@@ -155,14 +156,17 @@
   function aggregate(events){
     var bySlug={};
     events.forEach(function(e){var slug=e.slug;if(!slug)return;
-      var s=bySlug[slug]||(bySlug[slug]={slug:slug,salon:e.salon||slug,ville:e.ville||'',email:e.email||'',status:e.subscription_status||'',heat:0,last:'',count:0,scroll:0,events:{},ips:{},uas:{}});
+      var s=bySlug[slug]||(bySlug[slug]={slug:slug,salon:e.salon||slug,ville:e.ville||'',email:e.email||'',status:e.subscription_status||'',plan:'',heat:0,last:'',count:0,scroll:0,events:{},ips:{},uas:{}});
       if(e.salon)s.salon=e.salon;if(e.ville)s.ville=e.ville;if(e.email)s.email=e.email;if(e.subscription_status)s.status=e.subscription_status;
       var st=STAGE[e.event]||0;if(st>s.heat)s.heat=st;s.count++;
       var ev=s.events[e.event]||(s.events[e.event]={n:0,last:''});ev.n++;if(e.ts>ev.last)ev.last=e.ts;
       if(e.event==='scroll_max'&&e.meta){try{var m=JSON.parse(e.meta);if(m.pct>s.scroll)s.scroll=m.pct;}catch(x){}}
+      if((e.event==='etape_domaine'||e.event==='paiement_initie')&&e.meta&&!s.plan){try{var mp=JSON.parse(e.meta);if(mp.plan)s.plan=mp.plan;}catch(x){}}
       if(e.ip)s.ips[e.ip]=1;if(e.user_agent)s.uas[e.user_agent]=1;
       if(e.ts>s.last)s.last=e.ts;});
-    return Object.keys(bySlug).map(function(k){return bySlug[k];});
+    // "A scrollé" (niveau 2) seulement si scroll réel >0% (un scroll_max à 0%
+    // = vu sans scroller, ne doit pas surclasser un simple preview).
+    return Object.keys(bySlug).map(function(k){var s=bySlug[k];if(s.scroll>0&&s.heat<2)s.heat=2;return s;});
   }
   function isClient(s){return s.status==='live'||s.status==='active'||s.status==='trialing';}
   function heatOf(s){return isClient(s)?10:s.heat;}
@@ -180,7 +184,9 @@
     }).join('');
     var ips=Object.keys(s.ips).map(esc).join('<br>')||'—';
     var uas=Object.keys(s.uas).map(function(u){return esc(u);}).join('<br>')||'—';
+    var planBlock=s.plan?'<div><div class="dlabel">'+t('d_plan')+'</div><div class="devt"><b>'+esc(PLAN[s.plan]||s.plan)+'</b></div></div>':'';
     return '<tr class="detail"><td colspan="6"><div class="dgrid">'
+      +planBlock
       +'<div><div class="dlabel">'+t('d_events')+'</div>'+evts+'</div>'
       +'<div><div class="dlabel">'+t('d_ip')+'</div><div class="dmono">'+ips+'</div></div>'
       +'<div><div class="dlabel">'+t('d_device')+'</div><div class="dmono">'+uas+'</div></div>'

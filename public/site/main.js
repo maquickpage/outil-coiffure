@@ -643,7 +643,10 @@ function setupNavbar() {
     }
     window.addEventListener('scroll', compute, { passive: true });
     function flush() {
-      if (sent) return;
+      // N'envoie l'event QUE si le visiteur a réellement scrollé (>0%).
+      // Un "vu sans scroller" est déjà couvert par preview_ouvert → évite
+      // les events scroll_max à 0% (bruit + faux "a scrollé").
+      if (sent || maxPct <= 0) return;
       sent = true;
       try { window.mqsTrack && window.mqsTrack('scroll_max', { pct: maxPct }); } catch (e) {}
     }
