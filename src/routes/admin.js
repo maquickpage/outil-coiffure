@@ -97,6 +97,9 @@ router.get('/api/preview-visits.csv', (req, res) => {
   }
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="preview-visits.csv"');
+  // SÉCURITÉ : empêche tout cache (notamment Cloudflare qui cache .csv par
+  // extension → exposerait les données prospects en edge sans auth).
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0');
   res.send('﻿' + lines.join('\n')); // BOM UTF-8 pour Excel
 });
 
