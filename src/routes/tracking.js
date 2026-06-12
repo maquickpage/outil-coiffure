@@ -19,7 +19,7 @@ const router = express.Router();
 const RESERVED = new Set(['login', 'logout', 'me', 'index.html', 'login.html', 'admin.css', 'admin.js', 'i18n.js', 'api', 'groups', 'salon', 'job', 'screenshot', 'upload-csv', 'export-csv', 'clean-names', 'csv-source', 'reset-clean-name']);
 
 // Events navigateur autorisés (anti-spam de la table si l'endpoint est sondé).
-const ALLOWED_CLIENT_EVENTS = new Set(['pricing_ouvert', 'etape_prix', 'etape_domaine', 'etape_email', 'paiement_initie', 'scroll_max']);
+const ALLOWED_CLIENT_EVENTS = new Set(['pricing_ouvert', 'etape_prix', 'etape_domaine', 'domaine_perso', 'etape_email', 'paiement_initie', 'scroll_max']);
 
 let insertStmt = null;
 export function logEvent({ event, slug = null, token = null, src = null, meta = null, ip = null, ua = null }) {

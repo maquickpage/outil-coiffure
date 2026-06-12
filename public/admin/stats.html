@@ -28,10 +28,10 @@
   main{padding:16px;max-width:1100px;margin:0 auto;}
   .msg{text-align:center;color:var(--muted);padding:50px 20px;font-size:15px;}
   .msg a{color:var(--blue);font-weight:600;}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
   .kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
-  .kpi .v{font-size:28px;font-weight:800;line-height:1;}
-  .kpi .l{font-size:12.5px;color:var(--muted);margin-top:6px;font-weight:600;}
+  .kpi .v{font-size:26px;font-weight:800;line-height:1;}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:6px;font-weight:600;}
   .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px;}
   .kpi.hot .v{color:var(--hot);}.kpi.ok .v{color:var(--ok);}.kpi.gold .v{color:var(--gold-d);}
   .section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:24px 0 10px;}
@@ -43,17 +43,27 @@
   .fval{position:absolute;right:10px;top:0;height:26px;display:flex;align-items:center;font-size:12.5px;font-weight:700;}
   .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
-  th{text-align:left;padding:11px 12px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;}
-  th:hover{color:var(--ink);}
+  th{text-align:left;padding:11px 12px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none;}
+  th.sortable:hover{color:var(--ink);}
+  th .arr{opacity:.5;font-size:10px;margin-left:3px;}
   td{padding:11px 12px;border-bottom:1px solid #f0ece1;vertical-align:middle;}
-  tr:last-child td{border-bottom:none;}
+  tr.row{cursor:pointer;}
+  tr.row:hover td{background:#faf8f2;}
   .salon{font-weight:700;}.loc{font-size:12px;color:var(--muted);}.email{font-size:12.5px;color:var(--cool);}
   .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;}
   .b-client{background:#dcfce7;color:#14532d;}.b-hot{background:#fde2e0;color:#9b2c22;}.b-warm{background:#fef3c7;color:#92400e;}.b-tiede{background:#e0e7ff;color:#3730a3;}.b-cold{background:#eef0f2;color:#5b6470;}
-  .when{font-size:12px;color:var(--muted);white-space:nowrap;}
+  .when{font-size:12.5px;color:var(--muted);white-space:nowrap;}
+  .num{text-align:center;font-variant-numeric:tabular-nums;}
   .tlink{color:var(--blue);text-decoration:none;font-weight:600;font-size:13px;}
-  .scrollbar{height:6px;background:#efeada;border-radius:4px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle;}
+  .scrollbar{height:6px;background:#efeada;border-radius:4px;width:54px;overflow:hidden;display:inline-block;vertical-align:middle;}
   .scrollbar>i{display:block;height:100%;background:var(--gold-d);}
+  .detail td{background:#faf8f2;border-bottom:1px solid #f0ece1;padding:14px 16px;}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+  .dlabel{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-bottom:5px;}
+  .devt{font-size:13px;margin:2px 0;}
+  .devt b{font-weight:700;}
+  .dmono{font-size:12px;color:var(--cool);word-break:break-all;font-family:ui-monospace,Menlo,monospace;}
+  .caret{display:inline-block;width:14px;color:var(--muted);font-size:11px;}
   @media(max-width:680px){.fname{width:120px;font-size:12px;}td,th{padding:9px 8px;}.hide-sm{display:none;}}
 </style>
 </head>
@@ -84,45 +94,49 @@
   'use strict';
   var CSV_URL='/admin/api/preview-visits.csv', PREVIEW_BASE='https://maquickpage.fr/preview/';
   var $=function(id){return document.getElementById(id);};
-  var raw=[], sortKey='heat', sortDir=-1, autoTimer=null;
+  var raw=[], sortKey='heat', sortDir=-1, autoTimer=null, expanded={};
 
   var T={
     fr:{brand:'Suivi des maquettes',refresh:'Actualiser',exp:'CSV',maj:'maj',search:'Rechercher salon, ville, email…',humans:'Humains seulement',auto:'Auto (60s)',loading:'Chargement…',
-      k_visited:'Salons visités',k_pricing:'Ont vu les tarifs',k_domains:'Ont vu les domaines',k_edited:'Ont édité leur démo',k_edited_sub:'signal très chaud',k_pay:'Paiement initié',k_clients:'Devenus clients',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
+      k_visited:'Salons visités',k_pricing:'Ont vu les tarifs',k_domains:'Ont vu les domaines',k_custom:'Domaine perso tapé',k_edited:'Ont édité leur démo',k_pay:'Paiement initié',k_clients:'Devenus clients',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
       funnel_title:'Entonnoir comportemental',f_visited:'Visité la maquette',f_pricing:'A vu les tarifs',f_domains:'A vu les domaines',f_pay:'Paiement initié',f_client:'Devenu client',
-      recall:'À rappeler',th_salon:'Salon',th_level:'Niveau',th_visits:'Visites',th_scroll:'Scroll',th_last:'Dernière activité',
-      st_client:'✅ Client',st_hot:'🔥 Presque client',st_email:'Chaud · étape email',st_dom:'Intéressé · a vu domaines',st_pricing:'A vu les tarifs',st_visit:'A visité',
-      see:'Voir →',none:'Aucune visite pour le moment.',notfound:'Aucun salon trouvé.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j',max60:'60 max affichés'},
+      recall:'À rappeler',th_salon:'Salon',th_level:'Niveau atteint',th_count:'Nb',th_scroll:'Scroll',th_date:'Dernière activité',
+      st_client:'✅ Client',st_pay:'🔥 Paiement initié',st_editsave:'🔥 A édité sa démo',st_editopen:'A ouvert l\'éditeur',st_custom:'Domaine perso tapé',st_email:'Étape email',st_domains:'A vu les domaines',st_pricing:'A vu les tarifs',st_scroll:'A scrollé',st_view:'A vu la page',
+      e_view:'Vue page',e_scroll:'Scroll',e_pricing:'Tarifs',e_domains:'Domaines',e_custom:'Domaine perso',e_email:'Étape email',e_editopen:'Éditeur ouvert',e_editsave:'Démo éditée',e_pay:'Paiement initié',
+      d_events:'Événements',d_ip:'IP',d_device:'Appareil',
+      see:'Voir →',none:'Aucune visite pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j'},
     en:{brand:'Mockup tracking',refresh:'Refresh',exp:'CSV',maj:'upd.',search:'Search salon, city, email…',humans:'Humans only',auto:'Auto (60s)',loading:'Loading…',
-      k_visited:'Salons visited',k_pricing:'Saw pricing',k_domains:'Saw domains',k_edited:'Edited their demo',k_edited_sub:'very hot signal',k_pay:'Payment started',k_clients:'Became clients',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
+      k_visited:'Salons visited',k_pricing:'Saw pricing',k_domains:'Saw domains',k_custom:'Typed custom domain',k_edited:'Edited demo',k_pay:'Payment started',k_clients:'Became clients',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
       funnel_title:'Behavioral funnel',f_visited:'Visited the mockup',f_pricing:'Saw pricing',f_domains:'Saw domains',f_pay:'Payment started',f_client:'Became client',
-      recall:'To call',th_salon:'Salon',th_level:'Level',th_visits:'Visits',th_scroll:'Scroll',th_last:'Last activity',
-      st_client:'✅ Client',st_hot:'🔥 Near client',st_email:'Hot · email step',st_dom:'Interested · saw domains',st_pricing:'Saw pricing',st_visit:'Visited',
-      see:'View →',none:'No visits yet.',notfound:'No salon found.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: ',u_min:'min',u_h:'h',u_d:'d',max60:'60 max shown'},
+      recall:'To call',th_salon:'Salon',th_level:'Stage reached',th_count:'#',th_scroll:'Scroll',th_date:'Last activity',
+      st_client:'✅ Client',st_pay:'🔥 Payment started',st_editsave:'🔥 Edited demo',st_editopen:'Opened editor',st_custom:'Typed custom domain',st_email:'Email step',st_domains:'Saw domains',st_pricing:'Saw pricing',st_scroll:'Scrolled',st_view:'Viewed page',
+      e_view:'Page view',e_scroll:'Scroll',e_pricing:'Pricing',e_domains:'Domains',e_custom:'Custom domain',e_email:'Email step',e_editopen:'Editor opened',e_editsave:'Demo edited',e_pay:'Payment started',
+      d_events:'Events',d_ip:'IP',d_device:'Device',
+      see:'View →',none:'No visits yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: ',u_min:'min',u_h:'h',u_d:'d'},
     zh:{brand:'样板追踪',refresh:'刷新',exp:'CSV',maj:'更新',search:'搜索沙龙、城市、邮箱…',humans:'仅真人',auto:'自动 (60秒)',loading:'加载中…',
-      k_visited:'已访问的沙龙',k_pricing:'查看了价格',k_domains:'查看了域名',k_edited:'编辑了样板',k_edited_sub:'非常热门的信号',k_pay:'已发起付款',k_clients:'已成为客户',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
+      k_visited:'已访问的沙龙',k_pricing:'查看了价格',k_domains:'查看了域名',k_custom:'输入了自定义域名',k_edited:'编辑了样板',k_pay:'已发起付款',k_clients:'已成为客户',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
       funnel_title:'行为漏斗',f_visited:'访问了样板',f_pricing:'查看了价格',f_domains:'查看了域名',f_pay:'已发起付款',f_client:'已成为客户',
-      recall:'待联系',th_salon:'沙龙',th_level:'级别',th_visits:'访问次数',th_scroll:'滚动',th_last:'最近活动',
-      st_client:'✅ 客户',st_hot:'🔥 接近成交',st_email:'热门 · 邮箱步骤',st_dom:'感兴趣 · 看了域名',st_pricing:'查看了价格',st_visit:'已访问',
-      see:'查看 →',none:'暂无访问。',notfound:'未找到沙龙。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：',u_min:'分钟',u_h:'小时',u_d:'天',max60:'最多显示60条'}
+      recall:'待联系',th_salon:'沙龙',th_level:'最高阶段',th_count:'次数',th_scroll:'滚动',th_date:'最近活动',
+      st_client:'✅ 客户',st_pay:'🔥 已发起付款',st_editsave:'🔥 编辑了样板',st_editopen:'打开了编辑器',st_custom:'输入了自定义域名',st_email:'邮箱步骤',st_domains:'查看了域名',st_pricing:'查看了价格',st_scroll:'已滚动',st_view:'查看了页面',
+      e_view:'页面浏览',e_scroll:'滚动',e_pricing:'价格',e_domains:'域名',e_custom:'自定义域名',e_email:'邮箱步骤',e_editopen:'打开编辑器',e_editsave:'编辑样板',e_pay:'发起付款',
+      d_events:'事件',d_ip:'IP',d_device:'设备',
+      see:'查看 →',none:'暂无访问。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：',u_min:'分钟',u_h:'小时',u_d:'天'}
   };
   var lang=(function(){try{var s=localStorage.getItem('outil-coiffure-lang');return T[s]?s:'fr';}catch(e){return 'fr';}})();
-  function t(k,p){var s=(T[lang]&&T[lang][k])||T.fr[k]||k; if(p)for(var x in p)s=s.replace('{'+x+'}',p[x]); return s;}
+  function t(k,p){var s=(T[lang]&&T[lang][k])||T.fr[k]||k;if(p)for(var x in p)s=s.replace('{'+x+'}',p[x]);return s;}
 
   function applyStatic(){
     document.documentElement.lang=lang==='zh'?'zh-CN':lang;
-    $('t-brand').textContent=t('brand');
-    $('refresh').textContent='↻ '+t('refresh');
-    $('export').textContent='⬇ '+t('exp');
-    $('q').placeholder=t('search');
-    $('t-humans').textContent=t('humans');
-    $('t-auto').textContent=t('auto');
+    $('t-brand').textContent=t('brand');$('refresh').textContent='↻ '+t('refresh');$('export').textContent='⬇ '+t('exp');
+    $('q').placeholder=t('search');$('t-humans').textContent=t('humans');$('t-auto').textContent=t('auto');
     Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){b.classList.toggle('active',b.dataset.lang===lang);});
   }
-  function setLang(l){ if(!T[l])return; lang=l; try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){} applyStatic(); if(raw.length)render(); }
+  function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(raw.length)render();}
 
-  var STAGE={preview_ouvert:1,scroll_max:1,editeur_ouvert:2,pricing_ouvert:2,etape_domaine:3,etape_email:4,editeur_modifie:5,paiement_initie:5};
-  function stageLabel(score,client){ if(client)return['b-client',t('st_client')]; if(score>=5)return['b-hot',t('st_hot')]; if(score>=4)return['b-warm',t('st_email')]; if(score>=3)return['b-warm',t('st_dom')]; if(score>=2)return['b-tiede',t('st_pricing')]; return['b-cold',t('st_visit')]; }
+  var STAGE={preview_ouvert:1,scroll_max:2,pricing_ouvert:3,etape_domaine:4,etape_email:5,domaine_perso:6,editeur_ouvert:7,editeur_modifie:8,paiement_initie:9};
+  var EVENT_KEY={preview_ouvert:'e_view',scroll_max:'e_scroll',pricing_ouvert:'e_pricing',etape_domaine:'e_domains',domaine_perso:'e_custom',etape_email:'e_email',editeur_ouvert:'e_editopen',editeur_modifie:'e_editsave',paiement_initie:'e_pay'};
+  var HEATLBL={9:['b-hot','st_pay'],8:['b-hot','st_editsave'],7:['b-warm','st_editopen'],6:['b-warm','st_custom'],5:['b-warm','st_email'],4:['b-tiede','st_domains'],3:['b-tiede','st_pricing'],2:['b-cold','st_scroll'],1:['b-cold','st_view']};
+  function stageLabel(score,client){if(client)return['b-client',t('st_client')];var h=HEATLBL[score]||HEATLBL[1];return[h[0],t(h[1])];}
   var BOT_RE=/bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
   function isBot(ua){return !ua||BOT_RE.test(ua);}
 
@@ -141,20 +155,37 @@
   function aggregate(events){
     var bySlug={};
     events.forEach(function(e){var slug=e.slug;if(!slug)return;
-      var s=bySlug[slug]||(bySlug[slug]={slug:slug,salon:e.salon||slug,ville:e.ville||'',email:e.email||'',status:e.subscription_status||'',heat:0,last:'',visits:0,scroll:0,events:{}});
+      var s=bySlug[slug]||(bySlug[slug]={slug:slug,salon:e.salon||slug,ville:e.ville||'',email:e.email||'',status:e.subscription_status||'',heat:0,last:'',count:0,scroll:0,events:{},ips:{},uas:{}});
       if(e.salon)s.salon=e.salon;if(e.ville)s.ville=e.ville;if(e.email)s.email=e.email;if(e.subscription_status)s.status=e.subscription_status;
-      var st=STAGE[e.event]||0;if(st>s.heat)s.heat=st;s.events[e.event]=(s.events[e.event]||0)+1;
-      if(e.event==='preview_ouvert')s.visits++;
+      var st=STAGE[e.event]||0;if(st>s.heat)s.heat=st;s.count++;
+      var ev=s.events[e.event]||(s.events[e.event]={n:0,last:''});ev.n++;if(e.ts>ev.last)ev.last=e.ts;
       if(e.event==='scroll_max'&&e.meta){try{var m=JSON.parse(e.meta);if(m.pct>s.scroll)s.scroll=m.pct;}catch(x){}}
+      if(e.ip)s.ips[e.ip]=1;if(e.user_agent)s.uas[e.user_agent]=1;
       if(e.ts>s.last)s.last=e.ts;});
     return Object.keys(bySlug).map(function(k){return bySlug[k];});
   }
   function isClient(s){return s.status==='live'||s.status==='active'||s.status==='trialing';}
-  function fmtWhen(ts){ if(!ts)return'—'; var v=Date.parse(ts.replace(' ','T')+'Z'); if(isNaN(v))return ts; var d=(Date.now()-v)/1000;
-    if(d<3600)return Math.max(1,Math.round(d/60))+' '+t('u_min'); if(d<86400)return Math.round(d/3600)+' '+t('u_h'); return Math.round(d/86400)+' '+t('u_d'); }
+  function heatOf(s){return isClient(s)?10:s.heat;}
+  function fmtWhen(ts){if(!ts)return'—';var v=Date.parse(ts.replace(' ','T')+'Z');if(isNaN(v))return ts;var d=(Date.now()-v)/1000;
+    if(d<3600)return Math.max(1,Math.round(d/60))+' '+t('u_min');if(d<86400)return Math.round(d/3600)+' '+t('u_h');return Math.round(d/86400)+' '+t('u_d');}
+  function fmtDate(ts){if(!ts)return'';var p=ts.split(' ');if(p.length<2)return ts;var d=p[0].split('-');return d[2]+'/'+d[1]+' '+p[1].slice(0,5);}
   function esc(s){return s==null?'':String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function kpi(v,l,sub,cls){return'<div class="kpi '+(cls||'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';}
   function frow(name,val,max){var pct=Math.round(val/max*100);return'<div class="frow"><div class="fname">'+name+'</div><div class="fbar-wrap"><div class="fbar" style="width:'+pct+'%"></div><span class="fval">'+val+'</span></div></div>';}
+  function arrow(k){if(sortKey!==k)return'';return'<span class="arr">'+(sortDir>0?'▲':'▼')+'</span>';}
+
+  function detailRow(s){
+    var evts=Object.keys(s.events).sort(function(a,b){return(STAGE[b]||0)-(STAGE[a]||0);}).map(function(k){
+      return '<div class="devt">'+esc(t(EVENT_KEY[k]||k))+' <b>×'+s.events[k].n+'</b> · <span style="color:var(--muted)">'+fmtDate(s.events[k].last)+'</span></div>';
+    }).join('');
+    var ips=Object.keys(s.ips).map(esc).join('<br>')||'—';
+    var uas=Object.keys(s.uas).map(function(u){return esc(u);}).join('<br>')||'—';
+    return '<tr class="detail"><td colspan="6"><div class="dgrid">'
+      +'<div><div class="dlabel">'+t('d_events')+'</div>'+evts+'</div>'
+      +'<div><div class="dlabel">'+t('d_ip')+'</div><div class="dmono">'+ips+'</div></div>'
+      +'<div><div class="dlabel">'+t('d_device')+'</div><div class="dmono">'+uas+'</div></div>'
+      +'</div></td></tr>';
+  }
 
   function render(){
     var humansOnly=$('humansOnly').checked;
@@ -163,10 +194,11 @@
     var q=($('q').value||'').toLowerCase().trim();
     if(q)salons=salons.filter(function(s){return(s.salon+' '+s.ville+' '+s.email).toLowerCase().indexOf(q)>=0;});
     var visited=salons.length;
-    var pricing=salons.filter(function(s){return s.heat>=2;}).length;
-    var domains=salons.filter(function(s){return s.heat>=3;}).length;
-    var pay=salons.filter(function(s){return s.events['paiement_initie'];}).length;
+    var pricing=salons.filter(function(s){return s.heat>=3;}).length;
+    var domains=salons.filter(function(s){return s.heat>=4;}).length;
+    var custom=salons.filter(function(s){return s.events['domaine_perso'];}).length;
     var edited=salons.filter(function(s){return s.events['editeur_modifie'];}).length;
+    var pay=salons.filter(function(s){return s.events['paiement_initie'];}).length;
     var clients=salons.filter(isClient).length;
     var totalEvents=raw.length,botEvents=raw.filter(function(e){return isBot(e.user_agent);}).length;
     var humanPct=totalEvents?Math.round((totalEvents-botEvents)/totalEvents*100):0;
@@ -175,7 +207,8 @@
     html+=kpi(visited,t('k_visited'),'','');
     html+=kpi(pricing,t('k_pricing'),'','gold');
     html+=kpi(domains,t('k_domains'),'','gold');
-    html+=kpi(edited,t('k_edited'),t('k_edited_sub'),'hot');
+    html+=kpi(custom,t('k_custom'),'','hot');
+    html+=kpi(edited,t('k_edited'),'','hot');
     html+=kpi(pay,t('k_pay'),'','hot');
     html+=kpi(clients,t('k_clients'),'','ok');
     html+=kpi(humanPct+'%',t('k_human'),t('k_human_sub',{n:botEvents}),'');
@@ -186,9 +219,10 @@
     html+='</div>';
 
     salons.sort(function(a,b){var av,bv;
-      if(sortKey==='heat'){av=(isClient(a)?6:a.heat);bv=(isClient(b)?6:b.heat);if(av===bv){av=a.last;bv=b.last;}}
+      if(sortKey==='heat'){av=heatOf(a);bv=heatOf(b);if(av===bv){av=a.last;bv=b.last;}}
       else if(sortKey==='salon'){av=a.salon.toLowerCase();bv=b.salon.toLowerCase();}
-      else if(sortKey==='visits'){av=a.visits;bv=b.visits;}
+      else if(sortKey==='count'){av=a.count;bv=b.count;}
+      else if(sortKey==='scroll'){av=a.scroll;bv=b.scroll;}
       else{av=a.last;bv=b.last;}
       return av<bv?-1*sortDir:(av>bv?1*sortDir:0);});
 
@@ -196,21 +230,30 @@
     if(!salons.length)html+='<div class="msg">'+t('none')+'</div>';
     else{
       html+='<div class="tbl-wrap"><table><thead><tr>'
-        +'<th data-k="salon">'+t('th_salon')+'</th><th data-k="heat">'+t('th_level')+'</th>'
-        +'<th data-k="visits" class="hide-sm">'+t('th_visits')+'</th><th class="hide-sm">'+t('th_scroll')+'</th>'
-        +'<th data-k="last">'+t('th_last')+'</th><th></th></tr></thead><tbody>';
-      salons.forEach(function(s){var sl=stageLabel(s.heat,isClient(s));
-        html+='<tr><td><div class="salon">'+esc(s.salon)+'</div><div class="loc">'+esc(s.ville)+'</div>'+(s.email?'<div class="email">'+esc(s.email)+'</div>':'')+'</td>'
+        +'<th class="sortable" data-k="salon">'+t('th_salon')+arrow('salon')+'</th>'
+        +'<th class="sortable" data-k="heat">'+t('th_level')+arrow('heat')+'</th>'
+        +'<th class="sortable num" data-k="count">'+t('th_count')+arrow('count')+'</th>'
+        +'<th class="sortable hide-sm" data-k="scroll">'+t('th_scroll')+arrow('scroll')+'</th>'
+        +'<th class="sortable" data-k="last">'+t('th_date')+arrow('last')+'</th>'
+        +'<th></th></tr></thead><tbody>';
+      salons.forEach(function(s){var sl=stageLabel(s.heat,isClient(s));var open=expanded[s.slug];
+        html+='<tr class="row" data-slug="'+esc(s.slug)+'">'
+          +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="salon">'+esc(s.salon)+'</span><div class="loc" style="margin-left:14px">'+esc(s.ville)+(s.email?' · '+esc(s.email):'')+'</div></td>'
           +'<td><span class="badge '+sl[0]+'">'+esc(sl[1])+'</span></td>'
-          +'<td class="hide-sm">'+s.visits+'</td>'
+          +'<td class="num">'+s.count+'</td>'
           +'<td class="hide-sm"><span class="scrollbar"><i style="width:'+(s.scroll||0)+'%"></i></span> '+(s.scroll||0)+'%</td>'
-          +'<td class="when">'+fmtWhen(s.last)+'</td>'
-          +'<td><a class="tlink" href="'+PREVIEW_BASE+encodeURIComponent(s.slug)+'" target="_blank" rel="noopener">'+t('see')+'</a></td></tr>';});
+          +'<td class="when" title="'+esc(s.last)+'">'+fmtDate(s.last)+'<div style="font-size:11px">'+fmtWhen(s.last)+'</div></td>'
+          +'<td><a class="tlink" href="'+PREVIEW_BASE+encodeURIComponent(s.slug)+'" target="_blank" rel="noopener" data-stop="1">'+t('see')+'</a></td></tr>';
+        if(open)html+=detailRow(s);
+      });
       html+='</tbody></table></div>';
     }
     $('content').innerHTML=html;
-    Array.prototype.forEach.call(document.querySelectorAll('th[data-k]'),function(th){
+
+    Array.prototype.forEach.call(document.querySelectorAll('th.sortable'),function(th){
       th.onclick=function(){var k=th.getAttribute('data-k');if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='salon')?1:-1;}render();};});
+    Array.prototype.forEach.call(document.querySelectorAll('tr.row'),function(tr){
+      tr.onclick=function(e){if(e.target.closest('[data-stop]'))return;var sl=tr.getAttribute('data-slug');expanded[sl]=!expanded[sl];render();};});
   }
 
   function load(){
@@ -221,8 +264,7 @@
       return r.text();
     }).then(function(txt){
       if(/<!doctype html|<html/i.test(txt.slice(0,200)))throw new Error('auth');
-      raw=parseCSV(txt);
-      var n=new Date();
+      raw=parseCSV(txt);var n=new Date();
       $('updated').textContent=t('maj')+' '+n.getHours()+'h'+('0'+n.getMinutes()).slice(-2);
       render();
     }).catch(function(e){

@@ -652,6 +652,8 @@
     }
     // Concat nom + tld choisi
     const hostname = raw.includes('.') ? raw : `${raw}${tld}`;
+    // Tracking (best-effort) : a tapé un domaine perso (signal d'intention fort).
+    try { window.mqsTrack && window.mqsTrack('domaine_perso', { hostname: hostname }); } catch (e) {}
 
     state.customError = null;
     state.customResult = null;
