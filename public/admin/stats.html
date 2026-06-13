@@ -154,7 +154,8 @@
       <button class="pm-btn" id="pm-ai">🤖 Avis de l'IA</button>
       <span class="spacer" style="flex:1"></span>
       <span id="pm-status"></span>
-      <button class="pm-btn gold" id="pm-gal-apply" disabled>Remplacer la galerie (0)</button>
+      <button class="pm-btn" id="pm-gal-replace" disabled title="Ne garde que les photos cochées (retire les photos du mode démo)">Remplacer la galerie (0)</button>
+      <button class="pm-btn gold" id="pm-gal-add" disabled title="Ajoute les photos cochées en tête de la galerie actuelle (garde les photos déjà en place)">＋ Ajouter à la galerie (0)</button>
     </div>
   </div>
 </div>
@@ -463,20 +464,28 @@
   function selectedGal(){return Object.keys(pmState.sel).filter(function(k){return pmState.sel[k];});}
   function updateGalBtn(){
     var n=selectedGal().length;
-    var b=$('pm-gal-apply');
-    b.textContent='Remplacer la galerie ('+n+')';
-    b.disabled=n===0||n>12;
-    if(n>12)b.textContent='Max 12 images ('+n+')';
+    var addB=$('pm-gal-add'),repB=$('pm-gal-replace');
+    var over=n>12;
+    addB.textContent=over?('Max 12 ('+n+')'):('＋ Ajouter à la galerie ('+n+')');
+    repB.textContent=over?('Max 12 ('+n+')'):('Remplacer la galerie ('+n+')');
+    addB.disabled=repB.disabled=(n===0||over);
   }
-  $('pm-gal-apply').onclick=function(){
+  function applyGalleryMode(mode){
     var ids=selectedGal();
     if(!ids.length)return;
-    var b=$('pm-gal-apply');b.disabled=true;b.textContent='Application…';
+    var addB=$('pm-gal-add'),repB=$('pm-gal-replace');
+    addB.disabled=repB.disabled=true;
+    (mode==='append'?addB:repB).textContent=mode==='append'?'Ajout…':'Remplacement…';
     $('pm-status').textContent='Recadrage + upload de '+ids.length+' image(s)…';
-    pmApi('/admin/api/picker/salon/'+encodeURIComponent(pmState.slug)+'/gallery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_ids:ids})})
-      .then(function(r){stToast('Galerie remplacée ('+r.count+' images) ✓');$('pm-status').textContent='Galerie appliquée ✓';pmState.sel={};renderPm();})
+    pmApi('/admin/api/picker/salon/'+encodeURIComponent(pmState.slug)+'/gallery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_ids:ids,mode:mode})})
+      .then(function(r){
+        stToast(mode==='append'?('Galerie enrichie : +'+r.added+' photo(s) en tête · '+r.count+' au total ✓'):('Galerie remplacée ('+r.count+' image'+(r.count>1?'s':'')+') ✓'));
+        $('pm-status').textContent='Galerie mise à jour ✓';pmState.sel={};renderPm();
+      })
       .catch(function(e){stToast('Erreur galerie : '+e.message);$('pm-status').textContent='';updateGalBtn();});
-  };
+  }
+  $('pm-gal-add').onclick=function(){applyGalleryMode('append');};
+  $('pm-gal-replace').onclick=function(){applyGalleryMode('replace');};
   $('pm-ai').onclick=function(){
     var b=$('pm-ai');b.disabled=true;b.textContent='🤖 Analyse en cours…';
     $('pm-status').textContent='L\'IA examine les photos (~15-30 s)…';

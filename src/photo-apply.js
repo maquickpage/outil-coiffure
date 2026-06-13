@@ -10,6 +10,9 @@ import db from './db.js';
 import { uploadObject } from './object-storage.js';
 import { photoLgPath } from './picker-core.js';
 import { captureSalon } from './screenshot-worker.js';
+import { DEFAULT_GALLERY_IMAGES } from './defaults.js';
+
+const GALLERY_MAX = 12;
 
 const HERO_POSITIONS = { haut: 'top', centre: 'centre', bas: 'bottom' };
 
@@ -75,12 +78,17 @@ export async function applyHero({ slug, photoId, position = 'centre', googleId =
 }
 
 /**
- * Remplace la galerie d'un salon par une sélection de photos scrapées (max 12).
- * @param {Object} p { slug, photoIds: string[], googleId? }
+ * Met à jour la galerie d'un salon avec une sélection de photos scrapées.
+ *   - mode 'replace' (défaut) : la galerie ne contient QUE les photos choisies
+ *     (retire les photos du mode démo).
+ *   - mode 'append' : ajoute les photos choisies EN TÊTE de la galerie actuelle
+ *     (démo + éventuels overrides précédents), pour qu'elles soient visibles en
+ *     haut. Total plafonné à 12 (les nouvelles sont prioritaires).
+ * @param {Object} p { slug, photoIds: string[], mode?: 'replace'|'append', googleId? }
  */
-export async function applyGallery({ slug, photoIds, googleId = null }) {
+export async function applyGallery({ slug, photoIds, mode = 'replace', googleId = null }) {
   if (!Array.isArray(photoIds) || photoIds.length === 0) throw new Error('photoIds vide');
-  if (photoIds.length > 12) throw new Error('Maximum 12 images dans la galerie');
+  if (photoIds.length > GALLERY_MAX) throw new Error(`Maximum ${GALLERY_MAX} images dans la galerie`);
   const salon = getSalonOrThrow(slug);
   const gid = googleId || salon.google_id;
   if (!gid) throw new Error(`Le salon ${slug} n'a pas de google_id`);
@@ -103,13 +111,36 @@ export async function applyGallery({ slug, photoIds, googleId = null }) {
 
   let overrides = {};
   try { overrides = JSON.parse(salon.overrides_json || '{}') || {}; } catch {}
-  overrides.gallery = {
+
+  // État actuel de la galerie = override existant s'il y en a un, sinon les
+  // images du mode démo (DEFAULT_GALLERY_IMAGES) — exactement ce que voit le visiteur.
+  const currentImages = (overrides.gallery && Array.isArray(overrides.gallery.images))
+    ? overrides.gallery.images
+    : DEFAULT_GALLERY_IMAGES.slice();
+
+  let finalImages;
+  if (mode === 'append') {
+    // Nouvelles EN TÊTE, puis l'existant, plafonné à 12 (les nouvelles gagnent).
+    finalImages = [...urls, ...currentImages].slice(0, GALLERY_MAX);
+  } else {
+    finalImages = urls.slice(0, GALLERY_MAX);
+  }
+
+  const gallery = {
     ...(overrides.gallery || {}),
-    images: urls,
+    images: finalImages,
     imagesSource: 'photo-picker',
     imagesUpdatedAt: new Date().toISOString(),
   };
+  // En mode append, on s'assure que les photos ajoutées tombent dans la zone
+  // visible (sinon elles seraient masquées derrière "voir plus").
+  if (mode === 'append') {
+    const baseVisible = (overrides.gallery && overrides.gallery.visibleCount) || 6;
+    gallery.visibleCount = Math.min(finalImages.length, Math.max(baseVisible, urls.length));
+  }
+  overrides.gallery = gallery;
+
   saveOverrides(salon.id, overrides);
   recaptureAsync(slug);
-  return { slug, count: urls.length, urls };
+  return { slug, count: finalImages.length, added: urls.length, mode, urls };
 }

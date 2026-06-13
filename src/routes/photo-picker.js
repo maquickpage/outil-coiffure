@@ -401,9 +401,9 @@ router.post('/api/picker/salon/:slug/hero', async (req, res) => {
 });
 
 router.post('/api/picker/salon/:slug/gallery', async (req, res) => {
-  const { photo_ids } = req.body || {};
+  const { photo_ids, mode } = req.body || {};
   try {
-    const result = await applyGallery({ slug: req.params.slug, photoIds: photo_ids });
+    const result = await applyGallery({ slug: req.params.slug, photoIds: photo_ids, mode: mode === 'append' ? 'append' : 'replace' });
     res.json({ ok: true, ...result });
   } catch (e) {
     res.status(500).json({ error: e.message });
