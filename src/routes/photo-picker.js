@@ -437,39 +437,39 @@ router.post('/api/picker/salon/:slug/score', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Sélection MANUELLE par région/CSV (onglet « Sélection manuelle » de photos.html)
-//   GET /api/picker/csv-sources   → régions disponibles (salons en BDD avec photos)
-//   GET /api/picker/manual-salons → salons d'une région + leurs photos dédupliquées
+// Sélection MANUELLE par région (onglet « Sélection manuelle » de photos.html)
+//   GET /api/picker/groups        → régions (groupes salon_groups) + nb de salons avec photos
+//   GET /api/picker/manual-salons → salons d'une région (group_id) + leurs photos dédupliquées
 // ---------------------------------------------------------------------------
-router.get('/api/picker/csv-sources', (req, res) => {
+router.get('/api/picker/groups', (req, res) => {
   const rows = db.prepare(`
-    SELECT s.csv_source AS src, COUNT(*) AS salons
-    FROM salons s
-    WHERE s.google_id IS NOT NULL AND s.google_id != ''
-      AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)
-    GROUP BY s.csv_source
+    SELECT g.id AS group_id, g.name,
+      (SELECT COUNT(*) FROM salons s
+        WHERE s.group_id = g.id AND s.google_id IS NOT NULL AND s.google_id != ''
+          AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)) AS salons
+    FROM salon_groups g
     ORDER BY salons DESC
-  `).all();
-  res.json({ sources: rows });
+  `).all().filter((r) => r.salons > 0);
+  res.json({ groups: rows });
 });
 
 router.get('/api/picker/manual-salons', async (req, res) => {
-  const csvSource = (req.query.csv_source || '').toString();
-  if (!csvSource) return res.status(400).json({ error: 'csv_source requis' });
+  const groupId = (req.query.group_id || '').toString();
+  if (!groupId) return res.status(400).json({ error: 'group_id requis' });
   const limit = Math.min(parseInt(req.query.limit || '8', 10), 24);
   const offset = parseInt(req.query.offset || '0', 10);
-  const isNull = csvSource === '__null__';
-  const whereSrc = isNull ? 's.csv_source IS NULL' : 's.csv_source = ?';
-  const srcParams = isNull ? [] : [csvSource];
-  const baseWhere = `${whereSrc} AND s.google_id IS NOT NULL AND s.google_id != '' AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)`;
+  const isNone = groupId === 'none';
+  const whereGrp = isNone ? 's.group_id IS NULL' : 's.group_id = ?';
+  const grpParams = isNone ? [] : [parseInt(groupId, 10)];
+  const baseWhere = `${whereGrp} AND s.google_id IS NOT NULL AND s.google_id != '' AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)`;
 
-  const total = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${baseWhere}`).get(...srcParams).c;
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${baseWhere}`).get(...grpParams).c;
   const salons = db.prepare(`
     SELECT s.id, s.slug, s.nom, s.ville, s.google_id, s.overrides_json
     FROM salons s WHERE ${baseWhere}
     ORDER BY s.nom COLLATE NOCASE, s.id
     LIMIT ? OFFSET ?
-  `).all(...srcParams, limit, offset);
+  `).all(...grpParams, limit, offset);
 
   const out = [];
   for (const s of salons) {
@@ -489,7 +489,7 @@ router.get('/api/picker/manual-salons', async (req, res) => {
       photos: dedup.kept.slice(0, 15).map((p) => ({ photo_id: p.photo_id, lowdef: !!p.lowdef, ...photoUrls(p) })),
     });
   }
-  res.json({ total, limit, offset, csv_source: csvSource, salons: out });
+  res.json({ total, limit, offset, group_id: groupId, salons: out });
 });
 
 export default router;

@@ -192,7 +192,7 @@ var $=function(id){return document.getElementById(id);};
 var stats=null, criteria=null, filter='feedback_pending', rows=[], total=0, offset=0, LIMIT=15;
 var jobTimer=null, currentJob=null;
 var view='ia';
-var mState={sources:null, src:null, total:0, offset:0, salons:[], sel:{}, autoGallery:true};
+var mState={groups:null, groupId:null, total:0, offset:0, salons:[], sel:{}, autoGallery:true};
 var M_LIMIT=8;
 function cap(s){return s?String(s).charAt(0).toUpperCase()+String(s).slice(1):s;}
 
@@ -445,7 +445,7 @@ function pollJob(size){
 function renderManual(){
   var h='<div class="panel"><h3>✋ Sélection manuelle des photos par région</h3>'
     +'<div style="font-size:13px;color:var(--cool);margin-bottom:12px">Choisis une région, puis pour chaque salon : clique <b>« Héros »</b> sur la meilleure photo de fond, et coche <b>« Galerie »</b> sur les photos à mettre dans la galerie. Même résultat que l\'onglet IA, mais c\'est toi qui choisis.</div>'
-    +'<div class="mbar"><label style="font-weight:600">Région / CSV :</label>'
+    +'<div class="mbar"><label style="font-weight:600">Région :</label>'
     +'<select class="pos" id="m-src" style="min-width:210px"><option value="">— choisir —</option></select>'
     +'<span id="m-srcinfo" style="font-size:12.5px;color:var(--muted)"></span></div>'
     +'<label class="mopt" style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:13.5px;cursor:pointer"><input type="checkbox" id="m-autogal" style="width:16px;height:16px;flex:0 0 auto;margin-top:1px"><span>En choisissant un héros, basculer automatiquement <b>les autres photos</b> du salon en galerie (placées en tête).</span></label></div>'
@@ -454,26 +454,24 @@ function renderManual(){
   var ag=$('m-autogal'); if(ag){ag.checked=!!mState.autoGallery; ag.onchange=function(){mSetAutoGallery(ag.checked);};}
   var sel=$('m-src');
   function fillSel(){
-    sel.innerHTML='<option value="">— choisir —</option>'+(mState.sources||[]).map(function(s){
-      var val=(s.src==null?'__null__':s.src);
-      var label=(s.src==null?'(sans région)':cap(s.src));
-      return '<option value="'+esc(val)+'">'+esc(label)+' ('+s.salons+')</option>';
+    sel.innerHTML='<option value="">— choisir —</option>'+(mState.groups||[]).map(function(g){
+      return '<option value="'+g.group_id+'">'+esc(g.name)+' ('+g.salons+')</option>';
     }).join('');
-    if(mState.src)sel.value=mState.src;
+    if(mState.groupId)sel.value=mState.groupId;
   }
-  if(!mState.sources){
-    api('/admin/api/picker/csv-sources').then(function(j){mState.sources=j.sources||[];fillSel();}).catch(function(e){toast('Erreur : '+e.message);});
+  if(!mState.groups){
+    api('/admin/api/picker/groups').then(function(j){mState.groups=j.groups||[];fillSel();}).catch(function(e){toast('Erreur : '+e.message);});
   } else { fillSel(); }
   sel.onchange=function(){
-    mState.src=sel.value; mState.offset=0; mState.salons=[]; mState.sel={};
-    if(!mState.src){$('m-list').innerHTML='<div class="msg">Choisis une région.</div>';var i=$('m-srcinfo');if(i)i.textContent='';return;}
+    mState.groupId=sel.value; mState.offset=0; mState.salons=[]; mState.sel={};
+    if(!mState.groupId){$('m-list').innerHTML='<div class="msg">Choisis une région.</div>';var i=$('m-srcinfo');if(i)i.textContent='';return;}
     loadManualSalons();
   };
-  if(mState.src && mState.salons.length) renderManualList();
+  if(mState.groupId && mState.salons.length) renderManualList();
 }
 function loadManualSalons(){
   if(mState.offset===0)$('m-list').innerHTML='<div class="msg">Chargement des salons…</div>';
-  return api('/admin/api/picker/manual-salons?csv_source='+encodeURIComponent(mState.src)+'&limit='+M_LIMIT+'&offset='+mState.offset)
+  return api('/admin/api/picker/manual-salons?group_id='+encodeURIComponent(mState.groupId)+'&limit='+M_LIMIT+'&offset='+mState.offset)
     .then(function(j){
       mState.total=j.total;
       mState.salons=(mState.offset===0)?j.salons:mState.salons.concat(j.salons);
