@@ -1,0 +1,20 @@
+/* Barre de navigation admin UNIFIÉE — identique sur toutes les pages admin.
+   Inclure : <link rel="stylesheet" href="/admin/admin-nav.css"> dans <head>
+   + le <header class="anav"> standard + <script src="/admin/admin-nav.js"></script>. */
+.anav{position:sticky;top:0;z-index:50;background:#1a1a1a;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);}
+.anav-inner{max-width:1200px;margin:0 auto;padding:0 18px;min-height:58px;display:flex;align-items:center;gap:22px;}
+.anav-brand{display:flex;align-items:center;gap:7px;font-weight:600;font-size:1.12rem;color:#c9a96e;text-decoration:none;white-space:nowrap;letter-spacing:-.01em;}
+.anav-tabs{display:flex;align-items:stretch;gap:2px;align-self:stretch;}
+.anav-tab{display:inline-flex;align-items:center;padding:0 15px;color:rgba(255,255,255,.78);text-decoration:none;font-size:.95rem;font-weight:500;border-bottom:3px solid transparent;transition:color .12s,border-color .12s;white-space:nowrap;}
+.anav-tab:hover{color:#fff;}
+.anav-tab.active{color:#fff;border-bottom-color:#c9a96e;font-weight:600;}
+.anav-spacer{flex:1;}
+.anav-right{display:flex;align-items:center;gap:10px;}
+.anav-logout{background:transparent;border:1px solid rgba(255,255,255,.32);color:#fff;padding:6px 13px;border-radius:8px;font-size:.85rem;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
+.anav-logout:hover{background:rgba(255,255,255,.12);}
+@media(max-width:720px){
+  .anav-inner{flex-wrap:wrap;padding:8px 12px;gap:6px 14px;min-height:0;}
+  .anav-tabs{order:3;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .anav-tab{padding:9px 11px;font-size:.88rem;border-bottom:none;border-radius:7px;}
+  .anav-tab.active{background:rgba(201,169,110,.18);border-bottom:none;}
+}

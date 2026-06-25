@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>MaQuickPage · Nouveau salon</title>
+<link rel="stylesheet" href="/admin/admin-nav.css">
+<style>
+  :root{--gold:#C8A24B;--gold-d:#A8842F;--ink:#15130E;--bg:#f6f4ef;--card:#fff;--border:#e7e2d6;--muted:#8a8270;--blue:#002FA7;--ok:#138a36;--hot:#c0392b;--cool:#5b6470;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;padding-bottom:60px;}
+  main{padding:18px;max-width:920px;margin:0 auto;}
+  .msg{text-align:center;color:var(--muted);padding:30px 20px;}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .panel h2{margin:0 0 4px;font-size:18px;}
+  .panel .sub{color:var(--cool);font-size:13.5px;margin-bottom:14px;}
+  label.lab{display:block;font-weight:600;font-size:13px;margin:10px 0 5px;}
+  input,select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;font-family:inherit;background:#fff;}
+  input:focus,select:focus{outline:none;border-color:var(--gold);}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .row>*{flex:1;min-width:140px;}
+  .btn{border:1.5px solid var(--border);background:#fff;color:var(--ink);padding:10px 18px;border-radius:9px;font-size:14.5px;font-weight:600;cursor:pointer;}
+  .btn:hover{border-color:var(--gold);}
+  .btn.primary{background:var(--gold);border-color:var(--gold);color:#fff;}
+  .btn.primary:hover{background:var(--gold-d);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn.sm{padding:7px 12px;font-size:13px;}
+  .searchbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+  .searchbar .grow{flex:1;min-width:220px;}
+  .results{display:flex;flex-direction:column;gap:10px;margin-top:8px;}
+  .rcard{border:1px solid var(--border);border-radius:12px;padding:13px 15px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+  .rcard .info{flex:1;min-width:200px;}
+  .rcard .nm{font-weight:800;font-size:15.5px;}
+  .rcard .det{color:var(--cool);font-size:13px;margin-top:3px;}
+  .rcard .badge{display:inline-block;background:#fdf3dc;color:#8a6914;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700;margin-left:6px;}
+  .rcard .closed{background:#fde2e0;color:#9b2c22;}
+  details.manual{margin-top:4px;}
+  details.manual>summary{cursor:pointer;font-weight:700;font-size:15px;padding:6px 0;list-style:none;}
+  details.manual>summary::-webkit-details-marker{display:none;}
+  details.manual>summary:before{content:'▸ ';color:var(--gold-d);}
+  details.manual[open]>summary:before{content:'▾ ';}
+  .ok-box{background:#eafbf0;border:1.5px solid #aee6c2;border-radius:14px;padding:18px;margin-bottom:16px;}
+  .ok-box h2{margin:0 0 8px;color:var(--ok);font-size:18px;}
+  .linkline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+  .linkline a{color:var(--blue);font-weight:600;text-decoration:none;word-break:break-all;}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:#1a1a1a;color:#fff;padding:11px 20px;border-radius:11px;font-size:14px;font-weight:600;transition:transform .25s;z-index:120;max-width:92vw;text-align:center;}
+  #toast.on{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<header class="anav">
+  <div class="anav-inner">
+    <a class="anav-brand" href="/admin/">✂️ Outil coiffure</a>
+    <nav class="anav-tabs">
+      <a class="anav-tab" data-path="/admin" href="/admin/">Tableau de bord</a>
+      <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
+      <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
+      <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
+    </nav>
+    <span class="anav-spacer"></span>
+    <div class="anav-right">
+      <button class="anav-logout" id="anav-logout" type="button">Déconnexion</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="ok-area"></div>
+
+  <div class="panel">
+    <h2>➕ Créer un salon</h2>
+    <div class="sub">Pour un salon absent des imports CSV (ex. prospection terrain). Recherche-le sur Google, ou saisis-le à la main. Un démo prêt à montrer est généré, même sans email.</div>
+
+    <label class="lab" for="region">Région (où classer le salon)</label>
+    <select id="region"><option value="">— aucune —</option></select>
+    <div class="hint">Détermine dans quelle région il apparaîtra (y compris dans l'onglet Photos). Ex. « grand-est » pour Commercy.</div>
+
+    <label class="lab" for="q" style="margin-top:16px">Rechercher sur Google</label>
+    <div class="searchbar">
+      <div class="grow"><input id="q" placeholder="Ex : Studio Coiffure Commercy" autocomplete="off"></div>
+      <button class="btn primary" id="search-btn">Rechercher</button>
+    </div>
+    <div id="places-state" class="hint"></div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <div class="panel">
+    <details class="manual">
+      <summary>Le salon n'est pas sur Google ? Saisie manuelle</summary>
+      <div style="margin-top:10px">
+        <label class="lab">Nom du salon *</label>
+        <input id="m-nom" placeholder="Nom du salon">
+        <div class="row" style="margin-top:6px">
+          <div><label class="lab">Ville</label><input id="m-ville" placeholder="Commercy"></div>
+          <div><label class="lab">Code postal</label><input id="m-cp" placeholder="55200"></div>
+        </div>
+        <label class="lab">Adresse</label>
+        <input id="m-adresse" placeholder="12 rue de la Paix">
+        <div class="row" style="margin-top:6px">
+          <div><label class="lab">Téléphone</label><input id="m-tel" placeholder="03 29 ..."></div>
+          <div><label class="lab">Note Google (sur 5)</label><input id="m-note" placeholder="4.6" inputmode="decimal"></div>
+        </div>
+        <button class="btn primary" id="manual-btn" style="margin-top:14px">Créer le démo</button>
+      </div>
+    </details>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script src="/admin/admin-nav.js"></script>
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id);};
+function esc(s){return s==null?'':String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function toast(m,ms){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('on');},ms||3400);}
+function api(path,opts){
+  return fetch(path,Object.assign({credentials:'same-origin',headers:{'Accept':'application/json'}},opts||{})).then(function(r){
+    if(r.status===401)throw new Error('Session expirée — reconnecte-toi à l\'admin.');
+    return r.json().then(function(j){if(!r.ok)throw new Error(j.error||('http '+r.status));return j;});
+  });
+}
+function groupId(){return $('region').value||'';}
+
+// ---- init : régions + état Places ----
+api('/admin/api/salon-new/meta').then(function(j){
+  var sel=$('region');
+  (j.groups||[]).forEach(function(g){var o=document.createElement('option');o.value=g.id;o.textContent=g.name;sel.appendChild(o);});
+  if(!j.places_configured){
+    $('places-state').innerHTML='<b style="color:var(--hot)">⚠ Google Places non configuré</b> — la recherche est indisponible, utilise la saisie manuelle.';
+    $('search-btn').disabled=true;$('q').disabled=true;
+  }
+}).catch(function(e){toast('Erreur : '+e.message);});
+
+// ---- recherche ----
+function runSearch(){
+  var q=$('q').value.trim();
+  if(!q)return;
+  var btn=$('search-btn');btn.disabled=true;btn.textContent='…';
+  $('results').innerHTML='<div class="msg">Recherche…</div>';
+  api('/admin/api/salon-new/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})})
+    .then(function(j){renderResults(j.results||[]);})
+    .catch(function(e){$('results').innerHTML='<div class="msg" style="color:var(--hot)">'+esc(e.message)+'</div>';})
+    .then(function(){btn.disabled=false;btn.textContent='Rechercher';});
+}
+$('search-btn').onclick=runSearch;
+$('q').addEventListener('keydown',function(e){if(e.key==='Enter')runSearch();});
+
+function renderResults(rows){
+  var el=$('results');
+  if(!rows.length){el.innerHTML='<div class="msg">Aucun résultat. Affine la recherche (nom + ville) ou utilise la saisie manuelle.</div>';return;}
+  el.innerHTML='';
+  rows.forEach(function(r){
+    var d=document.createElement('div');d.className='rcard';
+    var closed=r.status&&r.status!=='OPERATIONAL';
+    var det=[r.adresse,r.telephone].filter(Boolean).join(' · ');
+    var note=(r.note!=null)?(' · ⭐ '+r.note+(r.nb_avis?' ('+r.nb_avis+')':'')):'';
+    var right;
+    if(r.existing_slug){
+      right='<a class="btn sm" href="https://maquickpage.fr/preview/'+encodeURIComponent(r.existing_slug)+'" target="_blank" rel="noopener">Déjà créé ↗</a>';
+    } else {
+      right='<button class="btn primary sm" data-pid="'+esc(r.place_id)+'" data-nom="'+esc(r.nom)+'">Créer le démo</button>';
+    }
+    d.innerHTML='<div class="info"><div class="nm">'+esc(r.nom)+(closed?'<span class="badge closed">fermé</span>':'')+(r.type?'<span class="badge">'+esc(r.type)+'</span>':'')+'</div><div class="det">'+esc(det)+esc(note)+'</div></div>'+right;
+    el.appendChild(d);
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-pid]'),function(b){
+    b.onclick=function(){createFromPlace(b.getAttribute('data-pid'),b.getAttribute('data-nom'),b);};
+  });
+}
+
+function createFromPlace(pid,nom,btn){
+  btn.disabled=true;btn.textContent='Création…';
+  api('/admin/api/salon-new/from-place',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({place_id:pid,group_id:groupId()})})
+    .then(function(j){showSuccess(j,nom);})
+    .catch(function(e){
+      if(/existe déjà/i.test(e.message)){toast('Déjà créé.');}
+      else toast('Erreur : '+e.message);
+      btn.disabled=false;btn.textContent='Créer le démo';
+    });
+}
+
+// ---- saisie manuelle ----
+$('manual-btn').onclick=function(){
+  var nom=$('m-nom').value.trim();
+  if(!nom)return toast('Le nom est obligatoire.');
+  var b=$('manual-btn');b.disabled=true;b.textContent='Création…';
+  api('/admin/api/salon-new/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    nom:nom,ville:$('m-ville').value.trim(),code_postal:$('m-cp').value.trim(),
+    adresse:$('m-adresse').value.trim(),telephone:$('m-tel').value.trim(),note_avis:$('m-note').value.trim(),
+    group_id:groupId()
+  })}).then(function(j){
+    ['m-nom','m-ville','m-cp','m-adresse','m-tel','m-note'].forEach(function(id){$(id).value='';});
+    showSuccess(j,nom);
+  }).catch(function(e){toast('Erreur : '+e.message);})
+   .then(function(){b.disabled=false;b.textContent='Créer le démo';});
+};
+
+function showSuccess(j,nom){
+  var area=$('ok-area');
+  var box=document.createElement('div');box.className='ok-box';
+  box.innerHTML='<h2>✓ Démo créé : '+esc(nom||j.slug)+'</h2>'
+    +'<div class="linkline"><b>Démo à montrer :</b> <a href="'+esc(j.preview_url)+'" target="_blank" rel="noopener">'+esc(j.preview_url)+'</a> <button class="btn sm" data-copy="'+esc(j.preview_url)+'">Copier</button></div>'
+    +(j.admin_url?'<div class="linkline"><b>Éditeur :</b> <a href="'+esc(j.admin_url)+'" target="_blank" rel="noopener">ouvrir l\'éditeur du salon ↗</a></div>':'')
+    +'<div class="hint">Le démo utilise des images par défaut pour l\'instant. Les vraies photos Google seront ajoutables ensuite via l\'onglet Photos.</div>';
+  area.insertBefore(box,area.firstChild);
+  var cp=box.querySelector('[data-copy]');
+  if(cp)cp.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(cp.getAttribute('data-copy'));toast('Lien copié ✓');};
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast('Salon créé ✓');
+}
+})();
+</script>
+</body>
+</html>
