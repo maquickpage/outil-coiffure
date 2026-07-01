@@ -15,6 +15,7 @@ import { startProvisioning, getProvisioningStatus } from '../provisioning-worker
 import { slugify } from '../slug-generator.js';
 import photoPickerRouter from './photo-picker.js';
 import salonNewRouter from './salon-new.js';
+import callingRouter from './calling.js';
 
 const router = express.Router();
 const UPLOAD_DIR = './data/csv-uploads';
@@ -75,6 +76,10 @@ router.use(photoPickerRouter);
 // Création de salon « à l'unité » (recherche Places / saisie manuelle) — derrière requireAuth.
 // Expose /admin/api/salon-new/*.
 router.use(salonNewRouter);
+
+// Prospection téléphonique (file d'appel + cockpit) — derrière requireAuth.
+// Expose /admin/api/calling/*.
+router.use(callingRouter);
 
 // === Export CSV du suivi des visites maquettes (funnel) ===
 // Enrichi : chaque event joint aux infos salon (nom, ville, email, statut).

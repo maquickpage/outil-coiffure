@@ -140,6 +140,7 @@
       <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
       <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
       <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
+      <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
     </nav>
     <span class="anav-spacer"></span>
     <div class="anav-right">
@@ -444,7 +445,7 @@
           +'<td>'+tagsHtml(s)+'</td>'
           +'<td class="num">'+s.count+'</td>'
           +'<td class="when" title="'+esc(s.last)+'">'+fmtDate(s.last)+'<div style="font-size:11px">'+fmtWhen(s.last)+'</div></td>'
-          +'<td style="white-space:nowrap"><a class="tlink" href="'+PREVIEW_BASE+encodeURIComponent(s.slug)+(s.token?'?token='+encodeURIComponent(s.token):'')+'" target="_blank" rel="noopener" data-stop="1">'+t('see')+'</a> <a class="tlink" href="#" data-stop="1" data-photos="'+esc(s.slug)+'" title="Photos du salon (héro + galerie)" style="font-size:15px;text-decoration:none">📷</a></td></tr>';
+          +'<td style="white-space:nowrap"><a class="tlink" href="'+PREVIEW_BASE+encodeURIComponent(s.slug)+(s.token?'?token='+encodeURIComponent(s.token):'')+'" target="_blank" rel="noopener" data-stop="1">'+t('see')+'</a> <a class="tlink" href="#" data-stop="1" data-photos="'+esc(s.slug)+'" title="Photos du salon (héro + galerie)" style="font-size:15px;text-decoration:none">📷</a> <a class="tlink" href="#" data-stop="1" data-call="'+esc(s.slug)+'" title="Ajouter à la prospection téléphonique" style="font-size:15px;text-decoration:none">📞</a></td></tr>';
         if(open)html+=detailRow(s);
       });
       html+='</tbody></table></div>';
@@ -463,6 +464,23 @@
         var nm='';try{nm=a.closest('tr').querySelector('.salon').textContent;}catch(x){}
         openPhotoModal(a.getAttribute('data-photos'),nm);
       };});
+    Array.prototype.forEach.call(document.querySelectorAll('[data-call]'),function(a){
+      a.onclick=function(e){e.preventDefault();addToCalling(a.getAttribute('data-call'),a);};});
+  }
+
+  // Transfert 1-clic d'un salon du Suivi vers la prospection téléphonique.
+  // Le backend résout le numéro (DB puis Google Places) et évite les doublons.
+  function addToCalling(slug,el){
+    if(el){el._prev=el.textContent;el.textContent='⏳';}
+    fetch('/admin/api/calling/add',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({slug:slug,added_from:'tracking'})})
+      .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||('http '+r.status));return j;});})
+      .then(function(j){
+        if(el){el.textContent='☎️';el.title='Déjà dans la prospection';}
+        var p=j.prospect||{};
+        var tel=p.telephone?(' · '+p.telephone):' · numéro à retrouver (bouton 🔎 dans Prospection)';
+        stToast((j.already?'Déjà dans la prospection':'Ajouté à la prospection ✓')+tel);
+      })
+      .catch(function(e){if(el&&el._prev)el.textContent=el._prev;stToast('Erreur : '+e.message);});
   }
 
   function load(){

@@ -61,6 +61,7 @@
       <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
       <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
       <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
+      <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
     </nav>
     <span class="anav-spacer"></span>
     <div class="anav-right">
@@ -217,10 +218,18 @@ function showSuccess(j,nom){
   box.innerHTML='<h2>✓ Salon créé : '+esc(nom||j.slug)+'</h2>'
     +'<div class="linkline"><b>Démo à montrer :</b> <a href="'+esc(j.preview_url)+'" target="_blank" rel="noopener">'+esc(j.preview_url)+'</a> <button class="btn sm" data-copy="'+esc(j.preview_url)+'">Copier</button></div>'
     +(j.admin_url?'<div class="linkline"><b>Éditeur :</b> <a href="'+esc(j.admin_url)+'" target="_blank" rel="noopener">ouvrir l\'éditeur du salon ↗</a></div>':'')
+    +'<div class="linkline"><button class="btn sm" data-tocall="'+esc(j.slug)+'">☎️ Ajouter à la prospection</button></div>'
     +'<div class="photo-status" id="'+pid+'"></div>';
   area.insertBefore(box,area.firstChild);
   var cp=box.querySelector('[data-copy]');
   if(cp)cp.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(cp.getAttribute('data-copy'));toast('Lien copié ✓');};
+  var tc=box.querySelector('[data-tocall]');
+  if(tc)tc.onclick=function(){
+    tc.disabled=true;tc.textContent='Ajout…';
+    api('/admin/api/calling/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:tc.getAttribute('data-tocall'),added_from:'nouveau-salon'})})
+      .then(function(r){tc.textContent=r.already?'☎️ Déjà en prospection':'☎️ Ajouté à la prospection ✓';toast((r.already?'Déjà dans la prospection':'Ajouté à la prospection ✓')+((r.prospect&&r.prospect.telephone)?' · '+r.prospect.telephone:''));})
+      .catch(function(e){tc.disabled=false;tc.textContent='☎️ Ajouter à la prospection';toast('Erreur : '+e.message);});
+  };
   pollPipeline(j.slug,j.preview_url,$(pid),!!j.photos_pending,0);
   window.scrollTo({top:0,behavior:'smooth'});
   toast('Salon créé ✓');

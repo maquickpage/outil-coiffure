@@ -210,6 +210,48 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_preview_events_ts ON preview_events(ts);
   `);
 
+  // === Prospection téléphonique (onglet ☎️ Prospection) ===
+  // calling_prospects : 1 ligne = 1 salon dans le pipeline d'appels (UNIQUE slug).
+  //   status : a_appeler | rappeler | interesse | demo_envoyee | gagne | perdu | ne_pas_rappeler
+  //   telephone : numéro résolu (DB scrap ou Google Places), éditable à la main.
+  //   phone_source : 'db' | 'google' | 'manuel' (traçabilité).
+  //   next_call_at : date/heure de rappel programmé (fait remonter la fiche dans la file).
+  //   do_not_call : 1 = opposition définitive (Bloctel/démarchage FR) → masqué de la file.
+  // call_logs : historique — 1 ligne par appel passé (jamais supprimée).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS calling_prospects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'a_appeler',
+      telephone TEXT,
+      phone_source TEXT,
+      priority INTEGER DEFAULT 0,
+      next_call_at TEXT,
+      attempts INTEGER DEFAULT 0,
+      last_outcome TEXT,
+      last_called_at TEXT,
+      notes TEXT,
+      do_not_call INTEGER DEFAULT 0,
+      added_from TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (slug) REFERENCES salons(slug) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_calling_status ON calling_prospects(status);
+    CREATE INDEX IF NOT EXISTS idx_calling_next ON calling_prospects(next_call_at) WHERE next_call_at IS NOT NULL;
+
+    CREATE TABLE IF NOT EXISTS call_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT NOT NULL,
+      outcome TEXT NOT NULL,
+      note TEXT,
+      next_call_at TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_call_logs_slug ON call_logs(slug);
+    CREATE INDEX IF NOT EXISTS idx_call_logs_created ON call_logs(created_at DESC);
+  `);
+
   // 3. Index sur edit_token : seulement maintenant que la colonne existe
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_salons_edit_token ON salons(edit_token) WHERE edit_token IS NOT NULL");
   // Index sur live_hostname : lookup rapide par domaine custom

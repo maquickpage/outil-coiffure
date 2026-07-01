@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>MaQuickPage · Prospection téléphonique</title>
+<style>
+  :root{--gold:#C8A24B;--gold-d:#A8842F;--ink:#15130E;--bg:#f6f4ef;--card:#fff;--border:#e7e2d6;--muted:#8a8270;--blue:#002FA7;--ok:#138a36;--hot:#c0392b;--cool:#5b6470;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.4;padding-bottom:60px;}
+  .topbar{background:#1a1a1a;color:#fff;padding:13px 0;}
+  .topbar-inner{max-width:1180px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .brand{font-weight:500;font-size:1.25rem;color:#c9a96e;}
+  .spacer{flex:1;}
+  .hbtn{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer;}
+  .hbtn:hover{background:rgba(255,255,255,.12);}
+  main{max-width:1180px;margin:0 auto;padding:16px 18px;}
+  .msg{text-align:center;color:var(--muted);padding:44px 20px;font-size:15px;}
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:12px 14px;}
+  .kpi .v{font-size:24px;font-weight:800;line-height:1;}
+  .kpi .l{font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:600;}
+  .kpi.due .v{color:var(--hot);}.kpi.ok .v{color:var(--ok);}.kpi.gold .v{color:var(--gold-d);}
+  .kpi.due{border-color:#e3b4ae;background:#fdf6f5;}
+  /* View switch */
+  .vswitch{display:flex;gap:6px;margin:6px 0 16px;flex-wrap:wrap;align-items:center;}
+  .vbtn{border:1.5px solid var(--border);background:#fff;color:var(--ink);padding:9px 16px;border-radius:10px;font-size:14.5px;font-weight:700;cursor:pointer;}
+  .vbtn.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  /* Cockpit */
+  .cock{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;align-items:start;}
+  @media(max-width:860px){.cock{grid-template-columns:1fr;}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+  .cardpad{padding:18px;}
+  .cname{font-size:22px;font-weight:800;line-height:1.15;}
+  .cloc{font-size:13.5px;color:var(--muted);margin-top:3px;}
+  .telrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 6px;}
+  .telbig{font-size:26px;font-weight:800;color:var(--blue);text-decoration:none;letter-spacing:.5px;}
+  .telbig:hover{text-decoration:underline;}
+  .telnone{font-size:16px;color:var(--hot);font-weight:700;}
+  .minibtn{border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:5px 10px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+  .minibtn:hover{border-color:var(--gold);background:#fdf3dc;}
+  .phsrc{font-size:11.5px;color:var(--muted);}
+  .metaline{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .chip{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;background:#eef0f2;color:var(--cool);}
+  .chip.warm{background:#fef3c7;color:#92400e;}.chip.hot{background:#fde2e0;color:#9b2c22;}.chip.ok{background:#dcfce7;color:#14532d;}
+  .shot{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;background:#eee;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+  .shotlink{display:block;position:relative;}
+  .shotcta{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.72);color:#fff;font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;}
+  .noteslab{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin:14px 0 6px;}
+  textarea.notes{width:100%;min-height:64px;border:1.5px solid var(--border);border-radius:10px;padding:9px 11px;font-size:14px;font-family:inherit;resize:vertical;outline:none;}
+  textarea.notes:focus{border-color:var(--gold);}
+  /* Outcome buttons */
+  .obar{border-top:1px solid var(--border);padding:14px 18px;background:#faf8f2;}
+  .osec{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin:0 0 8px;}
+  .ogrid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .obtn{border:1.5px solid var(--border);background:#fff;border-radius:10px;padding:10px 13px;font-size:14px;font-weight:700;cursor:pointer;color:var(--ink);}
+  .obtn:hover{border-color:var(--gold);background:#fdf3dc;}
+  .obtn.good{border-color:#bfe6c8;}.obtn.good:hover{background:#eafaef;border-color:var(--ok);}
+  .obtn.bad{border-color:#e3b4ae;}.obtn.bad:hover{background:#fdecea;border-color:var(--hot);}
+  .obtn:disabled{opacity:.5;cursor:not-allowed;}
+  .whenpick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--cool);margin-bottom:10px;}
+  .whenpick input{border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;font-family:inherit;}
+  /* Script sidebar */
+  .side .cardpad{padding:16px;}
+  .sidetitle{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--gold-d);margin:0 0 10px;}
+  details.scr{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;}
+  details.scr>summary{cursor:pointer;padding:9px 12px;font-weight:700;font-size:13.5px;list-style:none;}
+  details.scr>summary::-webkit-details-marker{display:none;}
+  details.scr[open]>summary{border-bottom:1px solid var(--border);}
+  .scrbody{padding:10px 12px;font-size:13.5px;color:var(--ink);}
+  .scrbody p{margin:0 0 8px;}.scrbody b{color:var(--gold-d);}
+  .obj{margin:0 0 9px;}.obj .q{font-weight:700;}.obj .a{color:var(--cool);}
+  /* History */
+  .hist{margin-top:14px;}
+  .hrow{display:flex;gap:8px;align-items:baseline;font-size:12.5px;padding:5px 0;border-bottom:1px solid #f0ece1;}
+  .hrow .ho{font-weight:700;}.hrow .hn{color:var(--cool);}.hrow .ht{color:var(--muted);margin-left:auto;white-space:nowrap;}
+  /* List */
+  .filterbar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
+  .fbtn{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--border);background:#fff;color:var(--ink);padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;}
+  .fbtn:hover{border-color:var(--gold);}
+  .fbtn.on{background:var(--gold);border-color:var(--gold);color:#fff;}
+  .fbtn .c{font-variant-numeric:tabular-nums;font-weight:700;opacity:.7;}
+  .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th{text-align:left;padding:10px 12px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:10px 12px;border-bottom:1px solid #f0ece1;vertical-align:middle;}
+  tr:hover td{background:#faf8f2;}
+  .salon{font-weight:700;}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+  .b-a_appeler{background:#eef0f2;color:#5b6470;}.b-rappeler{background:#fef3c7;color:#92400e;}
+  .b-interesse{background:#e0e7ff;color:#3730a3;}.b-demo_envoyee{background:#dbeafe;color:#1e40af;}
+  .b-gagne{background:#dcfce7;color:#14532d;}.b-perdu{background:#f3f4f6;color:#6b7280;}.b-ne_pas_rappeler{background:#fde2e0;color:#9b2c22;}
+  .due-dot{color:var(--hot);font-weight:800;}
+  .lact{color:var(--blue);text-decoration:none;font-weight:700;font-size:13px;cursor:pointer;}
+  .lx{color:var(--hot);cursor:pointer;font-weight:700;}
+  /* Add box */
+  .addbox{position:relative;}
+  .addbox input{border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;font-size:14px;min-width:230px;outline:none;}
+  .addbox input:focus{border-color:var(--gold);}
+  .addres{position:absolute;z-index:30;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.12);max-height:320px;overflow:auto;display:none;}
+  .addres.on{display:block;}
+  .ares-it{padding:9px 12px;border-bottom:1px solid #f0ece1;cursor:pointer;display:flex;align-items:center;gap:8px;}
+  .ares-it:hover{background:#faf8f2;}
+  .ares-it .an{font-weight:700;}.ares-it .al{font-size:12px;color:var(--muted);}
+  .ares-it .atag{margin-left:auto;font-size:11.5px;color:var(--ok);font-weight:700;}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(90px);background:#1a1a1a;color:#fff;padding:11px 20px;border-radius:11px;font-size:14px;font-weight:600;transition:transform .25s;z-index:130;max-width:90vw;}
+  #toast.on{transform:translateX(-50%) translateY(0);}
+</style>
+<link rel="stylesheet" href="/admin/admin-nav.css">
+<link rel="icon" type="image/png" href="/admin/picto-coif.png">
+</head>
+<body>
+<header class="anav">
+  <div class="anav-inner">
+    <a class="anav-brand" href="/admin/"><img class="anav-logo" src="/admin/picto-coif.png" alt=""><span>Outil coiffure</span></a>
+    <nav class="anav-tabs">
+      <a class="anav-tab" data-path="/admin" href="/admin/">Tableau de bord</a>
+      <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
+      <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
+      <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
+      <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
+    </nav>
+    <span class="anav-spacer"></span>
+    <div class="anav-right">
+      <button class="anav-logout" id="anav-logout" type="button">Déconnexion</button>
+    </div>
+  </div>
+</header>
+<script src="/admin/admin-nav.js"></script>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="brand">☎️ Prospection téléphonique</span>
+    <span class="spacer"></span>
+    <div class="addbox">
+      <input type="search" id="addq" placeholder="＋ Ajouter un salon (nom, ville…)" autocomplete="off">
+      <div class="addres" id="addres"></div>
+    </div>
+    <button class="hbtn" id="refresh">↻ Actualiser</button>
+  </div>
+</div>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="vswitch">
+    <button class="vbtn on" id="v-cockpit" data-view="cockpit">🎯 Cockpit d'appel</button>
+    <button class="vbtn" id="v-list" data-view="list">📋 File d'appel</button>
+    <span class="spacer" style="flex:1"></span>
+    <span id="sessioninfo" style="font-size:12.5px;color:var(--muted)"></span>
+  </div>
+  <div id="view"></div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  'use strict';
+  var $=function(id){return document.getElementById(id);};
+  var esc=function(s){return s==null?'':String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  var view='cockpit', listFilter='all', current=null, sessionQ='';
+
+  var STATUS_LABEL={a_appeler:'À appeler',rappeler:'À rappeler',interesse:'Intéressé',demo_envoyee:'Démo envoyée',gagne:'✅ Gagné',perdu:'Perdu',ne_pas_rappeler:'🚫 Ne pas rappeler'};
+  var STATUS_ORDER=['a_appeler','rappeler','interesse','demo_envoyee','gagne','perdu','ne_pas_rappeler'];
+  var OUTCOME_LABEL={no_answer:'Pas de réponse',voicemail:'Messagerie',busy:'Occupé',callback:'À rappeler',wrong_number:'Mauvais numéro',interested:'Intéressé',demo_sent:'Démo envoyée',not_interested:'Pas intéressé',do_not_call:'Ne pas rappeler',won:'Gagné'};
+
+  function api(path,opts){
+    opts=opts||{};
+    var headers=Object.assign({'Accept':'application/json'},opts.headers||{});
+    if(opts.body&&!headers['Content-Type'])headers['Content-Type']='application/json';
+    return fetch(path,Object.assign({credentials:'same-origin'},opts,{headers:headers})).then(function(r){
+      if(r.status===401){location.href='/admin/login';throw new Error('auth');}
+      return r.json().then(function(j){if(!r.ok)throw new Error(j.error||('http '+r.status));return j;});
+    });
+  }
+  function toast(m,ms){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('on');},ms||3200);}
+
+  function fmtWhen(ts){if(!ts)return'';var v=Date.parse(ts.replace(' ','T')+'Z');if(isNaN(v))return ts;
+    var d=(Date.now()-v)/1000,fut=d<0;d=Math.abs(d);
+    var s=d<3600?Math.max(1,Math.round(d/60))+' min':d<86400?Math.round(d/3600)+' h':Math.round(d/86400)+' j';
+    return fut?('dans '+s):('il y a '+s);}
+  function fmtDate(ts){if(!ts)return'';var p=ts.split(/[ T]/);if(p.length<2)return ts;var d=p[0].split('-');return d[2]+'/'+d[1]+' '+p[1].slice(0,5);}
+
+  // ---- KPIs ----
+  function loadStats(){
+    api('/admin/api/calling/stats').then(function(s){
+      var by=s.by_status||{};
+      var h='';
+      h+=kpi(by.a_appeler||0,'À appeler','');
+      h+=kpi(s.due||0,'Rappels dus','due');
+      h+=kpi(s.calls_today||0,"Appels aujourd'hui","");
+      h+=kpi((s.reach_rate||0)+'%','Taux décroché','gold');
+      h+=kpi(s.interested||0,'Intéressés','gold');
+      h+=kpi(s.won||0,'Gagnés','ok');
+      h+=kpi(s.total||0,'Total pipeline','');
+      $('kpis').innerHTML=h;
+      if(!s.places_configured)$('addq').title='Google Places non configuré : les numéros manquants ne seront pas retrouvés automatiquement.';
+    }).catch(function(){});
+  }
+  function kpi(v,l,cls){return'<div class="kpi '+(cls||'')+'"><div class="v">'+v+'</div><div class="l">'+esc(l)+'</div></div>';}
+
+  // ---- View switch ----
+  function setView(v){view=v;$('v-cockpit').classList.toggle('on',v==='cockpit');$('v-list').classList.toggle('on',v==='list');
+    if(v==='cockpit')renderCockpitLoad();else loadList();}
+  $('v-cockpit').onclick=function(){setView('cockpit');};
+  $('v-list').onclick=function(){setView('list');};
+
+  // ---- Cockpit ----
+  function renderCockpitLoad(){
+    $('view').innerHTML='<div class="msg">Chargement de la prochaine fiche…</div>';
+    var qs='';if(sessionQ)qs='?q='+encodeURIComponent(sessionQ);
+    api('/admin/api/calling/next'+qs).then(function(r){
+      current=r.prospect;
+      if(!current){$('view').innerHTML=emptyCockpit();$('sessioninfo').textContent='';return;}
+      // Charge l'historique de la fiche puis rend.
+      api('/admin/api/calling/'+encodeURIComponent(current.slug)).then(function(d){renderCockpit(d.prospect,d.logs||[]);}).catch(function(){renderCockpit(current,[]);});
+    }).catch(function(e){if(e.message!=='auth')$('view').innerHTML='<div class="msg">Erreur : '+esc(e.message)+'</div>';});
+  }
+  function emptyCockpit(){
+    return '<div class="card"><div class="cardpad msg">🎉 Aucune fiche à appeler pour le moment.<br><br>'
+      +'Ajoute des salons depuis le <a href="/admin/stats.html" style="color:var(--blue)">Suivi</a> (bouton 📞), '
+      +'depuis la barre « ＋ Ajouter » ci-dessus, ou consulte la <a href="#" id="goempty" style="color:var(--blue)">File d\'appel</a> pour les rappels programmés.</div></div>';
+  }
+  function renderCockpit(p,logs){
+    current=p;
+    var tel=p.telephone
+      ? '<a class="telbig" href="tel:'+esc(p.telephone.replace(/\s/g,''))+'">'+esc(p.telephone)+'</a>'
+        +'<button class="minibtn" id="copytel">⧉ Copier</button>'
+        +'<span class="phsrc">'+(p.phone_source==='google'?'via Google':p.phone_source==='manuel'?'saisi':'base')+'</span>'
+      : '<span class="telnone">Numéro introuvable</span><button class="minibtn" id="findtel">🔎 Chercher sur Google</button>';
+    var maps=p.maps_url?'<a class="minibtn" href="'+esc(p.maps_url)+'" target="_blank" rel="noopener">📍 Maps</a>':'';
+    var shot=p.screenshot
+      ? '<a class="shotlink" href="'+esc(p.preview_url)+'" target="_blank" rel="noopener"><img class="shot" src="'+esc(p.screenshot)+'" alt=""><span class="shotcta">👁 Voir sa démo en ligne →</span></a>'
+      : '<div class="cardpad" style="border-top:1px solid var(--border)"><a class="minibtn" href="'+esc(p.preview_url)+'" target="_blank" rel="noopener">👁 Voir sa démo →</a></div>';
+    var meta='';
+    meta+='<span class="chip">Tentatives : '+(p.attempts||0)+'</span>';
+    if(p.last_outcome)meta+='<span class="chip warm">Dernier : '+esc(OUTCOME_LABEL[p.last_outcome]||p.last_outcome)+' · '+esc(fmtWhen(p.last_called_at))+'</span>';
+    if(p.subscription_status)meta+='<span class="chip ok">Client '+esc(p.subscription_status)+'</span>';
+    if(p.added_from)meta+='<span class="chip">Source : '+esc(p.added_from)+'</span>';
+
+    var histHtml='';
+    if(logs&&logs.length){
+      histHtml='<div class="hist"><div class="noteslab">Historique des appels</div>'+logs.map(function(l){
+        return '<div class="hrow"><span class="ho">'+esc(OUTCOME_LABEL[l.outcome]||l.outcome)+'</span>'
+          +(l.note?'<span class="hn">— '+esc(l.note)+'</span>':'')+'<span class="ht">'+esc(fmtDate(l.created_at))+'</span></div>';
+      }).join('')+'</div>';
+    }
+
+    var html='<div class="cock">'
+      +'<div>'
+        +'<div class="card">'
+          +'<div class="cardpad">'
+            +'<div class="cname">'+esc(p.nom)+'</div>'
+            +'<div class="cloc">'+esc([p.adresse,p.code_postal,p.ville].filter(Boolean).join(', '))+'</div>'
+            +'<div class="telrow">'+tel+maps+'</div>'
+            +'<div class="metaline">'+meta+'</div>'
+          +'</div>'
+          +shot
+          +'<div class="cardpad">'
+            +'<div class="noteslab">Notes (enregistrées automatiquement)</div>'
+            +'<textarea class="notes" id="notes" placeholder="Nom du gérant, contexte, ce qui a été dit…">'+esc(p.notes||'')+'</textarea>'
+            +histHtml
+          +'</div>'
+          +'<div class="obar">'
+            +'<div class="whenpick"><label>📅 Rappeler le :</label><input type="datetime-local" id="nextcall"><span style="font-size:11.5px">(sinon +2 jours par défaut pour un rappel)</span></div>'
+            +'<div class="osec">Quelqu\'un a décroché</div>'
+            +'<div class="ogrid">'
+              +obtn('interested','🌟 Intéressé','good')
+              +obtn('demo_sent','📩 Démo/lien envoyé','good')
+              +obtn('won','✅ Devenu client','good')
+              +obtn('callback','🔁 Me rappeler / plus tard','')
+              +obtn('not_interested','😐 Pas intéressé','bad')
+              +obtn('do_not_call','🚫 Ne pas rappeler','bad')
+            +'</div>'
+            +'<div class="osec">Personne n\'a décroché</div>'
+            +'<div class="ogrid">'
+              +obtn('no_answer','📵 Pas de réponse','')
+              +obtn('voicemail','📬 Messagerie','')
+              +obtn('busy','⛔ Occupé','')
+              +obtn('wrong_number','❌ Mauvais numéro','bad')
+            +'</div>'
+            +'<div style="display:flex;gap:10px;margin-top:4px"><button class="minibtn" id="skip">⏭ Passer sans noter</button><button class="minibtn" id="remove" style="color:var(--hot)">🗑 Retirer de la file</button></div>'
+          +'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div class="side">'+scriptSidebar()+'</div>'
+    +'</div>';
+    $('view').innerHTML=html;
+    $('sessioninfo').textContent='Fiche en cours : '+p.nom;
+
+    // Bindings
+    var nt=$('notes');
+    nt.onblur=function(){if((nt.value||'')!==(p.notes||'')){api('/admin/api/calling/'+encodeURIComponent(p.slug)+'/update',{method:'POST',body:JSON.stringify({notes:nt.value})}).then(function(d){current=d.prospect;}).catch(function(){});}};
+    var ct=$('copytel');if(ct)ct.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(p.telephone);toast('Numéro copié');};
+    var ft=$('findtel');if(ft)ft.onclick=function(){ft.textContent='🔎 Recherche…';ft.disabled=true;
+      api('/admin/api/calling/'+encodeURIComponent(p.slug)+'/resolve-phone',{method:'POST'}).then(function(d){
+        if(d.found){toast('Numéro trouvé : '+d.telephone);renderCockpit(d.prospect,logs);}else{toast('Aucun numéro trouvé sur Google');ft.textContent='🔎 Réessayer';ft.disabled=false;}
+      }).catch(function(e){toast('Erreur : '+e.message);ft.textContent='🔎 Chercher sur Google';ft.disabled=false;});};
+    $('skip').onclick=function(){advance(p.slug);};
+    $('remove').onclick=function(){if(!confirm('Retirer '+p.nom+' de la file d\'appel ? (l\'historique est conservé)'))return;
+      api('/admin/api/calling/'+encodeURIComponent(p.slug),{method:'DELETE'}).then(function(){toast('Retiré de la file');advance(p.slug);loadStats();});};
+    Array.prototype.forEach.call($('view').querySelectorAll('[data-out]'),function(b){
+      b.onclick=function(){recordOutcome(p.slug,b.getAttribute('data-out'));};});
+    var ge=$('goempty');if(ge)ge.onclick=function(e){e.preventDefault();setView('list');};
+  }
+  function obtn(out,label,cls){return'<button class="obtn'+(cls?' '+cls:'')+'" data-out="'+out+'">'+label+'</button>';}
+
+  function recordOutcome(slug,outcome){
+    Array.prototype.forEach.call($('view').querySelectorAll('.obtn'),function(b){b.disabled=true;});
+    var note=($('notes')&&$('notes').value||'').trim();
+    var nc=$('nextcall')&&$('nextcall').value?$('nextcall').value.replace('T',' ')+':00':null;
+    api('/admin/api/calling/'+encodeURIComponent(slug)+'/outcome',{method:'POST',body:JSON.stringify({outcome:outcome,note:note,next_call_at:nc})})
+      .then(function(){toast('✓ '+(OUTCOME_LABEL[outcome]||outcome)+' — fiche suivante');loadStats();advance(slug);})
+      .catch(function(e){toast('Erreur : '+e.message);Array.prototype.forEach.call($('view').querySelectorAll('.obtn'),function(b){b.disabled=false;});});
+  }
+  // Charge la fiche suivante en excluant celle qu'on vient de traiter.
+  function advance(excludeSlug){
+    var qs='?exclude='+encodeURIComponent(excludeSlug);if(sessionQ)qs+='&q='+encodeURIComponent(sessionQ);
+    $('view').innerHTML='<div class="msg">Fiche suivante…</div>';
+    api('/admin/api/calling/next'+qs).then(function(r){
+      if(!r.prospect){$('view').innerHTML=emptyCockpit();$('sessioninfo').textContent='';var ge=$('goempty');if(ge)ge.onclick=function(e){e.preventDefault();setView('list');};return;}
+      api('/admin/api/calling/'+encodeURIComponent(r.prospect.slug)).then(function(d){renderCockpit(d.prospect,d.logs||[]);}).catch(function(){renderCockpit(r.prospect,[]);});
+    });
+  }
+
+  function scriptSidebar(){
+    return '<div class="card"><div class="cardpad">'
+      +'<div class="sidetitle">📞 Script d\'appel</div>'
+      +'<details class="scr" open><summary>1. Accroche (10 s)</summary><div class="scrbody">'
+        +'<p>« Bonjour, <b>[Prénom]</b> de MaQuickPage. Je vous appelle parce qu\'on a <b>déjà créé un site web de démonstration pour votre salon</b>, à partir de vos infos Google. »</p>'
+        +'<p>« Vous auriez <b>30 secondes</b> pour que je vous dise où le voir ? »</p></div></details>'
+      +'<details class="scr"><summary>2. Le pitch</summary><div class="scrbody">'
+        +'<p>« C\'est un vrai site, avec vos photos, vos horaires, vos avis Google. <b>Vous le regardez, et s\'il vous plaît vous le gardez</b> pour ~10 €/mois, sinon rien. »</p>'
+        +'<p><b>Objectif de l\'appel :</b> qu\'il aille voir sa démo (SMS/email du lien) — pas vendre au téléphone.</p></div></details>'
+      +'<details class="scr"><summary>3. Réponses aux objections</summary><div class="scrbody">'
+        +'<div class="obj"><span class="q">« J\'ai pas le temps »</span> <span class="a">→ « Justement, tout est déjà fait. Je vous envoie le lien par SMS, vous regardez ce soir. C\'est quoi votre numéro ? »</span></div>'
+        +'<div class="obj"><span class="q">« J\'ai déjà un site »</span> <span class="a">→ « Parfait. Comparez juste 2 min avec le nôtre — beaucoup le trouvent plus moderne et 3× moins cher. »</span></div>'
+        +'<div class="obj"><span class="q">« Ça coûte combien ? »</span> <span class="a">→ « À partir de 9,90 €/mois, sans engagement possible. Regardez d\'abord le site, on parle du prix après. »</span></div>'
+        +'<div class="obj"><span class="q">« J\'ai pas besoin »</span> <span class="a">→ « 7 clients sur 10 cherchent un coiffeur sur Google d\'abord. Sans site, ils tombent chez le voisin. »</span></div>'
+        +'<div class="obj"><span class="q">« Envoyez un mail »</span> <span class="a">→ « Avec plaisir — c\'est quelle adresse ? Et je vous rappelle dans 2 jours pour votre avis, ça marche ? »</span></div>'
+      +'</div></details>'
+      +'<details class="scr"><summary>4. Bonnes pratiques</summary><div class="scrbody">'
+        +'<p>• <b>Meilleurs créneaux :</b> mar–ven, 11h–12h ou 14h30–16h30. Évite le samedi.</p>'
+        +'<p>• <b>Souris en parlant</b>, ça s\'entend. Débit posé.</p>'
+        +'<p>• <b>Toujours</b> finir par une action : rappel programmé ou lien envoyé.</p>'
+        +'<p>• Un « non » = un « pas maintenant » : relance dans quelques semaines (sauf « ne pas rappeler »).</p>'
+      +'</div></details>'
+      +'</div></div>';
+  }
+
+  // ---- Liste / file d'appel ----
+  var LIST_FILTERS=[['all','Tous'],['due','🔴 Rappels dus'],['a_appeler','À appeler'],['rappeler','À rappeler'],['interesse','Intéressé'],['demo_envoyee','Démo envoyée'],['gagne','Gagné'],['perdu','Perdu'],['ne_pas_rappeler','Ne pas rappeler']];
+  function loadList(){
+    $('view').innerHTML='<div class="msg">Chargement de la file…</div>';
+    var qs=[];
+    if(listFilter==='due')qs.push('due=1');
+    else if(listFilter!=='all')qs.push('status='+encodeURIComponent(listFilter));
+    api('/admin/api/calling/list'+(qs.length?'?'+qs.join('&'):'')).then(function(r){renderList(r.rows||[]);});
+  }
+  function renderList(rows){
+    var fb='<div class="filterbar">'+LIST_FILTERS.map(function(f){
+      return '<button class="fbtn'+(listFilter===f[0]?' on':'')+'" data-f="'+f[0]+'">'+esc(f[1])+'</button>';
+    }).join('')+'</div>';
+    var body;
+    if(!rows.length){body='<div class="msg">Aucun salon dans cette vue.</div>';}
+    else{
+      body='<div class="tbl-wrap"><table><thead><tr><th>Salon</th><th>Téléphone</th><th>Statut</th><th style="text-align:center">Tent.</th><th>Prochain rappel</th><th></th></tr></thead><tbody>';
+      var now=Date.now();
+      rows.forEach(function(p){
+        var due=p.next_call_at&&(Date.parse(p.next_call_at.replace(' ','T')+'Z')<=now)&&['gagne','perdu','ne_pas_rappeler'].indexOf(p.status)<0;
+        body+='<tr>'
+          +'<td><span class="salon">'+esc(p.nom)+'</span><div style="font-size:12px;color:var(--muted)">'+esc(p.ville||'')+'</div></td>'
+          +'<td>'+(p.telephone?'<a class="lact" href="tel:'+esc(p.telephone.replace(/\s/g,''))+'">'+esc(p.telephone)+'</a>':'<span style="color:var(--muted)">—</span>')+'</td>'
+          +'<td><span class="badge b-'+p.status+'">'+esc(STATUS_LABEL[p.status]||p.status)+'</span></td>'
+          +'<td style="text-align:center">'+(p.attempts||0)+'</td>'
+          +'<td>'+(p.next_call_at?(due?'<span class="due-dot">● </span>':'')+esc(fmtDate(p.next_call_at))+' <span style="color:var(--muted);font-size:12px">('+esc(fmtWhen(p.next_call_at))+')</span>':'<span style="color:var(--muted)">—</span>')+'</td>'
+          +'<td style="white-space:nowrap"><span class="lact" data-open="'+esc(p.slug)+'">Appeler →</span> &nbsp; <span class="lx" data-del="'+esc(p.slug)+'" title="Retirer">✕</span></td>'
+        +'</tr>';
+      });
+      body+='</tbody></table></div>';
+    }
+    $('view').innerHTML=fb+body;
+    Array.prototype.forEach.call($('view').querySelectorAll('.fbtn'),function(b){b.onclick=function(){listFilter=b.getAttribute('data-f');loadList();};});
+    Array.prototype.forEach.call($('view').querySelectorAll('[data-open]'),function(el){el.onclick=function(){openInCockpit(el.getAttribute('data-open'));};});
+    Array.prototype.forEach.call($('view').querySelectorAll('[data-del]'),function(el){el.onclick=function(){
+      var slug=el.getAttribute('data-del');
+      if(!confirm('Retirer ce salon de la file d\'appel ?'))return;
+      api('/admin/api/calling/'+encodeURIComponent(slug),{method:'DELETE'}).then(function(){toast('Retiré');loadList();loadStats();});
+    };});
+  }
+  function openInCockpit(slug){
+    view='cockpit';$('v-cockpit').classList.add('on');$('v-list').classList.remove('on');
+    $('view').innerHTML='<div class="msg">Ouverture…</div>';
+    api('/admin/api/calling/'+encodeURIComponent(slug)).then(function(d){renderCockpit(d.prospect,d.logs||[]);}).catch(function(e){toast('Erreur : '+e.message);});
+  }
+
+  // ---- Barre d'ajout (recherche salons) ----
+  var addT=null;
+  $('addq').addEventListener('input',function(){
+    var q=this.value.trim();clearTimeout(addT);
+    if(q.length<2){$('addres').classList.remove('on');return;}
+    addT=setTimeout(function(){
+      api('/admin/api/calling/search',{method:'POST',body:JSON.stringify({query:q})}).then(function(r){
+        var rs=r.results||[];
+        if(!rs.length){$('addres').innerHTML='<div class="ares-it"><span class="al">Aucun salon trouvé</span></div>';$('addres').classList.add('on');return;}
+        $('addres').innerHTML=rs.map(function(x){
+          return '<div class="ares-it" data-add="'+esc(x.slug)+'"><div><div class="an">'+esc(x.nom)+'</div><div class="al">'+esc([x.code_postal,x.ville].filter(Boolean).join(' '))+(x.telephone?' · '+esc(x.telephone):'')+'</div></div>'+(x.in_calling?'<span class="atag">✓ déjà</span>':'<span class="atag" style="color:var(--gold-d)">＋ ajouter</span>')+'</div>';
+        }).join('');
+        $('addres').classList.add('on');
+        Array.prototype.forEach.call($('addres').querySelectorAll('[data-add]'),function(el){el.onclick=function(){addSalon(el.getAttribute('data-add'));};});
+      }).catch(function(){});
+    },250);
+  });
+  document.addEventListener('click',function(e){if(!e.target.closest('.addbox'))$('addres').classList.remove('on');});
+  function addSalon(slug){
+    $('addres').classList.remove('on');$('addq').value='';
+    api('/admin/api/calling/add',{method:'POST',body:JSON.stringify({slug:slug,added_from:'manuel'})}).then(function(j){
+      var p=j.prospect||{};
+      toast((j.already?'Déjà dans la file':'Ajouté ✓')+(p.telephone?' · '+p.telephone:' · numéro à retrouver'));
+      loadStats();
+      if(view==='list')loadList();else openInCockpit(slug);
+    }).catch(function(e){toast('Erreur : '+e.message);});
+  }
+
+  $('refresh').onclick=function(){loadStats();if(view==='cockpit')renderCockpitLoad();else loadList();};
+
+  loadStats();
+  renderCockpitLoad();
+})();
+</script>
+</body>
+</html>
