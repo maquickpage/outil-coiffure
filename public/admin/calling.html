@@ -390,6 +390,8 @@
       sc.textContent='✓ Copié';sc.classList.add('ok');
       setTimeout(function(){sc.textContent='⧉ Copier le SMS';sc.classList.remove('ok');},2200);
       toast('SMS copié — colle-le dans ton téléphone');
+      // Trace le partage → le salon apparaît dans l'onglet Suivi (best-effort).
+      api('/admin/api/calling/'+encodeURIComponent(p.slug)+'/log-share',{method:'POST',body:JSON.stringify({channel:'sms'})}).catch(function(){});
     };
     var ms=$('mailsend');if(ms)ms.onclick=function(){
       var to=($('mailto').value||'').trim();

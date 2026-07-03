@@ -463,7 +463,28 @@ router.post('/api/calling/:slug/send-email', async (req, res) => {
   // Backfill : garde l'adresse dans la fiche salon si elle était vide.
   try { db.prepare("UPDATE salons SET email = ?, updated_at = datetime('now') WHERE slug = ? AND (email IS NULL OR email = '')").run(to, slug); } catch {}
   db.prepare("UPDATE calling_prospects SET updated_at = datetime('now') WHERE slug = ?").run(slug);
+  // Le salon apparaît immédiatement dans l'onglet Suivi (« envoyé mais pas
+  // encore ouvert » devient visible, avant même la 1re visite du prospect).
+  // user_agent non vide et hors regex bots : sinon le filtre « Humains
+  // seulement » de stats.html écarterait la ligne. Best-effort, non bloquant.
+  try {
+    db.prepare("INSERT INTO preview_events (event, slug, src, user_agent, meta) VALUES ('demo_email_envoyee', ?, 'cockpit', 'cockpit (envoi interne)', ?)")
+      .run(slug, JSON.stringify({ to }));
+  } catch {}
   res.json({ ok: true, id: r.id || null });
+});
+
+// Trace le partage SMS (clic « Copier le SMS » dans le cockpit) → le salon
+// apparaît dans le Suivi. Best-effort : copier ≠ envoyer, mais c'est le
+// signal le plus fiable dont on dispose côté outil.
+router.post('/api/calling/:slug/log-share', (req, res) => {
+  const prospect = db.prepare('SELECT slug FROM calling_prospects WHERE slug = ?').get(req.params.slug);
+  if (!prospect) return res.status(404).json({ error: 'Fiche introuvable' });
+  try {
+    db.prepare("INSERT INTO preview_events (event, slug, src, user_agent) VALUES ('demo_sms_copiee', ?, 'cockpit', 'cockpit (envoi interne)')")
+      .run(req.params.slug);
+  } catch {}
+  res.json({ ok: true });
 });
 
 // Force une (re)recherche du numéro sur Google Places.

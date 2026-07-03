@@ -163,6 +163,7 @@
       tg_pay:'Paiement',tg_cgv:'CGV',tg_email:'Email 3/3',tg_domains:'Domaines 2/3',tg_pricing:'Tarifs 1/3',tg_custom:'Domaine perso',tg_edited:'Démo éditée',tg_editor:'Éditeur ouvert',tg_devices:'{n} appareils',tg_scroll:'scroll {n}%',
       st_client:'✅ Client',st_pay:'🔥 Procéder au paiement',st_cgv:'🔥 CGV acceptées',st_editsave:'🔥 A édité sa démo',st_editopen:'A ouvert l\'éditeur',st_custom:'Domaine perso tapé',st_email:'Étape 3/3 · Email',st_domains:'Étape 2/3 · Domaines',st_pricing:'Étape 1/3 · Tarifs',st_scroll:'A scrollé',st_view:'A vu la page',
       e_view:'Vue page',e_scroll:'Scroll',e_pricing:'Étape 1/3 · Tarifs',e_domains:'Étape 2/3 · Domaines',e_custom:'Domaine perso',e_email:'Étape 3/3 · Email',e_cgv:'CGV acceptées',e_editopen:'Éditeur ouvert',e_editsave:'Démo éditée',e_pay:'Procéder au paiement',
+      e_demo_mail:'📧 Démo envoyée par email (cockpit)',e_demo_sms:'📱 SMS démo copié (cockpit)',tg_demo_mail:'📧 Démo envoyée',tg_demo_sms:'📱 SMS démo',
       d_events:'Événements',d_ip:'IP',d_device:'Appareil',d_plan:'Plan choisi',d_devices:'Appareils & connexions',d_visits:'visites',d_connections:'Connexions',d_ua:'Navigateur (UA)',
       see:'Voir →',none:'Aucune visite pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j'},
     en:{brand:'Mockup tracking',refresh:'Refresh',exp:'CSV',maj:'upd.',back:'← Admin',search:'Search salon, city, email…',humans:'Humans only',auto:'Auto (60s)',loading:'Loading…',
@@ -200,7 +201,7 @@
 
   var STAGE={preview_ouvert:1,pricing_ouvert:3,etape_domaine:4,etape_email:5,domaine_perso:6,editeur_ouvert:7,editeur_modifie:8,cgv_accepte:9,paiement_initie:10};
   var PLAN={TWO_YEAR:'9,90€ · 24 mois',ONE_YEAR:'17,90€ · 12 mois',FLEX:'29€ · sans engagement'};
-  var EVENT_KEY={preview_ouvert:'e_view',scroll_max:'e_scroll',pricing_ouvert:'e_pricing',etape_domaine:'e_domains',domaine_perso:'e_custom',etape_email:'e_email',editeur_ouvert:'e_editopen',editeur_modifie:'e_editsave',cgv_accepte:'e_cgv',paiement_initie:'e_pay'};
+  var EVENT_KEY={preview_ouvert:'e_view',scroll_max:'e_scroll',pricing_ouvert:'e_pricing',etape_domaine:'e_domains',domaine_perso:'e_custom',etape_email:'e_email',editeur_ouvert:'e_editopen',editeur_modifie:'e_editsave',cgv_accepte:'e_cgv',paiement_initie:'e_pay',demo_email_envoyee:'e_demo_mail',demo_sms_copiee:'e_demo_sms'};
   // ===== Statut commercial : un seul bucket par salon, ordonné par valeur =====
   // Remplace l'échelle 1–10 (qui mélangeait achat et édition) : ici le checkout
   // prime toujours sur l'éditeur. Les signaux parallèles passent en tags.
@@ -229,6 +230,9 @@
     if(e['domaine_perso'])out.push(['tg_custom','t-warm',null]);
     if(e['editeur_modifie'])out.push(['tg_edited','t-warm',null]);
     else if(e['editeur_ouvert'])out.push(['tg_editor','',null]);
+    // Partages depuis le cockpit de prospection (envoi email / SMS copié)
+    if(e['demo_email_envoyee'])out.push(['tg_demo_mail','t-warm',null]);
+    if(e['demo_sms_copiee'])out.push(['tg_demo_sms','',null]);
     if(s.scroll>0)out.push(['tg_scroll','',{n:s.scroll}]);
     var nd=Object.keys(s.devices).length;if(nd>1)out.push(['tg_devices','',{n:nd}]);
     return out;
