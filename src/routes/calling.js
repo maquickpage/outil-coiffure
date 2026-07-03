@@ -125,14 +125,11 @@ router.get('/api/calling/list', (req, res) => {
     where += " AND cp.next_call_at IS NOT NULL AND cp.next_call_at <= datetime('now') AND cp.status NOT IN ('gagne','perdu','ne_pas_rappeler')";
   }
 
-  // Tri file : rappels dus d'abord, puis priorité, puis rappel programmé le plus proche, puis récence.
+  // Tri file : ORDRE DE CRÉATION (le plus récent en fin de liste) — demandé
+  // par Johann : ordre prévisible, un salon ajouté se trouve toujours en bas.
+  // Les rappels dus restent repérables via le KPI + le filtre « 🔴 Rappels dus ».
   const rows = db.prepare(`${SELECT_JOIN} WHERE ${where}
-    ORDER BY
-      (cp.next_call_at IS NOT NULL AND cp.next_call_at <= datetime('now')) DESC,
-      cp.priority DESC,
-      (cp.next_call_at IS NULL) ASC,
-      cp.next_call_at ASC,
-      cp.updated_at DESC
+    ORDER BY cp.id ASC
   `).all(params);
 
   res.json({ rows: rows.map(decorate) });
@@ -403,6 +400,36 @@ router.post('/api/calling/:slug/update', (req, res) => {
   res.json({ ok: true, prospect: decorate(getProspect(slug)) });
 });
 
+// Construit le HTML de l'email démo à partir du texte saisi dans le cockpit.
+// Le 1er lien /preview/ trouvé dans le texte est remplacé par une MINIATURE
+// cliquable du site (screenshot) + bouton « Voir mon site → » ; les autres
+// URLs deviennent des liens. Exportée pour être testable unitairement.
+export function buildDemoEmailHtml(bodyText, { screenshotUrl = null, salonName = '' } = {}) {
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const linkify = (s) => escapeHtml(s)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#002FA7">$1</a>')
+    .replace(/\n/g, '<br>');
+
+  const previewMatch = bodyText.match(/https?:\/\/[^\s<]*\/preview\/[^\s<]+/);
+  let inner;
+  if (previewMatch && screenshotUrl) {
+    const url = previewMatch[0];
+    const i = bodyText.indexOf(url);
+    const before = bodyText.slice(0, i);
+    const after = bodyText.slice(i + url.length);
+    const urlAttr = escapeHtml(url);
+    inner = linkify(before)
+      + '<div style="margin:18px 0">'
+      +   `<a href="${urlAttr}" style="text-decoration:none"><img src="${escapeHtml(screenshotUrl)}" alt="Aperçu du site ${escapeHtml(salonName)}" width="520" style="max-width:100%;border-radius:12px;border:1px solid #e5e7eb;display:block"></a>`
+      +   `<div style="margin-top:12px"><a href="${urlAttr}" style="display:inline-block;background:#0a0a0a;color:#ffffff;padding:11px 22px;border-radius:999px;font-weight:600;font-size:14px;text-decoration:none">Voir mon site →</a></div>`
+      + '</div>'
+      + linkify(after);
+  } else {
+    inner = linkify(bodyText);
+  }
+  return `<!DOCTYPE html><html lang="fr"><body style="font-family:-apple-system,system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a1a;font-size:15px;line-height:1.6">${inner}</body></html>`;
+}
+
 // Envoi 1-clic de l'email « voici votre démo » (via Resend — même infra que
 // les emails signup, domaine maquickpage.fr vérifié, reply-to Johann).
 // Smartlead n'est PAS utilisé ici : son API ne permet pas d'envoi one-off
@@ -420,12 +447,15 @@ router.post('/api/calling/:slug/send-email', async (req, res) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ error: 'Adresse email invalide' });
   if (!subject || !bodyText) return res.status(400).json({ error: 'Objet et message requis' });
 
-  // Corps HTML simple : texte échappé + liens cliquables + <br>.
-  const escaped = bodyText
-    .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#002FA7">$1</a>')
-    .replace(/\n/g, '<br>');
-  const html = `<!DOCTYPE html><html lang="fr"><body style="font-family:-apple-system,system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a1a;font-size:15px;line-height:1.6">${escaped}</body></html>`;
+  // Miniature : si le corps contient le lien /preview/ du salon ET qu'un
+  // screenshot existe en base, le lien brut est remplacé par une image
+  // cliquable du site + bouton (les screenshots sont servis publiquement
+  // sur PUBLIC_BASE/screenshots/ — vérifié, accessibles sans session).
+  const salonRow = db.prepare('SELECT nom, nom_clean, screenshot_path, screenshot_generated_at FROM salons WHERE slug = ?').get(slug) || {};
+  const screenshotUrl = salonRow.screenshot_path
+    ? `${PUBLIC_BASE}${salonRow.screenshot_path}${salonRow.screenshot_generated_at ? '?v=' + encodeURIComponent(salonRow.screenshot_generated_at) : ''}`
+    : null;
+  const html = buildDemoEmailHtml(bodyText, { screenshotUrl, salonName: salonRow.nom_clean || salonRow.nom || '' });
 
   const r = await sendRaw({ to, subject, html, text: bodyText });
   if (!r.ok) return res.status(502).json({ error: 'Envoi échoué (' + (r.reason || '?') + ')', details: r.details || null });
