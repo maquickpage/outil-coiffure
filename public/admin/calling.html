@@ -278,10 +278,11 @@
       renderFiche(d.prospect,d.logs||[]);
     }).catch(function(e){if(e.message!=='auth')$('fiche').innerHTML='<div class="card"><div class="cardpad msg">Erreur : '+esc(e.message)+'</div></div>';});
   }
+  // Navigation CIRCULAIRE : « Précédent » sur la fiche 1 → dernière fiche,
+  // « Suivant » sur la dernière → fiche 1.
   function nav(delta){
-    var ni=qIndex+delta;
-    if(ni<0||ni>=queue.length)return;
-    qIndex=ni;
+    if(queue.length<=1)return;
+    qIndex=(qIndex+delta+queue.length)%queue.length;
     showCurrent();
   }
 
@@ -340,9 +341,9 @@
 
     var html='<div class="card">'
       +'<div class="qnav">'
-        +'<button class="qbtn" id="qprev"'+(qIndex<=0?' disabled':'')+'>‹ Précédent</button>'
+        +'<button class="qbtn" id="qprev"'+(queue.length<=1?' disabled':'')+'>‹ Précédent</button>'
         +'<span class="qpos">'+(qIndex+1)+' / '+queue.length+'</span>'
-        +'<button class="qbtn" id="qnext"'+(qIndex>=queue.length-1?' disabled':'')+'>Suivant ›</button>'
+        +'<button class="qbtn" id="qnext"'+(queue.length<=1?' disabled':'')+'>Suivant ›</button>'
         +'<span style="flex:1"></span>'
         +'<button class="minibtn" id="remove" style="color:var(--hot)">🗑 Retirer</button>'
       +'</div>'
