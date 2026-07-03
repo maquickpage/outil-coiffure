@@ -187,34 +187,52 @@ router.get('/api/calling/speech-token', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Copilote : à partir de la dernière phrase du prospect, classe l'intention,
-// choisit le nœud de l'arbre le plus pertinent et propose une réplique courte.
-// Le catalogue de nœuds est fourni par le front (source unique = call-tree.js).
+// Copilote : à partir de la dernière phrase du prospect (+ contexte roulant),
+// classe l'intention, choisit le nœud le plus pertinent et propose une réplique
+// courte dans le STYLE de l'approche choisie. Catalogue de nœuds fourni par le
+// front (source unique = call-tree.js).
+// ⚠️ FAITS PRODUIT vérifiés dans checkout.js/pricing-modal.js/CGV le 2026-07-02 —
+// si le pricing change, mettre à jour ICI et dans call-tree.js.
+const COPILOT_FACTS = `FAITS PRODUIT (chiffres EXACTS, n'en invente jamais d'autres) :
+- Le site du salon existe DÉJÀ : vraies photos Google choisies par IA, avis + note Google, horaires, texte pro. Le regarder est gratuit, sans CB.
+- S'il valide : en ligne en moins de 5 minutes, tout est automatique (domaine, HTTPS, publication).
+- Prix TTC tout compris : 9,90 €/mois (engagement 24 mois, -65 %), 17,90 €/mois (12 mois, « le plus choisi »), 29 €/mois SANS engagement.
+- Zéro frais de mise en service. Levier de closing : « en agence c'est ~500 € ; offerte aux 100 premiers salons parce qu'on lance » (jamais « cette semaine »).
+- Domaine .fr/.com offert, enregistré AU NOM du client, transférable s'il part (contrairement aux agences).
+- Admin ultra simple : 6 sections, modifiable depuis le téléphone « comme Instagram ».
+- SEO : étoiles et horaires visibles directement dans les résultats Google. Responsive mobile. Hébergé en Europe, HTTPS, sauvegardes.`;
+
 router.post('/api/calling/copilot', async (req, res) => {
   if (!AZURE_KEY) return res.status(503).json({ error: 'AZURE_OPENAI_KEY non configurée sur le serveur' });
   const b = req.body || {};
   const utterance = String(b.utterance || '').trim();
   if (!utterance) return res.status(400).json({ error: 'utterance requis' });
   const nodes = Array.isArray(b.nodes) ? b.nodes : [];
+  const context = (Array.isArray(b.context) ? b.context : []).slice(-5).map((s) => String(s).slice(0, 300));
   const currentNode = String(b.current_node || '');
   const salon = b.salon || {};
+  const approach = b.approach || {};
   const catalog = nodes.map((n) => `- ${n.id}: ${n.label}${n.summary ? ' — ' + n.summary : ''}`).join('\n');
-  const system = `Tu es le copilote d'un commercial qui vend PAR TÉLÉPHONE des sites web déjà créés à des salons de coiffure (produit MaQuickPage, ~9,90 à 29€/mois, sans engagement possible ; argument clé : le site est DÉJÀ fait à partir de la fiche Google du salon, il suffit de le regarder). Objectif de l'appel : faire regarder la démo / obtenir l'accord d'envoyer le lien — PAS vendre au téléphone.
-Tu reçois la transcription de ce que dit le PROSPECT. À partir de sa dernière phrase :
-1) classe son intention (objection_temps, objection_prix, objection_deja_site, objection_besoin, mefiance, question, signal_achat, refus, hors_sujet…) ;
-2) choisis le nœud le plus pertinent de l'arbre ci-dessous (renvoie son id EXACT) ;
-3) propose en 1 à 2 phrases COURTES ce que le vendeur devrait dire maintenant (français parlé, naturel ; méthode : reconnaître la remarque puis rediriger vers « regardez la démo »). Ne vends pas, cherche le prochain pas.
+  const system = `Tu es le copilote TEMPS RÉEL d'un commercial au téléphone. Produit : MaQuickPage — sites web déjà créés pour salons de coiffure.
+${COPILOT_FACTS}
+OBJECTIF DE L'APPEL : que le prospect regarde la démo (accord d'envoi du lien SMS/email) ou un rappel programmé — PAS vendre au téléphone.
+STYLE DE VENTE CHOISI : ${approach.name || 'Permission 30 s'} — ${approach.style || 'poli, respectueux du temps'}. Tes suggestions doivent coller à ce style.
+La conversation avance vite : réponds COURT (1 à 2 phrases parlées, naturelles, immédiatement prononçables). Méthode : reconnaître ce que dit le prospect, puis rediriger vers le prochain pas.
+À partir de la DERNIÈRE phrase du prospect (le contexte précédent est fourni) :
+1) intention (objection_temps, objection_prix, objection_deja_site, objection_besoin, mefiance, question, signal_achat, refus, hors_sujet…) ;
+2) node_id le plus pertinent de l'arbre ci-dessous (id EXACT) ;
+3) suggestion courte dans le style choisi.
 Réponds UNIQUEMENT en JSON : {"node_id":"<id>","intent":"<intention>","suggestion":"<réplique courte>"}.
-Arbre d'appel (id : libellé — résumé) :
+Arbre (${approach.name || 'défaut'}) :
 ${catalog}`;
-  const user = `Salon : ${salon.nom || '?'}${salon.ville ? ' (' + salon.ville + ')' : ''}. Nœud affiché actuellement : ${currentNode || '?'}.
-Dernière phrase du prospect : "${utterance}"`;
+  const user = `Salon : ${salon.nom || '?'}${salon.ville ? ' (' + salon.ville + ')' : ''}. Nœud affiché : ${currentNode || '?'}.
+${context.length ? 'Répliques précédentes du prospect :\n' + context.map((c) => `- "${c}"`).join('\n') + '\n' : ''}DERNIÈRE phrase du prospect : "${utterance}"`;
   try {
     const r = await fetch(`${AZURE_ENDPOINT}/openai/deployments/${AZURE_COPILOT_DEPLOYMENT}/chat/completions?api-version=${AZURE_API_VERSION}`, {
       method: 'POST', headers: { 'api-key': AZURE_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-        max_completion_tokens: 400,
+        max_completion_tokens: 250,
         response_format: { type: 'json_object' },
       }),
     });

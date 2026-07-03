@@ -154,18 +154,6 @@
   <div id="view"></div>
 </main>
 
-<!-- Panneau Assistance d'appel IA (iframe de call-assist.html) -->
-<div id="assist-panel" style="position:fixed;inset:0;z-index:120;display:none;">
-  <div id="assist-backdrop" style="position:absolute;inset:0;background:rgba(10,10,10,.5);"></div>
-  <div style="position:absolute;top:0;right:0;bottom:0;width:min(900px,97vw);background:#fff;box-shadow:-8px 0 40px rgba(0,0,0,.3);display:flex;flex-direction:column;">
-    <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;background:#1a1a1a;color:#fff;">
-      <b style="color:#c9a96e;">🧭 Assistance d'appel IA</b><span style="flex:1"></span>
-      <a id="assist-full" href="#" target="_blank" rel="noopener" style="color:#fff;font-size:13px;text-decoration:none;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 11px;">⤢ Plein écran</a>
-      <button id="assist-close" style="border:none;background:#c9a96e;color:#1a1a1a;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;">✕ Fermer</button>
-    </div>
-    <iframe id="assist-frame" title="Assistance d'appel IA" style="flex:1;border:none;width:100%;" allow="display-capture; microphone"></iframe>
-  </div>
-</div>
 <div id="toast"></div>
 
 <script>
@@ -351,7 +339,7 @@
       +'<details class="scr"><summary>3. Réponses aux objections</summary><div class="scrbody">'
         +'<div class="obj"><span class="q">« J\'ai pas le temps »</span> <span class="a">→ « Justement, tout est déjà fait. Je vous envoie le lien par SMS, vous regardez ce soir. C\'est quoi votre numéro ? »</span></div>'
         +'<div class="obj"><span class="q">« J\'ai déjà un site »</span> <span class="a">→ « Parfait. Comparez juste 2 min avec le nôtre — beaucoup le trouvent plus moderne et 3× moins cher. »</span></div>'
-        +'<div class="obj"><span class="q">« Ça coûte combien ? »</span> <span class="a">→ « À partir de 9,90 €/mois, sans engagement possible. Regardez d\'abord le site, on parle du prix après. »</span></div>'
+        +'<div class="obj"><span class="q">« Ça coûte combien ? »</span> <span class="a">→ « 9,90 €/mois sur 2 ans, 17,90 € sur 1 an, ou 29 € sans engagement — zéro frais d\'installation, domaine inclus. Regardez d\'abord le site, on parle du prix après. »</span></div>'
         +'<div class="obj"><span class="q">« J\'ai pas besoin »</span> <span class="a">→ « 7 clients sur 10 cherchent un coiffeur sur Google d\'abord. Sans site, ils tombent chez le voisin. »</span></div>'
         +'<div class="obj"><span class="q">« Envoyez un mail »</span> <span class="a">→ « Avec plaisir — c\'est quelle adresse ? Et je vous rappelle dans 2 jours pour votre avis, ça marche ? »</span></div>'
       +'</div></details>'
@@ -441,16 +429,11 @@
 
   $('refresh').onclick=function(){loadStats();if(view==='cockpit')renderCockpitLoad();else loadList();};
 
-  // ---- Panneau Assistance d'appel IA ----
+  // ---- Assistance d'appel IA : toujours en plein écran (nouvel onglet,
+  // le cockpit reste ouvert pour noter le résultat de l'appel) ----
   function openAssist(slug){
-    var q=slug?('&slug='+encodeURIComponent(slug)):'';
-    $('assist-frame').src='/admin/call-assist.html?embed=1'+q;
-    $('assist-full').href='/admin/call-assist.html'+(slug?('?slug='+encodeURIComponent(slug)):'');
-    $('assist-panel').style.display='block';
+    window.open('/admin/call-assist.html'+(slug?('?slug='+encodeURIComponent(slug)):''),'_blank','noopener');
   }
-  function closeAssist(){ $('assist-panel').style.display='none'; $('assist-frame').src='about:blank'; }
-  $('assist-close').onclick=closeAssist;
-  $('assist-backdrop').onclick=closeAssist;
 
   loadStats();
   renderCockpitLoad();
