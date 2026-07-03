@@ -14,6 +14,7 @@
 import express from 'express';
 import db from '../db.js';
 import { searchText, placeDetails, isPlacesConfigured } from '../places-client.js';
+import { sendRaw, isEnabled as isEmailEnabled } from '../email-sender.js';
 
 const router = express.Router();
 router.use(express.json({ limit: '1mb' }));
@@ -244,6 +245,11 @@ ${context.length ? 'Répliques précédentes du prospect :\n' + context.map((c) 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Slugs déjà dans le pipeline (état persistant du bouton 📞 dans le Suivi).
+router.get('/api/calling/slugs', (req, res) => {
+  res.json({ slugs: db.prepare('SELECT slug FROM calling_prospects').all().map((r) => r.slug) });
+});
+
 // Prochaine fiche à appeler (respecte les filtres status/q). Exclut les fiches
 // closes et les rappels programmés dans le futur.
 router.get('/api/calling/next', (req, res) => {
@@ -395,6 +401,39 @@ router.post('/api/calling/:slug/update', (req, res) => {
   sets.push("updated_at = datetime('now')");
   db.prepare(`UPDATE calling_prospects SET ${sets.join(', ')} WHERE slug = ?`).run(...vals, slug);
   res.json({ ok: true, prospect: decorate(getProspect(slug)) });
+});
+
+// Envoi 1-clic de l'email « voici votre démo » (via Resend — même infra que
+// les emails signup, domaine maquickpage.fr vérifié, reply-to Johann).
+// Smartlead n'est PAS utilisé ici : son API ne permet pas d'envoi one-off
+// hors campagne (uniquement séquences ou réponses à un fil existant).
+router.post('/api/calling/:slug/send-email', async (req, res) => {
+  const slug = req.params.slug;
+  const prospect = db.prepare('SELECT slug FROM calling_prospects WHERE slug = ?').get(slug);
+  if (!prospect) return res.status(404).json({ error: 'Fiche introuvable' });
+  if (!isEmailEnabled()) return res.status(503).json({ error: 'Envoi email non configuré sur le serveur (RESEND_API_KEY manquante)' });
+
+  const b = req.body || {};
+  const to = String(b.to || '').trim();
+  const subject = String(b.subject || '').trim();
+  const bodyText = String(b.body || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ error: 'Adresse email invalide' });
+  if (!subject || !bodyText) return res.status(400).json({ error: 'Objet et message requis' });
+
+  // Corps HTML simple : texte échappé + liens cliquables + <br>.
+  const escaped = bodyText
+    .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#002FA7">$1</a>')
+    .replace(/\n/g, '<br>');
+  const html = `<!DOCTYPE html><html lang="fr"><body style="font-family:-apple-system,system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a1a;font-size:15px;line-height:1.6">${escaped}</body></html>`;
+
+  const r = await sendRaw({ to, subject, html, text: bodyText });
+  if (!r.ok) return res.status(502).json({ error: 'Envoi échoué (' + (r.reason || '?') + ')', details: r.details || null });
+
+  // Backfill : garde l'adresse dans la fiche salon si elle était vide.
+  try { db.prepare("UPDATE salons SET email = ?, updated_at = datetime('now') WHERE slug = ? AND (email IS NULL OR email = '')").run(to, slug); } catch {}
+  db.prepare("UPDATE calling_prospects SET updated_at = datetime('now') WHERE slug = ?").run(slug);
+  res.json({ ok: true, id: r.id || null });
 });
 
 // Force une (re)recherche du numéro sur Google Places.

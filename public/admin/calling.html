@@ -58,6 +58,19 @@
   .noteslab{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin:12px 0 6px;}
   textarea.notes{width:100%;min-height:56px;border:1.5px solid var(--border);border-radius:10px;padding:9px 11px;font-size:14px;font-family:inherit;resize:vertical;outline:none;}
   textarea.notes:focus{border-color:var(--gold);}
+  /* Section « Envoyer la démo » (SMS à copier + email 1-clic) */
+  .sendsec{border-top:1px solid var(--border);padding:14px 18px;background:#fbf9f4;}
+  .sendsec .sub{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin:10px 0 6px;}
+  .sendsec .sub:first-child{margin-top:0;}
+  .sendsec textarea{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13.5px;font-family:inherit;resize:vertical;outline:none;background:#fff;}
+  .sendsec textarea:focus{border-color:var(--gold);}
+  .sendsec input{border:1.5px solid var(--border);border-radius:9px;padding:7px 10px;font-size:13.5px;font-family:inherit;outline:none;background:#fff;}
+  .sendsec input:focus{border-color:var(--gold);}
+  .sendline{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;}
+  .sendbtn{border:none;background:var(--ink);color:#fff;border-radius:9px;padding:9px 15px;font-size:13.5px;font-weight:800;cursor:pointer;}
+  .sendbtn:hover{opacity:.88;}
+  .sendbtn:disabled{opacity:.5;cursor:wait;}
+  .sendbtn.ok{background:var(--ok);}
   /* Outcome buttons */
   .obar{border-top:1px solid var(--border);padding:14px 18px;background:#faf8f2;}
   .osec{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin:0 0 8px;}
@@ -165,10 +178,11 @@
 
 <div id="toast"></div>
 
-<!-- SDK Speech auto-hébergé + arbre + module assistant -->
+<!-- SDK Speech auto-hébergé + arbre + module assistant + modale photos partagée -->
 <script async src="/admin/vendor/speech-sdk.min.js"></script>
 <script src="/admin/call-tree.js"></script>
 <script src="/admin/call-copilot.js"></script>
+<script src="/admin/photo-modal.js"></script>
 <script>
 (function(){
   'use strict';
@@ -290,6 +304,21 @@
         +'<span class="phsrc">'+(p.phone_source==='google'?'via Google':p.phone_source==='manuel'?'saisi':'base')+'</span>'
       : '<span class="telnone">Numéro introuvable</span><button class="minibtn" id="findtel">🔎 Chercher sur Google</button>';
     var maps=p.maps_url?'<a class="minibtn" href="'+esc(p.maps_url)+'" target="_blank" rel="noopener">📍 Maps</a>':'';
+    // Raccourcis outils (mêmes que dans le Suivi) : voir la démo + modale photos (héro/galerie).
+    var tools='<a class="minibtn" href="'+esc(p.preview_url)+'" target="_blank" rel="noopener">👁 Voir</a><button class="minibtn" id="photosbtn" type="button">📷 Photos</button>';
+    // Messages pré-écrits (SMS à copier + email 1-clic).
+    var smsTxt='Bonjour ! Comme convenu au téléphone, voici votre site en démo : '+p.preview_url+' — Johann, MaQuickPage. Dites-moi ce que vous en pensez 🙂';
+    var mailSubject='Votre site est prêt — '+p.nom;
+    var mailBody='Bonjour,\n\nComme convenu au téléphone, voici la démo du site que nous avons déjà créé pour '+p.nom+' :\n'+p.preview_url+'\n\nVos photos, vos horaires et vos avis Google y sont déjà. S\'il vous plaît, il peut être en ligne en 5 minutes — domaine inclus, à votre nom, sans frais d\'installation.\n\nJe vous rappelle dans 2 jours pour avoir votre avis.\n\nBonne journée,\nJohann — MaQuickPage';
+    var sendsec='<div class="sendsec">'
+      +'<div class="sub">📱 SMS — copie et colle dans ton téléphone</div>'
+      +'<textarea id="smstxt" rows="3">'+esc(smsTxt)+'</textarea>'
+      +'<div class="sendline"><button class="sendbtn" id="smscopy" type="button">⧉ Copier le SMS</button><span style="font-size:12px;color:var(--muted)">'+(p.telephone?('à envoyer au '+esc(p.telephone)):'ou à un autre numéro')+'</span></div>'
+      +'<div class="sub" style="margin-top:14px">✉️ Email — envoi direct en 1 clic</div>'
+      +'<div class="sendline" style="margin:0 0 8px"><input id="mailto" type="email" placeholder="email du salon…" value="'+esc(p.email||'')+'" style="flex:1;min-width:180px"><input id="mailsubject" value="'+esc(mailSubject)+'" style="flex:2;min-width:220px"></div>'
+      +'<textarea id="mailbody" rows="7">'+esc(mailBody)+'</textarea>'
+      +'<div class="sendline"><button class="sendbtn" id="mailsend" type="button">✉️ Envoyer l\'email</button><span id="mailstatus" style="font-size:12px;color:var(--muted)"></span></div>'
+      +'</div>';
     var shot=p.screenshot
       ? '<a class="shotlink" href="'+esc(p.preview_url)+'" target="_blank" rel="noopener"><img class="shot" src="'+esc(p.screenshot)+'" alt=""><span class="shotcta">👁 Voir sa démo en ligne →</span></a>'
       : '<div class="cardpad" style="border-top:1px solid var(--border);padding:10px 18px"><a class="minibtn" href="'+esc(p.preview_url)+'" target="_blank" rel="noopener">👁 Voir sa démo →</a></div>';
@@ -319,10 +348,11 @@
       +'<div class="cardpad">'
         +'<div class="cname">'+esc(p.nom)+'</div>'
         +'<div class="cloc">'+esc([p.adresse,p.code_postal,p.ville].filter(Boolean).join(', '))+'</div>'
-        +'<div class="telrow">'+tel+maps+'</div>'
+        +'<div class="telrow">'+tel+maps+tools+'</div>'
         +'<div class="metaline">'+meta+'</div>'
       +'</div>'
       +shot
+      +sendsec
       +'<div class="cardpad">'
         +'<div class="noteslab">Notes (enregistrées automatiquement)</div>'
         +'<textarea class="notes" id="notes" placeholder="Nom du gérant, contexte, ce qui a été dit…">'+esc(p.notes||'')+'</textarea>'
@@ -353,6 +383,21 @@
     // Bindings
     $('qprev').onclick=function(){nav(-1);};
     $('qnext').onclick=function(){nav(1);};
+    var pb=$('photosbtn');if(pb)pb.onclick=function(){PhotoModal.open(p.slug,p.nom);};
+    var sc=$('smscopy');if(sc)sc.onclick=function(){
+      navigator.clipboard&&navigator.clipboard.writeText($('smstxt').value);
+      sc.textContent='✓ Copié';sc.classList.add('ok');
+      setTimeout(function(){sc.textContent='⧉ Copier le SMS';sc.classList.remove('ok');},2200);
+      toast('SMS copié — colle-le dans ton téléphone');
+    };
+    var ms=$('mailsend');if(ms)ms.onclick=function(){
+      var to=($('mailto').value||'').trim();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){toast('Adresse email invalide');$('mailto').focus();return;}
+      ms.disabled=true;ms.textContent='Envoi…';$('mailstatus').textContent='';
+      api('/admin/api/calling/'+encodeURIComponent(p.slug)+'/send-email',{method:'POST',body:JSON.stringify({to:to,subject:$('mailsubject').value,body:$('mailbody').value})})
+        .then(function(){ms.textContent='✓ Envoyé';ms.classList.add('ok');$('mailstatus').textContent='Envoyé à '+to;toast('Email envoyé ✓ — pense à cliquer « 📩 Démo/lien envoyé »');})
+        .catch(function(e){ms.disabled=false;ms.textContent='✉️ Envoyer l\'email';toast('Erreur : '+e.message);$('mailstatus').textContent=e.message;});
+    };
     var nt=$('notes');
     nt.onblur=function(){if((nt.value||'')!==(p.notes||'')){api('/admin/api/calling/'+encodeURIComponent(p.slug)+'/update',{method:'POST',body:JSON.stringify({notes:nt.value})}).catch(function(){});}};
     var ct=$('copytel');if(ct)ct.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(p.telephone);toast('Numéro copié');};
@@ -471,8 +516,10 @@
   };
 
   // ---- Init ----
+  // ?slug=xxx (depuis le Suivi ou une autre page) → ouvre directement cette fiche.
+  var startSlug=new URLSearchParams(location.search).get('slug')||null;
   loadStats();
-  loadQueue().then(function(){showCurrent();});
+  loadQueue(startSlug||undefined).then(function(){showCurrent();});
 })();
 </script>
 </body>
