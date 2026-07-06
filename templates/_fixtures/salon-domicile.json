@@ -1,0 +1,86 @@
+{
+  "slug": "camille-coiffure-domicile",
+  "nom": "Camille Coiffure",
+  "nom_original": "Camille Coiffure à domicile",
+  "ville": "Chasselay",
+  "note_avis": 5,
+  "nb_avis": 47,
+  "lien_google_maps": "https://maps.google.com/?cid=987654321",
+  "meta_description": "Camille, coiffeuse à domicile autour de Chasselay (69). Coupe, couleur et coiffure événementielle chez vous, sur rendez-vous.",
+  "content": {
+    "hero": {
+      "title": "Camille Coiffure",
+      "tagline": "Votre coiffeuse à domicile",
+      "subtitle": "À Chasselay et alentours",
+      "backgroundImage": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=1920&q=80",
+      "showRating": true
+    },
+    "intro": {
+      "title": "La coiffure vient à vous",
+      "description": "Camille se déplace chez vous pour un moment de coiffure sur mesure, sans contrainte de déplacement. Coupe, couleur, chignon de mariage : le même savoir-faire qu'en salon, dans le confort de votre domicile.",
+      "showRating": true,
+      "ratingFallback": "Une clientèle fidèle qui recommande, bouche-à-oreille après bouche-à-oreille.",
+      "showSatisfaction": true,
+      "satisfactionValue": "100%",
+      "satisfactionLabel": "Clientes conquises"
+    },
+    "services": {
+      "title": "Nos Services",
+      "items": [
+        { "id": "s1", "name": "Coupe Femme", "description": "Coupe et brushing à domicile.", "price": "35€" },
+        { "id": "s2", "name": "Coupe Homme", "description": "Coupe et finition à domicile.", "price": "20€" },
+        { "id": "s3", "name": "Couleur", "description": "Coloration à domicile, produits inclus.", "price": "50€" },
+        { "id": "s4", "name": "Chignon événementiel", "description": "Mariage, cérémonie : coiffure sur mesure.", "price": "70€" }
+      ]
+    },
+    "gallery": {
+      "title": "Galerie",
+      "layout": "masonry",
+      "visibleCount": 6,
+      "images": [
+        "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?w=800&q=80",
+        "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=800&q=80",
+        "https://images.unsplash.com/photo-1560869713-7d0a29430803?w=800&q=80",
+        "https://images.unsplash.com/photo-1522337094846-8a818192de1f?w=800&q=80",
+        "https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=800&q=80"
+      ]
+    },
+    "testimonials": {
+      "title": "Avis Clients",
+      "items": [
+        { "id": "t1", "text": "Camille est adorable et très professionnelle. Le confort d'être coiffée chez soi, c'est incomparable !", "author": "Nadia B.", "date": "Il y a 1 semaine" },
+        { "id": "t2", "text": "Un chignon de mariage parfait, elle est venue faire l'essai puis le jour J. Merci mille fois !", "author": "Élodie R.", "date": "Il y a 2 mois" }
+      ]
+    },
+    "contact": {
+      "title": "Prendre rendez-vous",
+      "description": "Je me déplace autour de Chasselay pour vos rendez-vous coiffure.",
+      "mode": "zone",
+      "serviceArea": "Chasselay, Limonest, Neuville-sur-Saône et 15 km alentours",
+      "hideMap": false,
+      "address": "",
+      "addressLine2": "69380 Chasselay",
+      "phone": "06 12 34 56 78",
+      "email": "camille.coiffure@gmail.com",
+      "hours": {
+        "monday": "9h - 18h",
+        "tuesday": "9h - 18h",
+        "wednesday": "9h - 18h",
+        "thursday": "9h - 18h",
+        "friday": "9h - 18h",
+        "saturday": "9h - 16h",
+        "sunday": "closed"
+      },
+      "latitude": 45.8853,
+      "longitude": 4.7681,
+      "bookingUrl": ""
+    },
+    "socials": {
+      "facebook": { "url": "", "enabled": false },
+      "instagram": { "url": "https://instagram.com/camille.coiffure", "enabled": true },
+      "tiktok": { "url": "https://tiktok.com/@camille.coiffure", "enabled": true },
+      "youtube": { "url": "", "enabled": false }
+    }
+  },
+  "has_overrides": true
+}

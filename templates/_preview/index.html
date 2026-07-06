@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  Harnais d'aperçu LOCAL des templates. Sert à voir un template rendu avec de
+  vraies données, sans lancer le backend.
+
+  ⚠️ À servir en HTTP (le fetch des fixtures est bloqué en file://). Depuis le
+  dossier templates/ :  npx serve   (ou  python -m http.server 8080 )
+  puis ouvrir  http://localhost:3000/_preview/  (port selon l'outil).
+
+  Pour ajouter un template ou un salon d'exemple : compléter les tableaux
+  TEMPLATES / FIXTURES ci-dessous.
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aperçu des templates — MaQuickPage</title>
+  <style>
+    :root { --bar: #14110f; --accent: #c9a34e; --muted: #8a8580; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #201c19; color: #f3efe9; height: 100vh; display: flex; flex-direction: column; }
+    header { background: var(--bar); padding: 10px 16px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #000; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+    header .brand { font-weight: 700; letter-spacing: .5px; color: var(--accent); }
+    header label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+    select, .seg button, .open { font: inherit; }
+    select { background: #2c2723; color: #f3efe9; border: 1px solid #443c34; border-radius: 7px; padding: 7px 10px; min-width: 190px; }
+    .seg { display: inline-flex; border: 1px solid #443c34; border-radius: 7px; overflow: hidden; }
+    .seg button { background: #2c2723; color: #cdc7bf; border: 0; padding: 8px 12px; cursor: pointer; }
+    .seg button.active { background: var(--accent); color: #201c19; font-weight: 600; }
+    .open { margin-left: auto; background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 7px; padding: 8px 14px; text-decoration: none; }
+    .stage { flex: 1; display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 18px; }
+    .frame-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.5); transition: width .25s ease; height: 100%; }
+    iframe { width: 100%; height: 100%; border: 0; display: block; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">🪮 Aperçu templates</span>
+    <label>Template
+      <select id="tpl"></select>
+    </label>
+    <label>Salon d'exemple
+      <select id="fix"></select>
+    </label>
+    <label>Écran
+      <span class="seg" id="seg">
+        <button data-w="100%" class="active">Desktop</button>
+        <button data-w="820px">Tablette</button>
+        <button data-w="390px">Mobile</button>
+      </span>
+    </label>
+    <a class="open" id="open" target="_blank" rel="noopener">Ouvrir en plein écran ↗</a>
+  </header>
+  <div class="stage">
+    <div class="frame-wrap" id="wrap" style="width:100%">
+      <iframe id="frame" title="Aperçu"></iframe>
+    </div>
+  </div>
+
+  <script>
+    // === À COMPLÉTER quand on ajoute un template ou un salon d'exemple ===
+    const TEMPLATES = [
+      { id: 'classic', label: 'Classic' },
+      // { id: 'mon-template', label: 'Mon template' },
+    ];
+    const FIXTURES = [
+      { id: 'salon-classique', label: 'Studio Éclat — salon (Lyon)' },
+      { id: 'salon-domicile',  label: 'Camille — à domicile (mode zone)' },
+    ];
+    // =====================================================================
+
+    const tpl = document.getElementById('tpl');
+    const fix = document.getElementById('fix');
+    const frame = document.getElementById('frame');
+    const wrap = document.getElementById('wrap');
+    const open = document.getElementById('open');
+    const seg = document.getElementById('seg');
+
+    TEMPLATES.forEach(t => tpl.add(new Option(t.label, t.id)));
+    FIXTURES.forEach(f => fix.add(new Option(f.label, f.id)));
+
+    function url() {
+      // URL-dossier (avec / final, sans index.html) : le serveur statique sert
+      // index.html sans redirection, ce qui préserve le ?fixture= et les chemins
+      // relatifs (styles.css, hydrate.js).
+      return `../${tpl.value}/?fixture=${encodeURIComponent(fix.value)}`;
+    }
+    function load() {
+      const u = url();
+      frame.src = u;
+      open.href = u;
+    }
+    tpl.onchange = load;
+    fix.onchange = load;
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      seg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      wrap.style.width = b.dataset.w;
+    });
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "id": "classic",
+  "name": "Classic",
+  "description": "Le modèle historique : élégant, chaleureux, polices Cormorant Garamond + Montserrat. Convient à la majorité des salons.",
+  "author": "MaQuickPage",
+  "version": "1.0.0",
+  "assets": {
+    "html": "index.html",
+    "css": "styles.css",
+    "js": "hydrate.js"
+  },
+  "fonts": [
+    "Cormorant Garamond",
+    "Montserrat"
+  ],
+  "options": {
+    "gallery.layout": ["grid", "masonry"]
+  }
+}
