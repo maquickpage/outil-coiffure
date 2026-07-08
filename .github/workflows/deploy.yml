@@ -1,0 +1,55 @@
+name: Deploy to Coolify
+
+# Déploie automatiquement sur Coolify (Helsinki) à chaque push/merge sur main.
+# Permet à n'importe qui ayant accès GitHub (ex. Michele) de déployer sans compte
+# Coolify : merger une PR sur main suffit.
+#
+# Auth : token API Coolify dédié « github-autodeploy », stocké dans le secret
+# de repo COOLIFY_TOKEN (révocable côté Coolify sans impacter les autres accès).
+# Déclenchable aussi à la main via l'onglet Actions (workflow_dispatch).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: coolify-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      COOLIFY_HOST: http://app.3high.fr:8000
+      APP_UUID: w00kgwgkwk8kw44kg0wsg8cs
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+    steps:
+      - name: Déclencher le déploiement
+        id: trigger
+        run: |
+          set -euo pipefail
+          resp=$(curl -s "$COOLIFY_HOST/api/v1/deploy?uuid=$APP_UUID&force=true" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json")
+          echo "Réponse: $resp"
+          dep=$(echo "$resp" | python3 -c "import sys,json;print(json.load(sys.stdin)['deployments'][0]['deployment_uuid'])")
+          echo "deployment_uuid=$dep" >> "$GITHUB_OUTPUT"
+          echo "Déploiement lancé : $dep"
+
+      - name: Attendre la fin du déploiement
+        env:
+          DEP: ${{ steps.trigger.outputs.deployment_uuid }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            status=$(curl -s "$COOLIFY_HOST/api/v1/deployments/$DEP" \
+              -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" \
+              | python3 -c "import sys,json;print(json.load(sys.stdin).get('status','unknown'))")
+            echo "check $i : $status"
+            case "$status" in
+              finished) echo "✅ Déploiement réussi"; exit 0;;
+              failed|error) echo "❌ Déploiement échoué"; exit 1;;
+            esac
+            sleep 15
+          done
+          echo "⏱️ Timeout : le déploiement n'a pas fini à temps"; exit 1
