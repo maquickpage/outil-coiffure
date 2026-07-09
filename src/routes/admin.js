@@ -6,7 +6,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { join, basename } from 'path';
 import db from '../db.js';
 import { importCsvFile } from '../csv-importer.js';
-import { captureSalon, captureBatch } from '../screenshot-worker.js';
+import { captureSalon, captureBatch, recaptureAsync } from '../screenshot-worker.js';
 import { startCleanNames, getCleanJob } from '../name-cleaner.js';
 import { startCorrectPresentation, getPresentationJob } from '../presentation-cleaner.js';
 import { startDomainSuggestions, getDomainSuggestionsJob } from '../domain-suggester.js';
@@ -566,6 +566,7 @@ router.put('/salon/:slug/nom-final', express.json(), (req, res) => {
   `).run(value, req.params.slug);
 
   if (result.changes === 0) return res.status(404).json({ error: 'Salon introuvable' });
+  recaptureAsync(req.params.slug);
   res.json({ ok: true, nom_final: value });
 });
 
@@ -595,6 +596,7 @@ router.put('/salon/:slug/presentation', express.json(), (req, res) => {
     WHERE id = ?
   `).run(Object.keys(overrides).length === 0 ? null : JSON.stringify(overrides), row.id);
 
+  recaptureAsync(req.params.slug);
   res.json({ ok: true, presentation: value });
 });
 

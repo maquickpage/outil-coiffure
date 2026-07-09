@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import db from '../db.js';
 import { buildSalonView } from '../defaults.js';
 import { uploadObject, deleteObject, isObjectStorageConfigured } from '../object-storage.js';
+import { recaptureAsync } from '../screenshot-worker.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
@@ -89,6 +90,11 @@ router.put('/edit/:slug', express.json({ limit: '2mb' }), requireToken, (req, re
         screenshot_path = NULL, screenshot_generated_at = NULL
     WHERE id = ?
   `).run(JSON.stringify(overrides), req.salon.id);
+
+  // Le screenshot vient d'etre invalide (screenshot_path = NULL) : on relance
+  // une capture automatique. Le hero (ou n'importe quel contenu) a pu changer,
+  // donc l'apercu du salon doit se regenerer sans passer par un batch manuel.
+  recaptureAsync(req.salon.slug);
 
   // Retourne la vue mergee pour confirmer
   const row = db.prepare('SELECT * FROM salons WHERE id = ?').get(req.salon.id);
