@@ -16,6 +16,7 @@ import { slugify } from '../slug-generator.js';
 import photoPickerRouter from './photo-picker.js';
 import salonNewRouter from './salon-new.js';
 import callingRouter from './calling.js';
+import { clientIp } from './tracking.js';
 
 const router = express.Router();
 const UPLOAD_DIR = './data/csv-uploads';
@@ -93,9 +94,9 @@ router.get('/api/preview-visits.csv', (req, res) => {
   let rows;
   try {
     rows = db.prepare(`
-      SELECT e.ts, e.event, e.slug, e.token, e.src, e.meta, e.ip, e.user_agent,
+      SELECT e.ts, e.event, e.slug, e.src, e.meta, e.ip, e.user_agent,
              s.nom_clean, s.nom, s.ville, s.code_postal, s.email,
-             s.subscription_status, s.cold_mail_sent_at, s.edit_token
+             s.subscription_status, s.cold_mail_sent_at
       FROM preview_events e
       LEFT JOIN salons s ON s.slug = e.slug
       ORDER BY e.ts DESC
@@ -104,11 +105,14 @@ router.get('/api/preview-visits.csv', (req, res) => {
   } catch (e) {
     return res.status(500).send('error: ' + e.message);
   }
-  const headers = ['ts', 'event', 'slug', 'salon', 'ville', 'code_postal', 'email', 'subscription_status', 'cold_mail_sent_at', 'src', 'ip', 'user_agent', 'meta', 'edit_token'];
+  // NB : pas d'edit_token dans l'export — c'est le secret du lien d'édition, il
+  // n'a rien à faire dans un fichier Excel qui traîne. Pour ouvrir une maquette
+  // éditable, utiliser le lien « Voir » de la page (redirection authentifiée).
+  const headers = ['ts', 'event', 'slug', 'salon', 'ville', 'code_postal', 'email', 'subscription_status', 'cold_mail_sent_at', 'src', 'ip', 'user_agent', 'meta'];
   const lines = [headers.join(',')];
   for (const r of rows) {
     const salon = (r.nom_clean && r.nom_clean.trim()) || r.nom || '';
-    lines.push([r.ts, r.event, r.slug, salon, r.ville, r.code_postal, r.email, r.subscription_status, r.cold_mail_sent_at, r.src, r.ip, r.user_agent, r.meta, r.edit_token].map(csvEscape).join(','));
+    lines.push([r.ts, r.event, r.slug, salon, r.ville, r.code_postal, r.email, r.subscription_status, r.cold_mail_sent_at, r.src, r.ip, r.user_agent, r.meta].map(csvEscape).join(','));
   }
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="preview-visits.csv"');
@@ -820,6 +824,165 @@ router.get('/provisioning-status/:slug', (req, res) => {
       durationMs: job.finishedAt ? job.finishedAt - job.startedAt : null,
     } : null,
   });
+});
+
+// === Suivi maquettes — AGRÉGAT SERVEUR (JSON) ===
+// Remplace le parse CSV côté navigateur : le serveur lit les events une fois,
+// agrège par salon, et renvoie un JSON compact (N salons, pas 200k lignes).
+// Ne renvoie AUCUN edit_token (le lien « Voir » passe par une redirection
+// authentifiée). Sépare les visiteurs par (ip|ua) et exclut de l'entonnoir
+// prospect : les bots (UA) ET les IP internes (toi/QA, table suivi_excluded_ips).
+const SUIVI_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
+const SUIVI_STAGE = { preview_ouvert: 1, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
+const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
+
+router.get('/api/suivi.json', (req, res) => {
+  let rows, excludedRows, salonSlugs;
+  try {
+    rows = db.prepare(`
+      SELECT e.ts, e.event, e.slug, e.meta, e.ip, e.user_agent,
+             s.nom_clean, s.nom, s.ville, s.email, s.subscription_status
+      FROM preview_events e
+      LEFT JOIN salons s ON s.slug = e.slug
+      WHERE e.slug IS NOT NULL
+      ORDER BY e.ts ASC
+      LIMIT 500000
+    `).all();
+    excludedRows = db.prepare('SELECT ip FROM suivi_excluded_ips').all();
+    salonSlugs = db.prepare('SELECT slug FROM salons').all();
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+
+  const excluded = new Set(excludedRows.map(r => r.ip));
+  const realSlugs = new Set(salonSlugs.map(r => r.slug)); // « réel » = existe dans salons (même sans nom)
+  const isBot = (ua) => !ua || SUIVI_BOT_RE.test(ua);
+  const dkey = (ip, ua) => (ip || '?') + '|' + (ua || '').slice(0, 250);
+
+  const bySlug = new Map();
+  let botEvents = 0, internalEvents = 0, humanEvents = 0;
+
+  for (const r of rows) {
+    if (!realSlugs.has(r.slug)) continue; // écarte les slugs scanner (.env, phpinfo…)
+    const bot = isBot(r.user_agent);
+    const internal = !bot && excluded.has(r.ip);
+    if (bot) botEvents++; else if (internal) internalEvents++; else humanEvents++;
+
+    let s = bySlug.get(r.slug);
+    if (!s) {
+      s = { slug: r.slug, salon: '', ville: '', email: '', status: '', last: '', devices: new Map() };
+      bySlug.set(r.slug, s);
+    }
+    // Métadonnées salon (dernière valeur non vide gagne)
+    const nom = (r.nom_clean && r.nom_clean.trim()) || r.nom || '';
+    if (nom) s.salon = nom;
+    if (r.ville) s.ville = r.ville;
+    if (r.email) s.email = r.email;
+    if (r.subscription_status) s.status = r.subscription_status;
+    if (r.ts && r.ts > s.last) s.last = r.ts;
+
+    const k = dkey(r.ip, r.user_agent);
+    let d = s.devices.get(k);
+    if (!d) { d = { ua: r.user_agent || '(inconnu)', ip: r.ip || '', bot, internal, n: 0, last: '', times: [], events: {} }; s.devices.set(k, d); }
+    d.n++;
+    if (r.ts) { if (r.ts > d.last) d.last = r.ts; d.times.push(r.ts); }
+    const ev = d.events[r.event] || (d.events[r.event] = { n: 0, last: '' });
+    ev.n++; if (r.ts && r.ts > ev.last) ev.last = r.ts;
+    if (r.event === 'scroll_max' && r.meta) { try { const m = JSON.parse(r.meta); if ((m.pct || 0) > (d.scroll || 0)) d.scroll = m.pct; } catch { /* ignore */ } }
+    if ((r.event === 'etape_domaine' || r.event === 'paiement_initie') && r.meta && !d.plan) { try { const m = JSON.parse(r.meta); if (m.plan) d.plan = m.plan; } catch { /* ignore */ } }
+  }
+
+  // Découpe une liste d'horodatages en visites (gap > 30 min).
+  const visitsOf = (times) => {
+    if (!times.length) return 0;
+    const sorted = times.slice().sort();
+    let visits = 1, prev = Date.parse(sorted[0].replace(' ', 'T') + 'Z');
+    for (let i = 1; i < sorted.length; i++) {
+      const t = Date.parse(sorted[i].replace(' ', 'T') + 'Z');
+      if (!isNaN(t) && !isNaN(prev) && t - prev > SUIVI_SESSION_GAP_MS) visits++;
+      if (!isNaN(t)) prev = t;
+    }
+    return visits;
+  };
+
+  const salons = [];
+  for (const s of bySlug.values()) {
+    const devices = [];
+    const prospectEvents = {}; // events des seuls appareils prospect (ni bot ni interne)
+    let scroll = 0, plan = '', prospectVisits = 0, prospectEventCount = 0;
+    for (const d of s.devices.values()) {
+      const visits = visitsOf(d.times);
+      const heat = Object.keys(d.events).reduce((h, ev) => Math.max(h, SUIVI_STAGE[ev] || 0), 0);
+      devices.push({
+        ua: d.ua, ip: d.ip, bot: d.bot, internal: d.internal,
+        n: d.n, visits, last: d.last, heat,
+        scroll: d.scroll || 0,
+        times: d.times.slice().sort().reverse().slice(0, 24),
+      });
+      if (d.bot || d.internal) continue; // exclu de l'entonnoir prospect
+      prospectVisits += visits;
+      prospectEventCount += d.n;
+      if ((d.scroll || 0) > scroll) scroll = d.scroll;
+      if (d.plan && !plan) plan = d.plan;
+      for (const ev in d.events) {
+        const pe = prospectEvents[ev] || (prospectEvents[ev] = { n: 0, last: '' });
+        pe.n += d.events[ev].n;
+        if (d.events[ev].last > pe.last) pe.last = d.events[ev].last;
+      }
+    }
+    devices.sort((a, b) => (a.last < b.last ? 1 : (a.last > b.last ? -1 : 0)));
+
+    // Heat prospect = plus haute étape atteinte par un appareil prospect ; scroll>0 → au moins « a scrollé » (2).
+    let heat = Object.keys(prospectEvents).reduce((h, ev) => Math.max(h, SUIVI_STAGE[ev] || 0), 0);
+    if (scroll > 0 && heat < 2) heat = 2;
+
+    // Un salon visité UNIQUEMENT par toi (IP exclue) ou des bots n'a aucune
+    // activité prospect → il disparaît du Suivi (sauf s'il est déjà client).
+    const isClient = /^(live|active|trialing)$/.test(s.status || '');
+    if (prospectEventCount === 0 && !isClient) continue;
+
+    salons.push({
+      slug: s.slug, salon: s.salon || s.slug, ville: s.ville, email: s.email,
+      status: s.status, last: s.last,
+      heat, scroll, plan,
+      visits: prospectVisits, count: prospectEventCount,
+      events: prospectEvents,
+      devices,
+    });
+  }
+
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0');
+  res.json({
+    salons,
+    myIp: clientIp(req),
+    excludedIps: [...excluded],
+    totals: { salons: salons.length, humanEvents, botEvents, internalEvents },
+  });
+});
+
+// Toggle d'une IP interne (exclue de l'entonnoir prospect). body: { ip, on }
+router.post('/api/suivi/exclude-ip', express.json(), (req, res) => {
+  const ip = (req.body && req.body.ip ? String(req.body.ip) : '').trim();
+  const on = !(req.body && req.body.on === false);
+  if (!ip) return res.status(400).json({ error: 'ip requis' });
+  try {
+    if (on) db.prepare('INSERT OR IGNORE INTO suivi_excluded_ips (ip) VALUES (?)').run(ip);
+    else db.prepare('DELETE FROM suivi_excluded_ips WHERE ip = ?').run(ip);
+    const excludedIps = db.prepare('SELECT ip FROM suivi_excluded_ips').all().map(r => r.ip);
+    res.json({ ok: true, excludedIps });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Redirection authentifiée vers la maquette éditable — évite d'exposer les
+// edit_token en masse au client (Flaw 1). Seul le token du salon cliqué transite.
+router.get('/api/suivi/preview/:slug', (req, res) => {
+  const row = db.prepare('SELECT slug, edit_token FROM salons WHERE slug = ?').get(req.params.slug);
+  if (!row) return res.status(404).send('salon introuvable');
+  const base = 'https://maquickpage.fr/preview/';
+  const url = base + encodeURIComponent(row.slug) + (row.edit_token ? '?token=' + encodeURIComponent(row.edit_token) : '');
+  res.redirect(302, url);
 });
 
 // Funnel landing maquickpage.fr — agrégat + JOURNEYS TRAÇABLES (sans cookie).
