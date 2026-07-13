@@ -874,51 +874,76 @@ router.get('/api/landing-stats.json', (req, res) => {
 
     const k = vkey(r.ip, r.user_agent);
     let v = visitors.get(k);
-    if (!v) { v = { ip: r.ip || '', ua: r.user_agent || '', first: r.ts, last: r.ts, stage: 0, events: [], scrollMax: 0, found: null, leads: [] }; visitors.set(k, v); }
+    if (!v) { v = { ip: r.ip || '', ua: r.user_agent || '', first: r.ts, last: r.ts, stage: 0, steps: { scroll50: false, cta: false, open: false, submit: false }, events: [], scrollMax: 0, found: null, leads: [] }; visitors.set(k, v); }
     if (r.ts && r.ts < v.first) v.first = r.ts;
     if (r.ts && r.ts > v.last) v.last = r.ts;
     v.events.push({ event: r.event, ts: r.ts, meta });
 
     switch (r.event) {
       case 'landing_view': funnel.view++; d.view++; if (v.stage < STAGE.view) v.stage = STAGE.view; break;
-      case 'landing_scroll': { const p = meta.pct || 0; if (p > v.scrollMax) v.scrollMax = p; if (p >= 50) { funnel.scroll50++; if (v.stage < STAGE.scroll50) v.stage = STAGE.scroll50; } break; }
-      case 'landing_cta': funnel.cta++; d.cta++; if (cta[meta.which] != null) cta[meta.which]++; if (v.stage < STAGE.cta) v.stage = STAGE.cta; break;
-      case 'landing_check_open': funnel.check_open++; if (v.stage < STAGE.open) v.stage = STAGE.open; break;
-      case 'landing_check_submit': funnel.submit++; d.submit++; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
-      case 'landing_check_found': funnel.found++; v.found = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
-      case 'landing_check_notfound': funnel.notfound++; if (v.found == null) v.found = false; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
+      case 'landing_scroll': { const p = meta.pct || 0; if (p > v.scrollMax) v.scrollMax = p; if (p >= 50) { funnel.scroll50++; v.steps.scroll50 = true; if (v.stage < STAGE.scroll50) v.stage = STAGE.scroll50; } break; }
+      case 'landing_cta': funnel.cta++; d.cta++; if (cta[meta.which] != null) cta[meta.which]++; v.steps.cta = true; if (v.stage < STAGE.cta) v.stage = STAGE.cta; break;
+      case 'landing_check_open': funnel.check_open++; v.steps.open = true; if (v.stage < STAGE.open) v.stage = STAGE.open; break;
+      case 'landing_check_submit': funnel.submit++; d.submit++; v.steps.submit = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
+      case 'landing_check_found': funnel.found++; v.found = true; v.steps.submit = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
+      case 'landing_check_notfound': funnel.notfound++; if (v.found == null) v.found = false; v.steps.submit = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
       default: break;
     }
   }
 
   // Rattache l'email (landing_leads) au visiteur par la même clé ip|ua.
+  // Un lead SANS events rapprochés (antérieur au tracking, ou ancienne IP proxy
+  // Cloudflare non rapprochable) reste « orphelin » : il apparaît dans la liste
+  // des leads mais n'entre PAS dans l'entonnoir visiteurs — on ne compte que
+  // l'observé, jamais l'inféré.
+  const orphanMap = new Map();
   for (const l of leadRows) {
     if (isBot(l.user_agent)) continue;
     const k = vkey(l.ip, l.user_agent);
-    let v = visitors.get(k);
-    if (!v) { v = { ip: l.ip || '', ua: l.user_agent || '', first: l.ts, last: l.ts, stage: STAGE.submit, events: [], scrollMax: 0, found: null, leads: [] }; visitors.set(k, v); }
-    if (v.stage < STAGE.submit) v.stage = STAGE.submit;
-    if (v.found == null) v.found = !!l.found;
-    if (l.ts && l.ts > v.last) v.last = l.ts;
-    v.leads.push({ email: l.email, found: !!l.found, salon: (l.nom_clean && l.nom_clean.trim()) || l.nom || null, ville: l.ville || null, ts: l.ts });
+    const lead = { email: l.email, found: !!l.found, salon: (l.nom_clean && l.nom_clean.trim()) || l.nom || null, ville: l.ville || null, ts: l.ts };
+    const v = visitors.get(k);
+    if (v) {
+      if (v.found == null) v.found = !!l.found;
+      if (l.ts && l.ts > v.last) v.last = l.ts;
+      v.leads.push(lead);
+    } else {
+      let o = orphanMap.get(k);
+      if (!o) { o = { ip: l.ip || '', ua: l.user_agent || '', first: l.ts, last: l.ts, found: null, leads: [] }; orphanMap.set(k, o); }
+      if (l.ts && l.ts < o.first) o.first = l.ts;
+      if (l.ts && l.ts > o.last) o.last = l.ts;
+      if (o.found == null) o.found = !!l.found;
+      o.leads.push(lead);
+    }
   }
 
-  // Entonnoir par VISITEUR UNIQUE (drop-off réel, pas des events).
+  // Entonnoir par VISITEUR UNIQUE — uniquement des étapes OBSERVÉES (events).
+  // Pas de rétro-remplissage : un submit sans event scroll ne compte pas dans scroll50.
   const vf = { visitors: 0, scroll50: 0, cta: 0, open: 0, submit: 0 };
   for (const v of visitors.values()) {
     vf.visitors++;
-    if (v.stage >= STAGE.scroll50) vf.scroll50++;
-    if (v.stage >= STAGE.cta) vf.cta++;
-    if (v.stage >= STAGE.open) vf.open++;
-    if (v.stage >= STAGE.submit) vf.submit++;
+    if (v.steps.scroll50) vf.scroll50++;
+    if (v.steps.cta) vf.cta++;
+    if (v.steps.open) vf.open++;
+    if (v.steps.submit) vf.submit++;
   }
 
-  const journeyOf = (v) => v.events
-    .slice().sort((a, b) => (a.ts < b.ts ? -1 : (a.ts > b.ts ? 1 : 0)))
-    .map(e => ({ event: e.event, ts: e.ts, meta: e.meta }));
+  // Parcours trié + découpage en visites : gap > 30 min = nouvelle visite.
+  const SESSION_GAP_MS = 30 * 60 * 1000;
+  const journeyOf = (v) => {
+    const evs = v.events.slice().sort((a, b) => (a.ts < b.ts ? -1 : (a.ts > b.ts ? 1 : 0)));
+    let visit = 0, prev = null;
+    return evs.map(e => {
+      const t = Date.parse(String(e.ts || '').replace(' ', 'T') + 'Z');
+      if (!isNaN(t)) { if (prev == null || t - prev > SESSION_GAP_MS) visit++; prev = t; }
+      else if (visit === 0) visit = 1;
+      return { event: e.event, ts: e.ts, meta: e.meta, visit };
+    });
+  };
 
   const leads = [], engaged = [];
   for (const v of visitors.values()) {
+    const journey = journeyOf(v);
+    const visits = journey.length ? journey[journey.length - 1].visit : 0;
     if (v.leads.length) {
       const primary = v.leads[v.leads.length - 1]; // dernier submit
       leads.push({
@@ -927,15 +952,27 @@ router.get('/api/landing-stats.json', (req, res) => {
         found: v.found, salon: primary.salon, ville: primary.ville,
         ip: v.ip, ua: v.ua, first: v.first, last: v.last,
         events: v.events.length, submits: v.leads.length, scrollMax: v.scrollMax,
-        journey: journeyOf(v),
+        visits, journey,
       });
     } else if (v.stage >= STAGE.cta) {
       engaged.push({
         ip: v.ip, ua: v.ua, first: v.first, last: v.last,
         stage: v.stage, events: v.events.length, scrollMax: v.scrollMax,
-        journey: journeyOf(v),
+        visits, journey,
       });
     }
+  }
+  // Leads orphelins (aucun parcours enregistré) — affichés tels quels.
+  for (const o of orphanMap.values()) {
+    const primary = o.leads[o.leads.length - 1];
+    leads.push({
+      email: primary.email,
+      emails: [...new Set(o.leads.map(x => x.email))],
+      found: o.found, salon: primary.salon, ville: primary.ville,
+      ip: o.ip, ua: o.ua, first: o.first, last: o.last,
+      events: 0, submits: o.leads.length, scrollMax: 0,
+      visits: 0, journey: [], preTracking: true,
+    });
   }
   leads.sort((a, b) => (a.last < b.last ? 1 : -1));
   engaged.sort((a, b) => (b.stage - a.stage) || (a.last < b.last ? 1 : -1));

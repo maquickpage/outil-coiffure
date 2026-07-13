@@ -62,6 +62,8 @@
   .tl-ev.is-view::before{background:#cbb988;}
   .tl-t{color:var(--muted);font-size:11.5px;margin-left:6px;font-variant-numeric:tabular-nums;}
   .tl-meta{color:var(--cool);}
+  .tl-visit{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:8px 0 2px;}
+  .tl-none{font-size:13px;color:var(--muted);font-style:italic;}
   .dmono{font-size:12px;color:var(--cool);word-break:break-all;font-family:ui-monospace,Menlo,monospace;margin-top:8px;}
   .dlabel{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-bottom:4px;}
   details.more{margin-top:10px;}
@@ -139,7 +141,8 @@
       st_view:'A vu la page',st_scroll:'A scrollé',st_cta:'A cliqué un CTA',st_open:'A ouvert « couverture »',st_submit:'A envoyé le formulaire',
       cta_title:'Quel bouton déclenche la recherche',c_nav:'Barre du haut',c_hero:'Hero (héro)',c_coverage:'Section couverture',c_pricing:'Section tarifs',
       trend_title:'Tendance · 14 derniers jours',lg_view:'Visites',lg_cta:'CTA cliqués',
-      jr_title:'Parcours',e_view:'Visite',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Couverture ouverte',e_submit:'Formulaire envoyé',e_found:'Salon trouvé ✓',e_nf:'Pas trouvé',
+      jr_title:'Parcours',no_journey:'Aucun parcours enregistré (lead antérieur au tracking).',visit_label:'Visite {n}',visits_n:'{n} visites',k_leads:'Leads (emails)',
+      e_view:'Visite',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Couverture ouverte',e_submit:'Formulaire envoyé',e_found:'Salon trouvé ✓',e_nf:'Pas trouvé',
       w_nav:'barre du haut',w_hero:'héro',w_coverage:'section couverture',w_pricing:'section tarifs',
       d_ip:'IP',d_ua:'Navigateur (UA)',u_min:'min',u_h:'h',u_d:'j',
       none:'Aucune visite enregistrée pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : '},
@@ -157,7 +160,8 @@
       st_view:'Viewed page',st_scroll:'Scrolled',st_cta:'Clicked a CTA',st_open:'Opened "coverage"',st_submit:'Submitted form',
       cta_title:'Which button triggers the search',c_nav:'Top bar',c_hero:'Hero',c_coverage:'Coverage section',c_pricing:'Pricing section',
       trend_title:'Trend · last 14 days',lg_view:'Visits',lg_cta:'CTA clicks',
-      jr_title:'Journey',e_view:'Visit',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Opened coverage',e_submit:'Submitted form',e_found:'Salon found ✓',e_nf:'Not found',
+      jr_title:'Journey',no_journey:'No journey recorded (lead predates tracking).',visit_label:'Visit {n}',visits_n:'{n} visits',k_leads:'Leads (emails)',
+      e_view:'Visit',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Opened coverage',e_submit:'Submitted form',e_found:'Salon found ✓',e_nf:'Not found',
       w_nav:'top bar',w_hero:'hero',w_coverage:'coverage section',w_pricing:'pricing section',
       d_ip:'IP',d_ua:'Browser (UA)',u_min:'min',u_h:'h',u_d:'d',
       none:'No visits recorded yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: '},
@@ -175,7 +179,8 @@
       st_view:'查看了页面',st_scroll:'已滚动',st_cta:'点击了 CTA',st_open:'打开了覆盖查询',st_submit:'提交了表单',
       cta_title:'哪个按钮触发查询',c_nav:'顶部栏',c_hero:'主视觉',c_coverage:'覆盖区块',c_pricing:'价格区块',
       trend_title:'趋势 · 最近 14 天',lg_view:'访问',lg_cta:'CTA 点击',
-      jr_title:'路径',e_view:'访问',e_scroll:'滚动 {p}%',e_cta:'CTA · {w}',e_open:'打开覆盖查询',e_submit:'提交表单',e_found:'找到沙龙 ✓',e_nf:'未找到',
+      jr_title:'路径',no_journey:'无行为记录（该线索早于追踪上线）。',visit_label:'第 {n} 次访问',visits_n:'{n} 次访问',k_leads:'线索（邮箱）',
+      e_view:'访问',e_scroll:'滚动 {p}%',e_cta:'CTA · {w}',e_open:'打开覆盖查询',e_submit:'提交表单',e_found:'找到沙龙 ✓',e_nf:'未找到',
       w_nav:'顶部栏',w_hero:'主视觉',w_coverage:'覆盖区块',w_pricing:'价格区块',
       d_ip:'IP',d_ua:'浏览器 (UA)',u_min:'分钟',u_h:'小时',u_d:'天',
       none:'暂无访问记录。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：'}
@@ -222,10 +227,13 @@
     if(ev==='landing_view')return' is-view';return'';
   }
   function timeline(journey){
-    if(!journey||!journey.length)return'';
-    return'<div class="dlabel">'+t('jr_title')+'</div><div class="tl">'+journey.map(function(e){
-      return'<div class="tl-ev'+evClass(e.event)+'"><span class="tl-meta">'+esc(evLabel(e))+'</span><span class="tl-t">'+esc(fmtDate(e.ts))+'</span></div>';
-    }).join('')+'</div>';
+    if(!journey||!journey.length)return'<div class="dlabel">'+t('jr_title')+'</div><div class="tl-none">'+t('no_journey')+'</div>';
+    var maxVisit=journey[journey.length-1].visit||1,lastV=0,out='';
+    journey.forEach(function(e){
+      if(maxVisit>1&&e.visit&&e.visit!==lastV){lastV=e.visit;out+='<div class="tl-visit">'+t('visit_label',{n:e.visit})+'</div>';}
+      out+='<div class="tl-ev'+evClass(e.event)+'"><span class="tl-meta">'+esc(evLabel(e))+'</span><span class="tl-t">'+esc(fmtDate(e.ts))+'</span></div>';
+    });
+    return'<div class="dlabel">'+t('jr_title')+'</div><div class="tl">'+out+'</div>';
   }
   function detailCell(v,cols){
     return'<tr class="detail"><td colspan="'+cols+'">'+timeline(v.journey)
@@ -248,9 +256,10 @@
     html+=kpi(vf.cta||0,t('k_cta'),pctOf(vf.cta||0,vf.visitors||0),'gold');
     html+=kpi(vf.open||0,t('k_open'),'','gold');
     html+=kpi(vf.submit||0,t('k_submit'),pctOf(vf.submit||0,vf.visitors||0),'hot');
+    html+=kpi(leads.length,t('k_leads'),'','hot');
     html+=kpi(f.found||0,t('k_found'),'','ok');
     html+=kpi(f.notfound||0,t('k_notfound'),'','');
-    html+=kpi(humanPct+'%',t('k_human'),t('k_human_sub',{n:bots}),'');
+    html+=kpi(total?humanPct+'%':'—',t('k_human'),total?t('k_human_sub',{n:bots}):'','');
     html+='</div>';
 
     // Entonnoir par visiteur unique
@@ -275,11 +284,12 @@
         var open=expLead[i];
         var extra=(l.emails&&l.emails.length>1)?' <span class="loc">'+t('multi',{n:l.emails.length-1})+'</span>':'';
         var loc=[l.salon,l.ville].filter(Boolean).map(esc).join(' · ');
+        if(l.visits>1)loc+=(loc?' · ':'')+esc(t('visits_n',{n:l.visits}));
         var badge=l.found?'<span class="badge b-found">'+t('s_found')+'</span>':'<span class="badge b-nf">'+t('s_nf')+'</span>';
         html+='<tr class="row" data-lead="'+i+'">'
           +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="email">'+esc(l.email)+'</span>'+extra+(loc?'<div class="loc" style="margin-left:14px">'+loc+'</div>':'')+'</td>'
           +'<td>'+badge+'</td>'
-          +'<td class="num">'+(l.events||0)+'</td>'
+          +'<td class="num">'+(l.preTracking?'—':(l.events||0))+'</td>'
           +'<td class="num hide-sm">'+(l.scrollMax?l.scrollMax+'%':'—')+'</td>'
           +'<td class="when" title="'+esc(l.last)+'">'+fmtDate(l.last)+'<div style="font-size:11px">'+fmtWhen(l.last)+'</div></td>'
           +'</tr>';
@@ -300,7 +310,7 @@
         var open=expEng[i];
         html+='<tr class="row" data-eng="'+i+'">'
           +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="dmono" style="font-size:12.5px">'+esc(v.ip||'—')+'</span></td>'
-          +'<td>'+esc(stageLabel(v.stage))+'</td>'
+          +'<td>'+esc(stageLabel(v.stage))+(v.visits>1?' <span class="loc">· '+esc(t('visits_n',{n:v.visits}))+'</span>':'')+'</td>'
           +'<td class="num">'+(v.events||0)+'</td>'
           +'<td class="num hide-sm">'+(v.scrollMax?v.scrollMax+'%':'—')+'</td>'
           +'<td class="when" title="'+esc(v.last)+'">'+fmtDate(v.last)+'<div style="font-size:11px">'+fmtWhen(v.last)+'</div></td>'
