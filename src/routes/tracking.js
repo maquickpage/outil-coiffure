@@ -21,6 +21,11 @@ const RESERVED = new Set(['login', 'logout', 'me', 'index.html', 'login.html', '
 // Events navigateur autorisés (anti-spam de la table si l'endpoint est sondé).
 const ALLOWED_CLIENT_EVENTS = new Set(['pricing_ouvert', 'etape_prix', 'etape_domaine', 'domaine_perso', 'etape_email', 'cgv_accepte', 'paiement_initie', 'scroll_max']);
 
+// Funnel de la landing maquickpage.fr (page marketing) — events ANONYMES, sans
+// salon rattaché (slug=null). N'exigent donc PAS salonExists() (contrairement
+// aux events maquette ci-dessus qui sont rattachés à un salon réel).
+const ALLOWED_LANDING_EVENTS = new Set(['landing_scroll', 'landing_cta', 'landing_check_open', 'landing_check_submit']);
+
 let insertStmt = null;
 export function logEvent({ event, slug = null, token = null, src = null, meta = null, ip = null, ua = null }) {
   try {
@@ -55,7 +60,9 @@ function salonExists(slug) {
   } catch { return false; }
 }
 
-function clientIp(req) {
+// IP client — MÊME dérivation partout (funnel + landing_leads) pour que le
+// rapprochement journey↔lead par (ip|ua) matche exactement, y compris hors CF.
+export function clientIp(req) {
   return (req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || '')
     .toString().split(',')[0].trim();
 }
@@ -69,6 +76,11 @@ export function trackingMiddleware(req, res, next) {
     if (req.routingMode === 'public' || req.routingMode === 'landing') {
       const m = req.method, p = req.path;
       if (m === 'GET') {
+        // Landing maquickpage.fr : la home est servie sur l'apex (routingMode
+        // 'landing'). GET / = une visite du funnel marketing (anonyme).
+        if (req.routingMode === 'landing' && (p === '/' || p === '/index.html')) {
+          logEvent({ event: 'landing_view', src: req.query.src || null, ip: clientIp(req), ua: req.headers['user-agent'] });
+        }
         let mm = p.match(/^\/preview\/([^/?#]+)/);
         if (mm) {
           const slug = decodeURIComponent(mm[1]);
@@ -102,7 +114,10 @@ export function trackingMiddleware(req, res, next) {
 router.post('/track', express.json({ limit: '4kb' }), (req, res) => {
   try {
     const b = req.body || {};
-    if (b.event && ALLOWED_CLIENT_EVENTS.has(b.event) && salonExists(b.slug)) {
+    if (b.event && ALLOWED_LANDING_EVENTS.has(b.event)) {
+      // Funnel landing : anonyme, jamais rattaché à un salon (slug ignoré).
+      logEvent({ event: b.event, src: b.src, meta: b.meta, ip: clientIp(req), ua: req.headers['user-agent'] });
+    } else if (b.event && ALLOWED_CLIENT_EVENTS.has(b.event) && salonExists(b.slug)) {
       logEvent({ event: b.event, slug: b.slug, token: b.token, src: b.src, meta: b.meta, ip: clientIp(req), ua: req.headers['user-agent'] });
     }
   } catch {}
