@@ -1,0 +1,19 @@
+{
+  "id": "drama",
+  "name": "Drama",
+  "description": "Éditorial noir & or : photo N&B pleine largeur, watermark script doré, titres Montserrat capitales, angles vifs et fort contraste. Pour salons haut de gamme, barbershops et studios chic.",
+  "author": "MaQuickPage",
+  "version": "1.0.0",
+  "assets": {
+    "html": "index.html",
+    "css": "styles.css",
+    "js": "hydrate.js"
+  },
+  "fonts": [
+    "Montserrat",
+    "Sacramento"
+  ],
+  "options": {
+    "gallery.layout": ["grid", "masonry"]
+  }
+}

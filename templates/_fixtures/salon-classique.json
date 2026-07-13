@@ -1,0 +1,91 @@
+{
+  "slug": "studio-eclat-lyon",
+  "nom": "Studio Éclat",
+  "nom_original": "Studio Éclat - Coiffeur Lyon 6",
+  "ville": "Lyon",
+  "note_avis": 4.8,
+  "nb_avis": 214,
+  "lien_google_maps": "https://maps.google.com/?cid=123456789",
+  "meta_description": "Salon de coiffure Studio Éclat à Lyon 6 : coupe, coloration, balayage et coiffure mariage. Une équipe passionnée au service de votre style.",
+  "content": {
+    "hero": {
+      "title": "Studio Éclat",
+      "tagline": "Bienvenue chez",
+      "subtitle": "Salon de coiffure à Lyon 6ᵉ",
+      "backgroundImage": "https://images.unsplash.com/photo-1633381521050-26bb467d9d5a?w=1920&q=80",
+      "showRating": true
+    },
+    "intro": {
+      "title": "Bienvenue à Lyon",
+      "description": "Au cœur du 6ᵉ arrondissement, Studio Éclat vous accueille dans un cadre chaleureux et lumineux. Notre équipe de coloristes et coiffeurs passionnés met tout son savoir-faire au service de votre style, du quotidien aux grandes occasions.",
+      "showRating": true,
+      "ratingFallback": "Une qualité de service reconnue par nos clients fidèles, jour après jour.",
+      "showSatisfaction": true,
+      "satisfactionValue": "100%",
+      "satisfactionLabel": "Satisfaction"
+    },
+    "services": {
+      "title": "Nos Services",
+      "items": [
+        { "id": "s1", "name": "Coupe Femme", "description": "Shampoing, coupe personnalisée et finition brushing.", "price": "39€" },
+        { "id": "s2", "name": "Coupe Homme", "description": "Coupe classique ou tendance, finition incluse.", "price": "24€" },
+        { "id": "s3", "name": "Coloration", "description": "Coloration couvrante, ton sur ton ou couleur d'envie.", "price": "59€" },
+        { "id": "s4", "name": "Balayage", "description": "Éclaircissement sur mesure pour donner du relief.", "price": "85€" },
+        { "id": "s5", "name": "Brushing", "description": "Mise en forme et volume sur cheveux propres.", "price": "25€" },
+        { "id": "s6", "name": "Soin profond", "description": "Soin réparateur et hydratant en profondeur.", "price": "32€" },
+        { "id": "s7", "name": "Coiffure Mariage", "description": "Coiffure d'exception pour le jour J (essai inclus).", "price": "95€" }
+      ]
+    },
+    "gallery": {
+      "title": "Galerie",
+      "layout": "grid",
+      "visibleCount": 6,
+      "images": [
+        "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=800&q=80",
+        "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80",
+        "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=800&q=80",
+        "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80",
+        "https://images.unsplash.com/photo-1634449571010-02389ed0f9b0?w=800&q=80",
+        "https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=800&q=80",
+        "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800&q=80",
+        "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80"
+      ]
+    },
+    "testimonials": {
+      "title": "Avis Clients",
+      "items": [
+        { "id": "t1", "text": "Une expérience top du début à la fin. L'équipe est aux petits soins, l'écoute est réelle et le résultat sublime ! Je recommande sans hésiter.", "author": "Marie L.", "date": "Il y a 2 semaines" },
+        { "id": "t2", "text": "Je n'avais jamais été aussi satisfaite d'un salon. Coupe parfaite, ambiance chaleureuse et conseils personnalisés. C'est devenu mon adresse !", "author": "Sophie D.", "date": "Il y a 1 mois" },
+        { "id": "t3", "text": "Accueil au top, professionnalisme exemplaire et tarifs honnêtes. Mes cheveux n'ont jamais été aussi beaux. Merci à toute l'équipe !", "author": "Julie M.", "date": "Il y a 3 jours" }
+      ]
+    },
+    "contact": {
+      "title": "Venez nous rendre visite",
+      "description": "Notre équipe vous accueille pour tous vos besoins en coiffure à Lyon.",
+      "mode": "address",
+      "address": "24 rue Vauban",
+      "addressLine2": "69006 Lyon",
+      "phone": "04 78 00 00 00",
+      "email": "contact@studio-eclat-lyon.fr",
+      "hours": {
+        "monday": "closed",
+        "tuesday": "9h - 19h",
+        "wednesday": "9h - 19h",
+        "thursday": "9h - 20h",
+        "friday": "9h - 20h",
+        "saturday": "9h - 18h",
+        "sunday": "closed"
+      },
+      "latitude": 45.7679,
+      "longitude": 4.8506,
+      "bookingUrl": "https://www.planity.com/studio-eclat-69006-lyon"
+    },
+    "socials": {
+      "facebook": { "url": "https://facebook.com/studioeclatlyon", "enabled": true },
+      "instagram": { "url": "https://instagram.com/studioeclatlyon", "enabled": true },
+      "tiktok": { "url": "", "enabled": false },
+      "youtube": { "url": "", "enabled": false }
+    }
+  },
+  "has_overrides": true
+}

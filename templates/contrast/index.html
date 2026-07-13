@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  TEMPLATE « contrast » — mise en page magazine mode « Curly »
+  ============================================================================
+  Structure en BANDES plein cadre, alternées noir / blanc :
+    nav → hero (mot pinceau) → intro (bande split image/texte)
+    → services (grille prestations aérée) → galerie (bandes parallaxe cinéma)
+    → avis (bande sombre) → contact (colonnes + carte plein cadre) → footer.
+
+  CONTRAT (../CONTRACT.md) : la disposition est 100 % libre — on garde
+  seulement les id="..." du §3 (le serveur SEO + hydrate.js s'en servent),
+  hero-title reste le SEUL <h1>, aucune balise SEO ni script de vente ici.
+  La plateforme injecte AUTOUR : <head> SEO, window.__SALON_VIEW__, chrome de
+  vente (bannière CTA + modale prix).
+  ============================================================================
+-->
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salon de Coiffure</title>
+    <!-- Polices : PROPRE À CHAQUE TEMPLATE. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://images.unsplash.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Kaushan+Script&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="loading-overlay" id="loading-overlay"></div>
+
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#accueil" class="logo">
+                <span class="logo-text" id="logo-text">Salon</span>
+                <span class="logo-sub" id="logo-sub">Coiffure</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#accueil">Accueil</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#galerie">Galerie</a></li>
+                <li><a href="#avis">Avis</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <a href="#" class="nav-cta" id="nav-cta">Réserver</a>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ================= HERO : mot pinceau plein écran ================= -->
+    <section class="hero" id="accueil">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <span class="hero-tagline" id="hero-tagline">Bienvenue chez</span>
+            <h1 class="hero-title" id="hero-title">Salon</h1>
+            <p class="hero-subtitle" id="hero-subtitle">Votre coiffeur de proximité</p>
+            <div class="hero-buttons">
+                <a href="#contact" class="btn btn-primary">Prendre Rendez-vous</a>
+                <a href="#services" class="btn btn-ghost">Nos Services</a>
+            </div>
+        </div>
+        <div class="hero-scroll">
+            <span>Découvrir</span>
+            <svg class="hero-zigzag" width="120" height="20" viewBox="0 0 120 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 10 L32 4 L60 16 L88 4 L118 10"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- ============ INTRO : bande split (image plein bord | texte) ============ -->
+    <section class="band band-split intro" id="intro">
+        <div class="split-visual" id="intro-visual"></div>
+        <div class="split-panel">
+            <span class="section-label">Notre histoire</span>
+            <h2 class="band-title section-title" id="intro-title">Bienvenue</h2>
+            <p class="band-text" id="intro-description"></p>
+            <div class="intro-stats" id="intro-stats">
+                <div class="stat-item" id="stat-rating-block">
+                    <span class="stat-number" id="stat-rating">—</span>
+                    <span class="stat-label">Note Google</span>
+                </div>
+                <div class="stat-item" id="stat-satisfaction-block">
+                    <span class="stat-number" id="stat-satisfaction-value">100%</span>
+                    <span class="stat-label" id="stat-satisfaction-label">Satisfaction</span>
+                </div>
+            </div>
+            <a href="#services" class="btn btn-dark">Nos prestations</a>
+        </div>
+    </section>
+
+    <!-- ============ SERVICES : grille de prestations aérée ============ -->
+    <section class="band band-services services" id="services">
+        <div class="band-head">
+            <span class="section-label">Ce que nous proposons</span>
+            <h2 class="band-title section-title">Nos Services</h2>
+        </div>
+        <div class="services-grid" id="services-grid"></div>
+    </section>
+
+    <!-- ============ GALERIE : grille de réalisations (grid / masonry) ============ -->
+    <section class="band band-dark gallery" id="galerie">
+        <div class="band-head">
+            <span class="section-label">Nos réalisations</span>
+            <h2 class="band-title section-title">Galerie</h2>
+        </div>
+        <div class="gallery-grid" id="gallery-grid"></div>
+        <div class="gallery-load-more" id="gallery-load-more" hidden>
+            <button class="btn btn-ghost btn-load-more" id="btn-load-more">Afficher plus</button>
+        </div>
+    </section>
+
+    <!-- ============ AVIS : bande sombre, citations aérées ============ -->
+    <section class="band band-dark testimonials" id="avis">
+        <div class="band-head">
+            <span class="section-label">Ils nous font confiance</span>
+            <h2 class="band-title section-title">Avis Clients</h2>
+        </div>
+        <div class="testimonials-row" id="testimonials-row"></div>
+    </section>
+
+    <!-- ============ CONTACT : colonnes d'infos + carte plein cadre ============ -->
+    <section class="band band-contact contact" id="contact">
+        <div class="band-head band-head-left">
+            <span class="section-label">Nous contacter</span>
+            <h2 class="band-title section-title" id="contact-title">Venez nous rendre visite</h2>
+            <p class="band-text" id="contact-description"></p>
+        </div>
+        <div class="contact-columns">
+            <div class="contact-col" id="contact-address-block">
+                <strong>Adresse</strong>
+                <p id="contact-address">—</p>
+            </div>
+            <div class="contact-col" id="contact-phone-block">
+                <strong>Téléphone</strong>
+                <p><a href="#" id="contact-phone">—</a></p>
+            </div>
+            <div class="contact-col" id="contact-email-block">
+                <strong>Email</strong>
+                <p><a href="#" id="contact-email">—</a></p>
+            </div>
+            <div class="contact-col" id="contact-hours-block">
+                <strong>Horaires</strong>
+                <div id="contact-hours"></div>
+            </div>
+        </div>
+        <div class="social-icons" id="social-icons"></div>
+        <div class="contact-map">
+            <iframe id="map-iframe" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="logo-text" id="footer-logo-text">Salon</span>
+                <span class="logo-sub" id="footer-logo-sub">Coiffure</span>
+                <p id="footer-tagline">Votre salon de coiffure</p>
+            </div>
+            <div class="footer-links">
+                <a href="#accueil">Accueil</a>
+                <a href="#services">Services</a>
+                <a href="#galerie">Galerie</a>
+                <a href="#contact">Contact</a>
+            </div>
+            <div class="footer-social" id="footer-social"></div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; <span id="footer-year">2026</span> <span id="footer-name">Salon Coiffure</span>. Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <!-- Hydratation = données → DOM. En prod, main.js/hydrate.js est fourni par la plateforme. -->
+    <script src="hydrate.js"></script>
+</body>
+</html>
