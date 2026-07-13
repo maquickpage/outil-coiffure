@@ -822,4 +822,131 @@ router.get('/provisioning-status/:slug', (req, res) => {
   });
 });
 
+// Funnel landing maquickpage.fr — agrégat + JOURNEYS TRAÇABLES (sans cookie).
+// Clé visiteur = (ip | user_agent), même logique que « Appareils & connexions »
+// du Suivi salon. On reconstruit le parcours de chaque visiteur, et on rattache
+// l'email capturé au submit (landing_leads, rapproché par la même clé ip|ua).
+// Filtre les bots par user-agent. Renvoie : entonnoir (events + visiteurs
+// uniques), répartition CTA, tendance 14 j, leads (avec parcours) et engagés.
+const LANDING_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
+router.get('/api/landing-stats.json', (req, res) => {
+  let rows, leadRows = [];
+  try {
+    rows = db.prepare(`
+      SELECT ts, event, meta, ip, user_agent
+      FROM preview_events
+      WHERE event LIKE 'landing_%'
+      ORDER BY ts ASC
+      LIMIT 500000
+    `).all();
+    // Rattachement email : peut échouer si la table n'existe pas encore.
+    try {
+      leadRows = db.prepare(`
+        SELECT l.email, l.found, l.salon_slug, l.ip, l.user_agent, l.created_at AS ts,
+               s.nom_clean, s.nom, s.ville
+        FROM landing_leads l
+        LEFT JOIN salons s ON s.slug = l.salon_slug
+        ORDER BY l.created_at ASC
+        LIMIT 100000
+      `).all();
+    } catch (e) { console.error('[landing-stats] leads join failed:', e.message); leadRows = []; }
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+
+  const isBot = (ua) => !ua || LANDING_BOT_RE.test(ua);
+  const vkey = (ip, ua) => (ip || '?') + '|' + (ua || '').slice(0, 250);
+  const STAGE = { view: 1, scroll50: 2, cta: 3, open: 4, submit: 5 };
+
+  const funnel = { view: 0, scroll50: 0, cta: 0, check_open: 0, submit: 0, found: 0, notfound: 0 };
+  const cta = { nav: 0, hero: 0, coverage: 0, pricing: 0 };
+  const dailyMap = {};
+  const visitors = new Map(); // ip|ua -> parcours
+  let bots = 0, total = 0;
+
+  for (const r of rows) {
+    total++;
+    if (isBot(r.user_agent)) { bots++; continue; }
+    const day = (r.ts || '').slice(0, 10);
+    const d = dailyMap[day] || (dailyMap[day] = { day, view: 0, cta: 0, submit: 0 });
+    let meta = {};
+    if (r.meta) { try { meta = JSON.parse(r.meta) || {}; } catch { /* ignore */ } }
+
+    const k = vkey(r.ip, r.user_agent);
+    let v = visitors.get(k);
+    if (!v) { v = { ip: r.ip || '', ua: r.user_agent || '', first: r.ts, last: r.ts, stage: 0, events: [], scrollMax: 0, found: null, leads: [] }; visitors.set(k, v); }
+    if (r.ts && r.ts < v.first) v.first = r.ts;
+    if (r.ts && r.ts > v.last) v.last = r.ts;
+    v.events.push({ event: r.event, ts: r.ts, meta });
+
+    switch (r.event) {
+      case 'landing_view': funnel.view++; d.view++; if (v.stage < STAGE.view) v.stage = STAGE.view; break;
+      case 'landing_scroll': { const p = meta.pct || 0; if (p > v.scrollMax) v.scrollMax = p; if (p >= 50) { funnel.scroll50++; if (v.stage < STAGE.scroll50) v.stage = STAGE.scroll50; } break; }
+      case 'landing_cta': funnel.cta++; d.cta++; if (cta[meta.which] != null) cta[meta.which]++; if (v.stage < STAGE.cta) v.stage = STAGE.cta; break;
+      case 'landing_check_open': funnel.check_open++; if (v.stage < STAGE.open) v.stage = STAGE.open; break;
+      case 'landing_check_submit': funnel.submit++; d.submit++; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
+      case 'landing_check_found': funnel.found++; v.found = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
+      case 'landing_check_notfound': funnel.notfound++; if (v.found == null) v.found = false; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
+      default: break;
+    }
+  }
+
+  // Rattache l'email (landing_leads) au visiteur par la même clé ip|ua.
+  for (const l of leadRows) {
+    if (isBot(l.user_agent)) continue;
+    const k = vkey(l.ip, l.user_agent);
+    let v = visitors.get(k);
+    if (!v) { v = { ip: l.ip || '', ua: l.user_agent || '', first: l.ts, last: l.ts, stage: STAGE.submit, events: [], scrollMax: 0, found: null, leads: [] }; visitors.set(k, v); }
+    if (v.stage < STAGE.submit) v.stage = STAGE.submit;
+    if (v.found == null) v.found = !!l.found;
+    if (l.ts && l.ts > v.last) v.last = l.ts;
+    v.leads.push({ email: l.email, found: !!l.found, salon: (l.nom_clean && l.nom_clean.trim()) || l.nom || null, ville: l.ville || null, ts: l.ts });
+  }
+
+  // Entonnoir par VISITEUR UNIQUE (drop-off réel, pas des events).
+  const vf = { visitors: 0, scroll50: 0, cta: 0, open: 0, submit: 0 };
+  for (const v of visitors.values()) {
+    vf.visitors++;
+    if (v.stage >= STAGE.scroll50) vf.scroll50++;
+    if (v.stage >= STAGE.cta) vf.cta++;
+    if (v.stage >= STAGE.open) vf.open++;
+    if (v.stage >= STAGE.submit) vf.submit++;
+  }
+
+  const journeyOf = (v) => v.events
+    .slice().sort((a, b) => (a.ts < b.ts ? -1 : (a.ts > b.ts ? 1 : 0)))
+    .map(e => ({ event: e.event, ts: e.ts, meta: e.meta }));
+
+  const leads = [], engaged = [];
+  for (const v of visitors.values()) {
+    if (v.leads.length) {
+      const primary = v.leads[v.leads.length - 1]; // dernier submit
+      leads.push({
+        email: primary.email,
+        emails: [...new Set(v.leads.map(x => x.email))],
+        found: v.found, salon: primary.salon, ville: primary.ville,
+        ip: v.ip, ua: v.ua, first: v.first, last: v.last,
+        events: v.events.length, submits: v.leads.length, scrollMax: v.scrollMax,
+        journey: journeyOf(v),
+      });
+    } else if (v.stage >= STAGE.cta) {
+      engaged.push({
+        ip: v.ip, ua: v.ua, first: v.first, last: v.last,
+        stage: v.stage, events: v.events.length, scrollMax: v.scrollMax,
+        journey: journeyOf(v),
+      });
+    }
+  }
+  leads.sort((a, b) => (a.last < b.last ? 1 : -1));
+  engaged.sort((a, b) => (b.stage - a.stage) || (a.last < b.last ? 1 : -1));
+
+  const daily = Object.values(dailyMap).sort((a, b) => (a.day < b.day ? 1 : -1)).slice(0, 14).reverse();
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0');
+  res.json({
+    funnel, visitorFunnel: vf, cta, daily,
+    leads, engaged: engaged.slice(0, 200), engagedTotal: engaged.length,
+    bots, humans: total - bots, total,
+  });
+});
+
 export default router;
