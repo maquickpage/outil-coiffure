@@ -13,6 +13,10 @@
   .topbar{background:#1a1a1a;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:14px 0;}
   .topbar-inner{max-width:1100px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   .brand{font-weight:500;font-size:1.3rem;color:#c9a96e;letter-spacing:-.01em;}
+  .subtabs{display:inline-flex;gap:4px;background:rgba(255,255,255,.08);padding:3px;border-radius:11px;}
+  .subtab{padding:7px 14px;border-radius:8px;font-size:14.5px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;white-space:nowrap;transition:color .12s,background .12s;}
+  .subtab:hover{color:#fff;}
+  .subtab.on{background:#c9a96e;color:#1a1a1a;}
   .spacer{flex:1;}
   .updated{font-size:12px;color:rgba(255,255,255,.6);}
   .hbtn{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
@@ -91,8 +95,7 @@
     <nav class="anav-tabs">
       <a class="anav-tab" data-path="/admin" href="/admin/">Tableau de bord</a>
       <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
-      <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
-      <a class="anav-tab" data-path="/admin/stats-landing.html" href="/admin/stats-landing.html">Suivi landing</a>
+      <a class="anav-tab" data-path="/admin/stats" href="/admin/stats.html">Suivi</a>
       <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
       <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
     </nav>
@@ -107,11 +110,14 @@
     </div>
   </div>
 </header>
-<script src="/admin/admin-nav.js"></script>
+<script src="/admin/admin-nav.js?v=20260713-tracking"></script>
 
 <div class="topbar">
   <div class="topbar-inner">
-    <span class="brand" id="t-brand">Suivi landing</span>
+    <div class="subtabs">
+      <a class="subtab" href="/admin/stats.html" id="sub-mockup">Suivi maquettes</a>
+      <a class="subtab on" href="/admin/stats-landing.html" id="sub-landing">Suivi landing</a>
+    </div>
     <span class="spacer"></span>
     <span class="updated" id="updated"></span>
     <button class="hbtn" id="refresh">↻ Actualiser</button>
@@ -127,7 +133,7 @@
   var $=function(id){return document.getElementById(id);};
 
   var T={
-    fr:{brand:'Suivi landing',refresh:'Actualiser',maj:'maj',loading:'Chargement…',
+    fr:{brand:'Suivi landing',sub_mockup:'Suivi maquettes',sub_landing:'Suivi landing',refresh:'Actualiser',maj:'maj',loading:'Chargement…',
       sub:'Funnel de la page marketing maquickpage.fr',
       k_uniq:'Visiteurs uniques',k_view:'Visites (pages vues)',k_scroll:'Scroll 50%+',k_cta:'CTA cliqué',k_open:'Couverture ouverte',k_submit:'Formulaire envoyé',
       k_found:'Salon couvert',k_notfound:'Pas trouvé (48h)',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
@@ -146,7 +152,7 @@
       w_nav:'barre du haut',w_hero:'héro',w_coverage:'section couverture',w_pricing:'section tarifs',
       d_ip:'IP',d_ua:'Navigateur (UA)',u_min:'min',u_h:'h',u_d:'j',
       none:'Aucune visite enregistrée pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : '},
-    en:{brand:'Landing tracking',refresh:'Refresh',maj:'upd.',loading:'Loading…',
+    en:{brand:'Landing tracking',sub_mockup:'Mockup tracking',sub_landing:'Landing tracking',refresh:'Refresh',maj:'upd.',loading:'Loading…',
       sub:'Marketing page funnel · maquickpage.fr',
       k_uniq:'Unique visitors',k_view:'Visits (page views)',k_scroll:'Scroll 50%+',k_cta:'Clicked CTA',k_open:'Opened coverage',k_submit:'Submitted form',
       k_found:'Salon covered',k_notfound:'Not found (48h)',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
@@ -165,7 +171,7 @@
       w_nav:'top bar',w_hero:'hero',w_coverage:'coverage section',w_pricing:'pricing section',
       d_ip:'IP',d_ua:'Browser (UA)',u_min:'min',u_h:'h',u_d:'d',
       none:'No visits recorded yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: '},
-    zh:{brand:'落地页追踪',refresh:'刷新',maj:'更新',loading:'加载中…',
+    zh:{brand:'落地页追踪',sub_mockup:'样板追踪',sub_landing:'落地页追踪',refresh:'刷新',maj:'更新',loading:'加载中…',
       sub:'营销主页漏斗 · maquickpage.fr',
       k_uniq:'独立访客',k_view:'访问（页面浏览）',k_scroll:'滚动 50%+',k_cta:'点击 CTA',k_open:'打开覆盖查询',k_submit:'提交表单',
       k_found:'已覆盖',k_notfound:'未找到 (48h)',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
@@ -190,7 +196,7 @@
 
   function applyStatic(){
     document.documentElement.lang=lang==='zh'?'zh-CN':lang;
-    $('t-brand').textContent=t('brand');$('refresh').textContent='↻ '+t('refresh');
+    $('sub-mockup').textContent=t('sub_mockup');$('sub-landing').textContent=t('sub_landing');$('refresh').textContent='↻ '+t('refresh');
     Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){b.classList.toggle('active',b.dataset.lang===lang);});
   }
   function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(DATA)render(DATA);}

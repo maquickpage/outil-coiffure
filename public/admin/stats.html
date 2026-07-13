@@ -14,6 +14,10 @@
   .topbar{background:#1a1a1a;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:14px 0;}
   .topbar-inner{max-width:1100px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   .brand{font-weight:500;font-size:1.3rem;color:#c9a96e;letter-spacing:-.01em;}
+  .subtabs{display:inline-flex;gap:4px;background:rgba(255,255,255,.08);padding:3px;border-radius:11px;}
+  .subtab{padding:7px 14px;border-radius:8px;font-size:14.5px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;white-space:nowrap;transition:color .12s,background .12s;}
+  .subtab:hover{color:#fff;}
+  .subtab.on{background:#c9a96e;color:#1a1a1a;}
   .spacer{flex:1;}
   .updated{font-size:12px;color:rgba(255,255,255,.6);}
   .lang-switcher{display:inline-flex;gap:4px;}
@@ -126,8 +130,7 @@
     <nav class="anav-tabs">
       <a class="anav-tab" data-path="/admin" href="/admin/">Tableau de bord</a>
       <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
-      <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
-      <a class="anav-tab" data-path="/admin/stats-landing.html" href="/admin/stats-landing.html">Suivi landing</a>
+      <a class="anav-tab" data-path="/admin/stats" href="/admin/stats.html">Suivi</a>
       <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
       <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
     </nav>
@@ -142,12 +145,15 @@
     </div>
   </div>
 </header>
-<script src="/admin/admin-nav.js?v=20260708-navi18n"></script>
+<script src="/admin/admin-nav.js?v=20260713-tracking"></script>
 
 <div class="stats-toolbar">
   <div class="topbar">
     <div class="topbar-inner">
-      <span class="brand" id="t-brand">Suivi des maquettes</span>
+      <div class="subtabs">
+        <a class="subtab on" href="/admin/stats.html" id="sub-mockup">Suivi maquettes</a>
+        <a class="subtab" href="/admin/stats-landing.html" id="sub-landing">Suivi landing</a>
+      </div>
       <span class="spacer"></span>
       <span class="updated" id="updated"></span>
       <button class="hbtn" id="refresh">↻ Actualiser</button>
@@ -175,7 +181,7 @@
   var inCalling=new Set(); // slugs déjà dans la prospection (rempli par loadCallingSlugs)
 
   var T={
-    fr:{brand:'Suivi des maquettes',refresh:'Actualiser',exp:'CSV',maj:'maj',back:'← Admin',search:'Rechercher salon, ville, email…',humans:'Humains seulement',auto:'Auto (60s)',loading:'Chargement…',
+    fr:{brand:'Suivi des maquettes',sub_mockup:'Suivi maquettes',sub_landing:'Suivi landing',refresh:'Actualiser',exp:'CSV',maj:'maj',back:'← Admin',search:'Rechercher salon, ville, email…',humans:'Humains seulement',auto:'Auto (60s)',loading:'Chargement…',
       k_visited:'Salons visités',k_pricing:'Ont vu les tarifs',k_domains:'Ont vu les domaines',k_custom:'Domaine perso tapé',k_edited:'Ont édité leur démo',k_cgv:'CGV acceptées',k_pay:'Paiement initié',k_clients:'Devenus clients',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
       funnel_title:'Entonnoir comportemental (prospect · bots + IP internes exclus)',f_visited:'Visité la maquette',f_pricing:'A vu les tarifs · 1/3',f_domains:'A vu les domaines · 2/3',f_email:'A atteint l\'email · 3/3',f_terms:'A accepté les CGV',f_pay:'Paiement initié',f_client:'Devenu client',fil_prefix:'Filtré :',fil_clear:'tout afficher',fhint:'clique une étape pour filtrer la liste',
       k_prospect_ev:'Actions prospect',k_filtered:'{b} bots · {i} internes filtrés',
@@ -189,7 +195,7 @@
       d_events:'Événements',d_ip:'IP',d_device:'Appareil',d_plan:'Plan choisi',d_devices:'Appareils & connexions',d_visits:'visites',d_connections:'Connexions',d_ua:'Navigateur (UA)',
       see:'Voir →',none:'Aucune visite pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j',
       ttl_photos:'Photos du salon (héro + galerie)',ttl_incall:'Déjà en prospection — ouvrir dans le cockpit',ttl_addcall:'Ajouter à la prospection téléphonique',toast_already:'Déjà dans la prospection',toast_added:'Ajouté à la prospection ✓',toast_nonum:' · numéro à retrouver (bouton 🔎 dans Prospection)',toast_err:'Erreur : ',ua_unknown:'Inconnu',ua_bot:'Bot / scanner',ua_other:'Autre'},
-    en:{brand:'Mockup tracking',refresh:'Refresh',exp:'CSV',maj:'upd.',back:'← Admin',search:'Search salon, city, email…',humans:'Humans only',auto:'Auto (60s)',loading:'Loading…',
+    en:{brand:'Mockup tracking',sub_mockup:'Mockup tracking',sub_landing:'Landing tracking',refresh:'Refresh',exp:'CSV',maj:'upd.',back:'← Admin',search:'Search salon, city, email…',humans:'Humans only',auto:'Auto (60s)',loading:'Loading…',
       k_visited:'Salons visited',k_pricing:'Saw pricing',k_domains:'Saw domains',k_custom:'Typed custom domain',k_edited:'Edited demo',k_cgv:'Accepted terms',k_pay:'Clicked pay',k_clients:'Became clients',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
       funnel_title:'Behavioral funnel (prospect · bots + internal IPs excluded)',f_visited:'Visited the mockup',f_pricing:'Saw pricing · 1/3',f_domains:'Saw domains · 2/3',f_email:'Reached email · 3/3',f_terms:'Accepted terms',f_pay:'Clicked pay',f_client:'Became client',fil_prefix:'Filtered:',fil_clear:'show all',fhint:'click a step to filter the list',
       k_prospect_ev:'Prospect actions',k_filtered:'{b} bots · {i} internal filtered',
@@ -202,7 +208,7 @@
       d_events:'Events',d_ip:'IP',d_device:'Device',d_plan:'Chosen plan',d_devices:'Devices & connections',d_visits:'visits',d_connections:'Connections',d_ua:'Browser (UA)',
       see:'View →',none:'No visits yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: ',u_min:'min',u_h:'h',u_d:'d',
       ttl_photos:'Salon photos (hero + gallery)',ttl_incall:'Already in prospecting — open in cockpit',ttl_addcall:'Add to phone prospecting',toast_already:'Already in prospecting',toast_added:'Added to prospecting ✓',toast_nonum:' · number to find (🔎 button in Prospecting)',toast_err:'Error: ',ua_unknown:'Unknown',ua_bot:'Bot / scanner',ua_other:'Other'},
-    zh:{brand:'样板追踪',refresh:'刷新',exp:'CSV',maj:'更新',back:'← 后台',search:'搜索沙龙、城市、邮箱…',humans:'仅真人',auto:'自动 (60秒)',loading:'加载中…',
+    zh:{brand:'样板追踪',sub_mockup:'样板追踪',sub_landing:'落地页追踪',refresh:'刷新',exp:'CSV',maj:'更新',back:'← 后台',search:'搜索沙龙、城市、邮箱…',humans:'仅真人',auto:'自动 (60秒)',loading:'加载中…',
       k_visited:'已访问的沙龙',k_pricing:'查看了价格',k_domains:'查看了域名',k_custom:'输入了自定义域名',k_edited:'编辑了样板',k_cgv:'已接受条款',k_pay:'点击了付款',k_clients:'已成为客户',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
       funnel_title:'行为漏斗（潜客 · 已排除机器人+内部 IP）',f_visited:'访问了样板',f_pricing:'查看了价格 · 1/3',f_domains:'查看了域名 · 2/3',f_email:'到达邮箱步骤 · 3/3',f_terms:'接受了条款',f_pay:'点击了付款',f_client:'已成为客户',fil_prefix:'筛选：',fil_clear:'显示全部',fhint:'点击某步骤以筛选列表',
       k_prospect_ev:'潜客操作数',k_filtered:'已过滤 {b} 机器人 · {i} 内部',
@@ -221,7 +227,7 @@
 
   function applyStatic(){
     document.documentElement.lang=lang==='zh'?'zh-CN':lang;
-    $('t-brand').textContent=t('brand');$('refresh').textContent='↻ '+t('refresh');$('export').textContent='⬇ '+t('exp');
+    $('sub-mockup').textContent=t('sub_mockup');$('sub-landing').textContent=t('sub_landing');$('refresh').textContent='↻ '+t('refresh');$('export').textContent='⬇ '+t('exp');
     var _ba=$('back-admin');if(_ba)_ba.textContent=t('back');
     $('q').placeholder=t('search');$('t-auto').textContent=t('auto');
     Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){b.classList.toggle('active',b.dataset.lang===lang);});
