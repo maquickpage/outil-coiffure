@@ -11,7 +11,7 @@
   var NAV_LABELS = {
     '/admin':                    { fr: 'Tableau de bord',  en: 'Dashboard',      zh: '仪表盘' },
     '/admin/photos.html':        { fr: 'Photos',           en: 'Photos',         zh: '照片' },
-    '/admin/stats.html':         { fr: 'Suivi',            en: 'Tracking',       zh: '追踪' },
+    '/admin/stats':              { fr: 'Suivi',            en: 'Tracking',       zh: '追踪' },
     '/admin/nouveau-salon.html': { fr: '➕ Nouveau salon', en: '➕ New salon',    zh: '➕ 新增沙龙' },
     '/admin/calling.html':       { fr: '☎️ Prospection',   en: '☎️ Prospecting', zh: '☎️ 电话勘查' }
   };
