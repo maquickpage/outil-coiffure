@@ -208,6 +208,13 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_preview_events_slug ON preview_events(slug);
     CREATE INDEX IF NOT EXISTS idx_preview_events_event ON preview_events(event);
     CREATE INDEX IF NOT EXISTS idx_preview_events_ts ON preview_events(ts);
+
+    -- IP internes (toi/QA) exclues de l'entonnoir prospect du Suivi maquettes.
+    -- Ajoutées en 1 clic depuis /admin/stats.html (« exclure mon trafic »).
+    CREATE TABLE IF NOT EXISTS suivi_excluded_ips (
+      ip TEXT PRIMARY KEY,
+      added_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // === Prospection téléphonique (onglet ☎️ Prospection) ===
