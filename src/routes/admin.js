@@ -1006,7 +1006,7 @@ router.get('/api/landing-stats.json', (req, res) => {
     try {
       leadRows = db.prepare(`
         SELECT l.email, l.found, l.salon_slug, l.ip, l.user_agent, l.created_at AS ts,
-               s.nom_clean, s.nom, s.ville
+               s.nom_clean, s.nom, s.ville, s.slug, s.screenshot_path, s.edit_token
         FROM landing_leads l
         LEFT JOIN salons s ON s.slug = l.salon_slug
         ORDER BY l.created_at ASC
@@ -1059,11 +1059,48 @@ router.get('/api/landing-stats.json', (req, res) => {
   // Cloudflare non rapprochable) reste « orphelin » : il apparaît dans la liste
   // des leads mais n'entre PAS dans l'entonnoir visiteurs — on ne compte que
   // l'observé, jamais l'inféré.
+  // Activité « site démo » par salon couvert — le lead a-t-il ouvert / édité son
+  // démo ? On lit les events maquette (rattachés au slug du salon) pour les slugs
+  // des leads trouvés. Best-effort : un échec laisse simplement demoBySlug vide.
+  const publicBase = process.env.PUBLIC_BASE_URL || 'https://maquickpage.fr';
+  const demoBySlug = new Map();
+  try {
+    const slugs = [...new Set(leadRows.filter(l => l.slug).map(l => l.slug))];
+    if (slugs.length) {
+      const ph = slugs.map(() => '?').join(',');
+      const drows = db.prepare(
+        `SELECT slug, event, MAX(ts) AS last FROM preview_events
+         WHERE slug IN (${ph}) AND event IN ('preview_ouvert','editeur_ouvert','editeur_modifie')
+         GROUP BY slug, event`
+      ).all(...slugs);
+      for (const r of drows) {
+        let d = demoBySlug.get(r.slug);
+        if (!d) { d = { opened: false, editorOpened: false, edited: false, last: null }; demoBySlug.set(r.slug, d); }
+        if (r.event === 'preview_ouvert') d.opened = true;
+        else if (r.event === 'editeur_ouvert') d.editorOpened = true;
+        else if (r.event === 'editeur_modifie') d.edited = true;
+        if (r.last && (!d.last || r.last > d.last)) d.last = r.last;
+      }
+    }
+  } catch (e) { /* best-effort : pas d'enrichissement démo si la requête échoue */ }
+
+  // Enrichissement salon d'un lead couvert : lien démo + capture + activité démo.
+  const salonMeta = (primary) => {
+    if (!primary || !primary.slug) return { slug: null, demoUrl: null, screenshot: null, demo: null };
+    const tok = primary.editToken ? `?token=${primary.editToken}` : '';
+    return {
+      slug: primary.slug,
+      demoUrl: `${publicBase}/preview/${encodeURIComponent(primary.slug)}${tok}`,
+      screenshot: primary.screenshot ? `${publicBase}${primary.screenshot}` : null,
+      demo: demoBySlug.get(primary.slug) || null,
+    };
+  };
+
   const orphanMap = new Map();
   for (const l of leadRows) {
     if (isBot(l.user_agent)) continue;
     const k = vkey(l.ip, l.user_agent);
-    const lead = { email: l.email, found: !!l.found, salon: (l.nom_clean && l.nom_clean.trim()) || l.nom || null, ville: l.ville || null, ts: l.ts };
+    const lead = { email: l.email, found: !!l.found, salon: (l.nom_clean && l.nom_clean.trim()) || l.nom || null, ville: l.ville || null, ts: l.ts, slug: l.slug || null, screenshot: l.screenshot_path || null, editToken: l.edit_token || null };
     const v = visitors.get(k);
     if (v) {
       if (v.found == null) v.found = !!l.found;
@@ -1113,6 +1150,7 @@ router.get('/api/landing-stats.json', (req, res) => {
         email: primary.email,
         emails: [...new Set(v.leads.map(x => x.email))],
         found: v.found, salon: primary.salon, ville: primary.ville,
+        ...salonMeta(primary),
         ip: v.ip, ua: v.ua, first: v.first, last: v.last,
         events: v.events.length, submits: v.leads.length, scrollMax: v.scrollMax,
         visits, journey,
@@ -1132,6 +1170,7 @@ router.get('/api/landing-stats.json', (req, res) => {
       email: primary.email,
       emails: [...new Set(o.leads.map(x => x.email))],
       found: o.found, salon: primary.salon, ville: primary.ville,
+      ...salonMeta(primary),
       ip: o.ip, ua: o.ua, first: o.first, last: o.last,
       events: 0, submits: o.leads.length, scrollMax: 0,
       visits: 0, journey: [], preTracking: true,

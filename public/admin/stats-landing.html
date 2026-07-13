@@ -57,6 +57,12 @@
   .when{font-size:12.5px;color:var(--muted);white-space:nowrap;}
   .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;}
   .b-found{background:#dcfce7;color:#14532d;}.b-nf{background:#fef3c7;color:#92400e;}
+  .b-demo{background:#e0e7ff;color:#3730a3;}.b-edit{background:#fce7f3;color:#9d174b;}
+  /* Bande site démo (leads couverts) : miniature + lien + activité démo */
+  .demo-strip{display:flex;align-items:center;gap:8px;margin:8px 0 2px 14px;flex-wrap:wrap;}
+  .demo-thumb{height:40px;width:64px;object-fit:cover;object-position:top;border-radius:6px;border:1px solid var(--border);display:block;background:#efeada;}
+  .demo-link{font-size:12.5px;color:var(--blue);font-weight:600;text-decoration:none;white-space:nowrap;}
+  .demo-link:hover{text-decoration:underline;}
   /* Timeline parcours */
   .detail td{background:#faf8f2;padding:14px 16px;}
   .tl{position:relative;margin:0 0 0 6px;padding-left:16px;border-left:2px solid var(--border);}
@@ -142,6 +148,7 @@
       leads_title:'Leads traçables',leads_none:'Aucun formulaire envoyé pour le moment.',
       th_email:'Email',th_status:'Résultat',th_events:'Actions',th_scroll:'Scroll',th_seen:'Dernière activité',
       s_found:'✅ Couvert',s_nf:'⏳ Pas trouvé',multi:'+{n} autre(s)',
+      view_site:'Voir le site démo →',b_opened:'Démo ouvert',b_editor:'Éditeur ouvert',b_edited:'Démo édité',
       eng_title:'Engagés sans envoi',eng_sub:'ont cliqué un CTA mais n\'ont pas envoyé le formulaire',eng_none:'Aucun visiteur engagé sans envoi.',eng_more:'Voir les {n} visiteurs engagés',
       th_visitor:'Visiteur',th_stage:'Étape atteinte',
       st_view:'A vu la page',st_scroll:'A scrollé',st_cta:'A cliqué un CTA',st_open:'A ouvert « couverture »',st_submit:'A envoyé le formulaire',
@@ -161,6 +168,7 @@
       leads_title:'Traceable leads',leads_none:'No form submitted yet.',
       th_email:'Email',th_status:'Result',th_events:'Actions',th_scroll:'Scroll',th_seen:'Last activity',
       s_found:'✅ Covered',s_nf:'⏳ Not found',multi:'+{n} more',
+      view_site:'View demo site →',b_opened:'Demo opened',b_editor:'Editor opened',b_edited:'Demo edited',
       eng_title:'Engaged, no submit',eng_sub:'clicked a CTA but did not submit the form',eng_none:'No engaged visitor without submit.',eng_more:'Show the {n} engaged visitors',
       th_visitor:'Visitor',th_stage:'Stage reached',
       st_view:'Viewed page',st_scroll:'Scrolled',st_cta:'Clicked a CTA',st_open:'Opened "coverage"',st_submit:'Submitted form',
@@ -180,6 +188,7 @@
       leads_title:'可追踪线索',leads_none:'暂无表单提交。',
       th_email:'邮箱',th_status:'结果',th_events:'操作',th_scroll:'滚动',th_seen:'最近活动',
       s_found:'✅ 已覆盖',s_nf:'⏳ 未找到',multi:'+{n} 个',
+      view_site:'查看 demo 网站 →',b_opened:'打开过 demo',b_editor:'打开过编辑器',b_edited:'编辑过 demo',
       eng_title:'有互动但未提交',eng_sub:'点击了 CTA 但未提交表单',eng_none:'暂无此类访客。',eng_more:'查看 {n} 位互动访客',
       th_visitor:'访客',th_stage:'最高阶段',
       st_view:'查看了页面',st_scroll:'已滚动',st_cta:'点击了 CTA',st_open:'打开了覆盖查询',st_submit:'提交了表单',
@@ -292,8 +301,23 @@
         var loc=[l.salon,l.ville].filter(Boolean).map(esc).join(' · ');
         if(l.visits>1)loc+=(loc?' · ':'')+esc(t('visits_n',{n:l.visits}));
         var badge=l.found?'<span class="badge b-found">'+t('s_found')+'</span>':'<span class="badge b-nf">'+t('s_nf')+'</span>';
+        // Bande site démo (leads couverts) : miniature + lien + activité démo.
+        // stopPropagation : cliquer un lien ne doit pas replier/déplier la ligne.
+        var demoStrip='';
+        if(l.demoUrl){
+          var dbadges='';
+          if(l.demo){
+            if(l.demo.opened)dbadges+=' <span class="badge b-demo">'+t('b_opened')+'</span>';
+            if(l.demo.editorOpened)dbadges+=' <span class="badge b-demo">'+t('b_editor')+'</span>';
+            if(l.demo.edited)dbadges+=' <span class="badge b-edit">'+t('b_edited')+'</span>';
+          }
+          demoStrip='<div class="demo-strip">'
+            +(l.screenshot?'<a href="'+esc(l.demoUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img class="demo-thumb" src="'+esc(l.screenshot)+'" alt="" loading="lazy"></a>':'')
+            +'<a class="demo-link" href="'+esc(l.demoUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+t('view_site')+'</a>'
+            +dbadges+'</div>';
+        }
         html+='<tr class="row" data-lead="'+i+'">'
-          +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="email">'+esc(l.email)+'</span>'+extra+(loc?'<div class="loc" style="margin-left:14px">'+loc+'</div>':'')+'</td>'
+          +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="email">'+esc(l.email)+'</span>'+extra+(loc?'<div class="loc" style="margin-left:14px">'+loc+'</div>':'')+demoStrip+'</td>'
           +'<td>'+badge+'</td>'
           +'<td class="num">'+(l.preTracking?'—':(l.events||0))+'</td>'
           +'<td class="num hide-sm">'+(l.scrollMax?l.scrollMax+'%':'—')+'</td>'
