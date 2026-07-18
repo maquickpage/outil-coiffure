@@ -57,9 +57,145 @@
     return s;
   }
 
+  /* ---- carrousel services mobile ------------------------------------------
+     1 slide PAR CATÉGORIE (Femmes / Hommes / Autres), chaque slide = la liste
+     des prestations de la catégorie. Actif uniquement ≤ 768px ET s'il y a
+     plus d'une catégorie ; sinon liste normale (grille desktop inchangée). */
+  var CATEGORY_ORDER = ["femme", "homme", "autres"];
+  var CATEGORY_LABELS = { femme: "Femmes", homme: "Hommes", autres: "Autres" };
+  var servicesItems = [];
+  var servicesPage = 0;
+  var servicesMode = null; /* 'list' | 'carousel' */
+  var servicesResizeBound = false;
+
+  function serviceCategory(s) {
+    return CATEGORY_ORDER.indexOf(s.category) !== -1 ? s.category : "autres";
+  }
+  /* [{ cat, label, items }] — catégories non vides, ordre fixe. */
+  function categoryPages(items) {
+    return CATEGORY_ORDER.map(function (cat) {
+      return {
+        cat: cat,
+        label: CATEGORY_LABELS[cat],
+        items: items.filter(function (s) { return serviceCategory(s) === cat; })
+      };
+    }).filter(function (p) { return p.items.length > 0; });
+  }
+
+  function serviceCardHtml(s, globalIndex) {
+    var num = String(globalIndex + 1).padStart(2, "0");
+    return '<article class="service-card">' +
+             '<span class="service-num">' + num + "</span>" +
+             '<div class="service-body">' +
+               '<h3 class="service-name">' + esc(s.name) + "</h3>" +
+               (isEmpty(s.description) ? "" : '<p class="service-desc">' + esc(s.description) + "</p>") +
+             "</div>" +
+             (isEmpty(s.price) ? "" : '<span class="service-price">' + esc(s.price) + "</span>") +
+           "</article>";
+  }
+
+  function buildServices(items) {
+    var section = $("services");
+    var grid = $("services-grid");
+    if (!grid) return;
+    servicesItems = items.slice(0, 20);
+    if (servicesItems.length === 0) { if (section) section.style.display = "none"; return; }
+    if (section) section.style.display = "";
+    servicesMode = null;
+    renderServices();
+    if (!servicesResizeBound) {
+      servicesResizeBound = true;
+      var timer = null;
+      window.addEventListener("resize", function () {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(renderServices, 120);
+      });
+    }
+  }
+
+  function renderServices() {
+    var grid = $("services-grid");
+    var wrapper = $("services-wrapper");
+    var prev = $("services-prev");
+    var next = $("services-next");
+    var dots = $("services-dots");
+    if (!grid) return;
+
+    var mobile = window.matchMedia("(max-width: 768px)").matches;
+    var pages = categoryPages(servicesItems);
+    /* Une seule catégorie mais liste longue → carrousel quand même, par pages
+       de 4 sans en-tête de catégorie (sinon la liste redevient interminable). */
+    if (pages.length === 1 && servicesItems.length > 4) {
+      pages = [];
+      for (var pi = 0; pi < servicesItems.length; pi += 4) {
+        pages.push({ label: "", items: servicesItems.slice(pi, pi + 4) });
+      }
+    }
+    var useCarousel = mobile && pages.length > 1;
+    if (wrapper) wrapper.classList.toggle("is-carousel", useCarousel);
+
+    if (!useCarousel) {
+      if (servicesMode !== "list") {
+        grid.innerHTML = servicesItems.map(function (s, i) { return serviceCardHtml(s, i); }).join("");
+        servicesMode = "list";
+      }
+      grid.style.transform = "";
+      if (prev) prev.hidden = true;
+      if (next) next.hidden = true;
+      if (dots) dots.innerHTML = "";
+      return;
+    }
+
+    if (servicesMode !== "carousel") {
+      /* Numérotation locale à chaque slide (01, 02, …) — une numérotation
+         globale laisserait des trous visibles dans les catégories. */
+      grid.innerHTML = pages.map(function (p) {
+        return '<div class="services-page">' +
+                 (p.label ? '<p class="services-cat-label">' + p.label + "</p>" : "") +
+                 p.items.map(function (s, i) { return serviceCardHtml(s, i); }).join("") +
+               "</div>";
+      }).join("");
+      servicesMode = "carousel";
+    }
+    if (servicesPage > pages.length - 1) servicesPage = pages.length - 1;
+
+    function update() {
+      var page = grid.querySelector(".services-page");
+      var gap = 24;
+      var step = page ? page.offsetWidth + gap : 0;
+      grid.style.transform = "translateX(-" + (servicesPage * step) + "px)";
+      prev.hidden = false;
+      next.hidden = false;
+      prev.disabled = servicesPage === 0;
+      next.disabled = servicesPage >= pages.length - 1;
+      dots.innerHTML = pages.map(function (p, di) {
+        return '<button class="carousel-dot' + (di === servicesPage ? " active" : "") + '" data-i="' + di + '" aria-label="' + (p.label || "Page " + (di + 1)) + '"></button>';
+      }).join("");
+      dots.querySelectorAll("button").forEach(function (b) {
+        b.onclick = function () { servicesPage = parseInt(b.dataset.i, 10); update(); };
+      });
+    }
+    prev.onclick = function () { if (servicesPage > 0) { servicesPage--; update(); } };
+    next.onclick = function () { if (servicesPage < pages.length - 1) { servicesPage++; update(); } };
+
+    var startX = 0;
+    grid.ontouchstart = function (e) { startX = e.touches[0].clientX; };
+    grid.ontouchend = function (e) {
+      var dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) < 40) return;
+      if (dx < 0) next.onclick(); else prev.onclick();
+    };
+
+    update();
+  }
+
   function hydrate(view) {
     var c = view.content || {};
     var hero = c.hero || {}, intro = c.intro || {}, contact = c.contact || {};
+
+    /* Option éditeur « photos en couleur » : désactive les filtres N&B (CSS
+       body.photos-color). Défaut = monochrome (signature du template). */
+    document.body.classList.toggle("photos-color", !!(c.design && c.design.monochromePhotos === false));
 
     /* ---- brand / logo ---- */
     txt("logo-text", view.nom || hero.title || "Salon");
@@ -67,7 +203,9 @@
     txt("footer-logo-text", view.nom || hero.title || "Salon");
     txt("footer-logo-sub", view.ville || "Coiffure");
     txt("footer-name", view.nom || hero.title || "Salon");
-    txt("footer-tagline", intro.title || "Salon de coiffure");
+    /* Même formule que classic/contrast — « Bienvenue à … » (titre d'intro)
+       lisait bizarrement en signature de footer. */
+    txt("footer-tagline", "Votre salon de coiffure" + (view.ville ? " à " + view.ville : ""));
     txt("footer-year", new Date().getFullYear());
 
     /* ---- hero ---- */
@@ -116,27 +254,11 @@
       mask("stat-satisfaction-block", false);
     }
 
-    /* ---- services (liste numérotée, prix doré à droite) ---- */
-    var sg = $("services-grid");
-    var servicesSection = $("services");
-    var sItems = (c.services && c.services.items) || [];
-    if (sg) {
-      if (sItems.length === 0) { if (servicesSection) servicesSection.style.display = "none"; }
-      else {
-        if (servicesSection) servicesSection.style.display = "";
-        sg.innerHTML = sItems.map(function (s, i) {
-          var num = String(i + 1).padStart(2, "0");
-          return '<article class="service-card">' +
-                   '<span class="service-num">' + num + "</span>" +
-                   '<div class="service-body">' +
-                     '<h3 class="service-name">' + esc(s.name) + "</h3>" +
-                     (isEmpty(s.description) ? "" : '<p class="service-desc">' + esc(s.description) + "</p>") +
-                   "</div>" +
-                   (isEmpty(s.price) ? "" : '<span class="service-price">' + esc(s.price) + "</span>") +
-                 "</article>";
-        }).join("");
-      }
-    }
+    /* ---- services (liste numérotée, prix doré à droite)
+       Desktop/tablette : liste 2 colonnes / 1 colonne.
+       Mobile : la liste complète est trop longue → carrousel par pages de
+       4 prestations (swipe + flèches + points), numérotation continue. ---- */
+    buildServices((c.services && c.services.items) || []);
 
     /* ---- gallery (grid | masonry, bouton « Afficher plus ») ---- */
     var gg = $("gallery-grid");
@@ -169,7 +291,8 @@
     /* ---- testimonials ---- */
     var tr = $("testimonials-row");
     var avisSection = $("avis");
-    var tItems = (c.testimonials && c.testimonials.items) || [];
+    /* 3 avis max — même plafond que l'éditeur admin et les autres templates. */
+    var tItems = ((c.testimonials && c.testimonials.items) || []).slice(0, 3);
     if (tr) {
       if (tItems.length === 0) { if (avisSection) avisSection.style.display = "none"; }
       else {
@@ -241,8 +364,10 @@
         return '<a href="' + esc(s.url) + '" target="_blank" rel="noopener" aria-label="' + k + '">' + (ICONS[k] || "") + "</a>";
       }).join("");
     }
-    var si = $("social-icons"); if (si) si.innerHTML = socialHTML();
-    var fs = $("footer-social"); if (fs) fs.innerHTML = socialHTML();
+    /* Aucun réseau → conteneurs masqués (pas de marge fantôme). */
+    var socialsHtml = socialHTML();
+    var si = $("social-icons"); if (si) { si.innerHTML = socialsHtml; si.style.display = socialsHtml ? "" : "none"; }
+    var fs = $("footer-social"); if (fs) { fs.innerHTML = socialsHtml; fs.style.display = socialsHtml ? "" : "none"; }
 
     /* ---- map ----
        - zone + hideMap → carte masquée (opt-in coiffeur à domicile)
@@ -256,12 +381,19 @@
     } else if (map) {
       if (mapContainer) mapContainer.style.display = "";
       var lat = contact.latitude, lng = contact.longitude;
+      var addrQuery = [contact.address, contact.addressLine2].filter(function (x) { return !isEmpty(x); }).join(", ");
       if (typeof lat === "number" && typeof lng === "number") {
         var d = isZone ? 0.06 : 0.01; /* zone : cadrage plus large */
         var bbox = (lng - d) + "," + (lat - d) + "," + (lng + d) + "," + (lat + d);
         var src = "https://www.openstreetmap.org/export/embed.html?bbox=" + bbox + "&layer=mapnik";
         if (!isZone) src += "&marker=" + lat + "," + lng;
         map.src = src;
+      } else if (!isZone && addrQuery) {
+        /* Parité avec classic/contrast : pas de lat/lng mais une adresse →
+           embed Google Maps (le filtre N&B du conteneur s'applique pareil). */
+        map.src = "https://maps.google.com/maps?q=" + encodeURIComponent(addrQuery) + "&z=15&output=embed";
+      } else if (isZone && !isEmpty(contact.addressLine2)) {
+        map.src = "https://maps.google.com/maps?q=" + encodeURIComponent(contact.addressLine2.trim()) + "&z=12&output=embed";
       } else if (mapContainer) {
         mapContainer.style.display = "none";
       }
@@ -280,7 +412,30 @@
     return (parts[0] === "preview" && parts[1]) ? parts[1] : null;
   }
 
+  /* ---- menu mobile (parité classic/contrast : le bouton hamburger doit
+     ouvrir un menu plein écran, sinon la nav est morte sur mobile) ---- */
+  function setupMobileMenu() {
+    var btn = document.querySelector(".mobile-menu-btn");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var menu = document.querySelector(".mobile-menu");
+      if (!menu) {
+        menu = document.createElement("div");
+        menu.className = "mobile-menu";
+        menu.innerHTML = '<a href="#accueil">Accueil</a><a href="#services">Services</a><a href="#galerie">Galerie</a><a href="#avis">Avis</a><a href="#contact">Contact</a>';
+        document.body.appendChild(menu);
+        menu.querySelectorAll("a").forEach(function (a) {
+          a.addEventListener("click", function () { menu.classList.remove("active"); btn.classList.remove("is-open"); });
+        });
+      }
+      var open = menu.classList.toggle("active");
+      btn.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  }
+
   function boot() {
+    setupMobileMenu();
     var fixture = new URLSearchParams(window.location.search).get("fixture");
     var slug = getSlugFromUrl();
     if (window.__SALON_VIEW__) {
@@ -302,4 +457,34 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
+})();
+
+// === Tracking profondeur de scroll (best-effort, uniquement sur /preview/) ===
+// Envoie le % de scroll max atteint quand l'utilisateur quitte/masque la page.
+// Permet de savoir "jusqu'où il a fait défiler la maquette". Non bloquant.
+(function () {
+  'use strict';
+  try {
+    const path = (window.location.pathname || '').replace(/^\/+|\/+$/g, '');
+    if (path.split('/')[0] !== 'preview') return;
+    let maxPct = 0, sent = false;
+    function compute() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - window.innerHeight);
+      const pct = scrollable > 0 ? Math.round((window.scrollY / scrollable) * 100) : 100;
+      if (pct > maxPct) maxPct = Math.min(100, pct);
+    }
+    window.addEventListener('scroll', compute, { passive: true });
+    function flush() {
+      // N'envoie l'event QUE si le visiteur a réellement scrollé (>0%).
+      // Un "vu sans scroller" est déjà couvert par preview_ouvert → évite
+      // les events scroll_max à 0% (bruit + faux "a scrollé").
+      if (sent || maxPct <= 0) return;
+      sent = true;
+      try { window.mqsTrack && window.mqsTrack('scroll_max', { pct: maxPct }); } catch (e) {}
+    }
+    // sendBeacon fiable sur visibilitychange (mobile) + pagehide (desktop)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+    window.addEventListener('pagehide', flush);
+  } catch (e) { /* silencieux */ }
 })();
