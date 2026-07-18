@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>MaQuickPage · Suivi landing</title>
+<style>
+  :root{--gold:#C8A24B;--gold-d:#A8842F;--ink:#15130E;--bg:#f6f4ef;--card:#fff;--border:#e7e2d6;--muted:#8a8270;--blue:#002FA7;--ok:#138a36;--hot:#c0392b;--cool:#5b6470;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.4;padding-bottom:40px;}
+  .topbar{background:#1a1a1a;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:14px 0;}
+  .topbar-inner{max-width:1100px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .brand{font-weight:500;font-size:1.3rem;color:#c9a96e;letter-spacing:-.01em;}
+  .spacer{flex:1;}
+  .updated{font-size:12px;color:rgba(255,255,255,.6);}
+  .hbtn{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+  .hbtn:hover{background:rgba(255,255,255,.12);}
+  .periods{display:inline-flex;background:rgba(255,255,255,.1);border-radius:9px;padding:3px;gap:2px;}
+  .pbtn{border:0;background:transparent;color:rgba(255,255,255,.7);padding:5px 9px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;}
+  .pbtn.on{background:#fff;color:#1a1a1a;}
+  main{padding:16px;max-width:1100px;margin:0 auto;}
+  .msg{text-align:center;color:var(--muted);padding:50px 20px;font-size:15px;}
+  .msg a{color:var(--blue);font-weight:600;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:6px;}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
+  .kpi .v{font-size:26px;font-weight:800;line-height:1;}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:6px;font-weight:600;}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .kpi.hot .v{color:var(--hot);}.kpi.ok .v{color:var(--ok);}.kpi.gold .v{color:var(--gold-d);}
+  .section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:24px 0 10px;}
+  .funnel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;}
+  .frow{display:flex;align-items:center;gap:12px;margin-bottom:11px;}.frow:last-child{margin-bottom:0;}
+  .fname{width:170px;flex-shrink:0;font-size:13.5px;font-weight:600;}
+  .fname .pct{color:var(--muted);font-weight:600;font-size:12px;margin-left:5px;}
+  .fbar-wrap{flex:1;background:#efeada;border-radius:8px;overflow:hidden;height:26px;position:relative;}
+  .fbar{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-d));border-radius:8px;min-width:2px;transition:width .3s;}
+  .fval{position:absolute;right:10px;top:0;height:26px;display:flex;align-items:center;font-size:12.5px;font-weight:700;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;}
+  .cta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .cta-item{border:1px solid var(--border);border-radius:11px;padding:12px 14px;}
+  .cta-item .v{font-size:22px;font-weight:800;}
+  .cta-item .l{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600;}
+  /* Table leads / engagés traçables */
+  .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th{text-align:left;padding:11px 12px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:11px 12px;border-bottom:1px solid #f0ece1;vertical-align:middle;}
+  tr.row{cursor:pointer;}
+  tr.row:hover td{background:#faf8f2;}
+  .email{font-weight:700;}
+  .loc{font-size:12px;color:var(--muted);}
+  .caret{display:inline-block;width:14px;color:var(--muted);font-size:11px;}
+  .num{text-align:center;font-variant-numeric:tabular-nums;}
+  .when{font-size:12.5px;color:var(--muted);white-space:nowrap;}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+  .b-found{background:#dcfce7;color:#14532d;}.b-nf{background:#fef3c7;color:#92400e;}
+  .b-demo{background:#e0e7ff;color:#3730a3;}.b-edit{background:#fce7f3;color:#9d174b;}
+  /* Bande site démo (leads couverts) : miniature + lien + activité démo */
+  .demo-strip{display:flex;align-items:center;gap:8px;margin:8px 0 2px 14px;flex-wrap:wrap;}
+  .demo-thumb{height:40px;width:64px;object-fit:cover;object-position:top;border-radius:6px;border:1px solid var(--border);display:block;background:#efeada;}
+  .demo-link{font-size:12.5px;color:var(--blue);font-weight:600;text-decoration:none;white-space:nowrap;}
+  .demo-link:hover{text-decoration:underline;}
+  /* Timeline parcours */
+  .detail td{background:#faf8f2;padding:14px 16px;}
+  .tl{position:relative;margin:0 0 0 6px;padding-left:16px;border-left:2px solid var(--border);}
+  .tl-ev{position:relative;padding:5px 0;font-size:13px;}
+  .tl-ev::before{content:'';position:absolute;left:-21px;top:9px;width:9px;height:9px;border-radius:50%;background:var(--gold-d);border:2px solid #faf8f2;}
+  .tl-ev.is-submit::before{background:var(--hot);}
+  .tl-ev.is-view::before{background:#cbb988;}
+  .tl-t{color:var(--muted);font-size:11.5px;margin-left:6px;font-variant-numeric:tabular-nums;}
+  .tl-meta{color:var(--cool);}
+  .tl-visit{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:8px 0 2px;}
+  .tl-none{font-size:13px;color:var(--muted);font-style:italic;}
+  .dmono{font-size:12px;color:var(--cool);word-break:break-all;font-family:ui-monospace,Menlo,monospace;margin-top:8px;}
+  .dlabel{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-bottom:4px;}
+  details.more{margin-top:10px;}
+  details.more>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--cool);list-style:none;padding:6px 0;}
+  details.more>summary::-webkit-details-marker{display:none;}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:6px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;}
+  .bar-stack{width:100%;max-width:34px;height:100px;position:relative;background:#f3efe5;border-radius:4px 4px 0 0;overflow:hidden;}
+  .bar-seg{width:100%;border-radius:3px 3px 0 0;min-height:0;}
+  .bar-seg{position:absolute;bottom:0;left:0;}
+  .bar-seg.v-view{background:#e7d9b0;}
+  .bar-seg.v-ready{background:var(--gold);width:68%;}
+  .bar-seg.v-cta{background:var(--gold-d);width:36%;}
+  .bar-day{font-size:10px;color:var(--muted);white-space:nowrap;transform:rotate(-40deg);height:22px;}
+  .bar-val{font-size:11px;font-weight:700;color:var(--cool);}
+  .legend{display:flex;gap:16px;margin-top:14px;font-size:12px;color:var(--cool);flex-wrap:wrap;}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+  @media(max-width:680px){.fname{width:130px;font-size:12px;}.bar-day{font-size:8px;}td,th{padding:9px 8px;}.hide-sm{display:none;}}
+</style>
+<link rel="stylesheet" href="/admin/admin-nav.css">
+<link rel="icon" type="image/png" href="/admin/picto-coif.png">
+</head>
+<body>
+<header class="anav">
+  <div class="anav-inner">
+    <a class="anav-brand" href="/admin/"><img class="anav-logo" src="/admin/picto-coif.png" alt=""><span>Outil coiffure</span></a>
+    <nav class="anav-tabs">
+      <a class="anav-tab" data-path="/admin" href="/admin/">Tableau de bord</a>
+      <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
+      <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
+      <a class="anav-tab" data-path="/admin/stats-landing.html" href="/admin/stats-landing.html">Suivi landing</a>
+      <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
+      <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
+    </nav>
+    <span class="anav-spacer"></span>
+    <div class="anav-right">
+      <span class="lang-switcher">
+        <button class="lang-btn" data-lang="fr" type="button">FR</button>
+        <button class="lang-btn" data-lang="en" type="button">EN</button>
+        <button class="lang-btn" data-lang="zh" type="button">中</button>
+      </span>
+      <button class="anav-logout" id="anav-logout" type="button">Déconnexion</button>
+    </div>
+  </div>
+</header>
+<script src="/admin/admin-nav.js"></script>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="brand" id="t-brand">Suivi landing</span>
+    <span class="spacer"></span>
+    <div class="periods" aria-label="Période"><button class="pbtn" data-days="7">7j</button><button class="pbtn on" data-days="30">30j</button><button class="pbtn" data-days="90">90j</button></div>
+    <span class="updated" id="updated"></span>
+    <button class="hbtn" id="refresh">↻ Actualiser</button>
+  </div>
+</div>
+
+<main><div id="content"><div class="msg" id="t-loading">Chargement…</div></div></main>
+
+<script>
+(function(){
+  'use strict';
+  var JSON_URL='/admin/api/landing-stats.json';
+  var $=function(id){return document.getElementById(id);};
+
+  var T={
+    fr:{brand:'Suivi landing',refresh:'Actualiser',maj:'maj',loading:'Chargement…',
+      sub:'Funnel de la page marketing maquickpage.fr',
+      k_real:'Vrais visiteurs',k_real_sub:'JS confirmé (navigateur réel)',k_uniq:'Visiteurs bruts (serveur)',k_uniq_sub:'bots & sans-JS inclus',k_view:'Visites (pages vues)',k_scroll:'Scroll 50%+',k_cta:'CTA cliqué',k_open:'Couverture ouverte',k_submit:'Formulaire envoyé',
+      k_found:'Salon couvert',k_notfound:'Pas trouvé (48h)',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
+      funnel_title:'Entonnoir par vrai visiteur',fn_note:'clé = IP + navigateur (sans cookie)',
+      src_title:'D\'où viennent les vrais visiteurs',src_direct:'Accès direct / inconnu',via:'via {s}',
+      f_real:'Vrais visiteurs',f_uniq:'Visiteurs',f_scroll:'Scrollé ≥ 50%',f_cta:'Cliqué un CTA',f_open:'Ouvert « couverture »',f_submit:'Envoyé le formulaire',
+      leads_title:'Leads traçables',leads_none:'Aucun formulaire envoyé pour le moment.',
+      th_email:'Email',th_status:'Résultat',th_events:'Actions',th_scroll:'Scroll',th_seen:'Dernière activité',
+      s_found:'✅ Couvert',s_nf:'⏳ Pas trouvé',multi:'+{n} autre(s)',
+      view_site:'Voir le site démo →',b_opened:'Démo ouvert',b_editor:'Éditeur ouvert',b_edited:'Démo édité',
+      eng_title:'Engagés sans envoi',eng_sub:'ont cliqué un CTA mais n\'ont pas envoyé le formulaire',eng_none:'Aucun visiteur engagé sans envoi.',eng_more:'Voir les {n} visiteurs engagés',
+      th_visitor:'Visiteur',th_stage:'Étape atteinte',
+      st_view:'A vu la page',st_scroll:'A scrollé',st_cta:'A cliqué un CTA',st_open:'A ouvert « couverture »',st_submit:'A envoyé le formulaire',
+      cta_title:'Quel bouton déclenche la recherche',c_nav:'Barre du haut',c_hero:'Hero (héro)',c_coverage:'Section couverture',c_pricing:'Section tarifs',
+      trend_title:'Tendance · 14 derniers jours',lg_view:'Visites (serveur)',lg_real:'Vrais visiteurs (JS)',lg_cta:'CTA cliqués',
+      jr_title:'Parcours',no_journey:'Aucun parcours enregistré (lead antérieur au tracking).',visit_label:'Visite {n}',visits_n:'{n} visites',k_leads:'Leads (emails)',
+      e_view:'Visite',e_ready:'Page chargée (JS ✓)',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Couverture ouverte',e_submit:'Formulaire envoyé',e_found:'Salon trouvé ✓',e_nf:'Pas trouvé',
+      w_nav:'barre du haut',w_hero:'héro',w_coverage:'section couverture',w_pricing:'section tarifs',
+      d_ip:'IP',d_ua:'Navigateur (UA)',u_min:'min',u_h:'h',u_d:'j',
+      none:'Aucune visite enregistrée pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : '},
+    en:{brand:'Landing tracking',refresh:'Refresh',maj:'upd.',loading:'Loading…',
+      sub:'Marketing page funnel · maquickpage.fr',
+      k_real:'Real visitors',k_real_sub:'JS confirmed (real browser)',k_uniq:'Raw visitors (server)',k_uniq_sub:'incl. bots & no-JS',k_view:'Visits (page views)',k_scroll:'Scroll 50%+',k_cta:'Clicked CTA',k_open:'Opened coverage',k_submit:'Submitted form',
+      k_found:'Salon covered',k_notfound:'Not found (48h)',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
+      funnel_title:'Funnel by real visitor',fn_note:'key = IP + browser (cookieless)',
+      src_title:'Where real visitors come from',src_direct:'Direct / unknown',via:'via {s}',
+      f_real:'Real visitors',f_uniq:'Visitors',f_scroll:'Scrolled ≥ 50%',f_cta:'Clicked a CTA',f_open:'Opened "coverage"',f_submit:'Submitted form',
+      leads_title:'Traceable leads',leads_none:'No form submitted yet.',
+      th_email:'Email',th_status:'Result',th_events:'Actions',th_scroll:'Scroll',th_seen:'Last activity',
+      s_found:'✅ Covered',s_nf:'⏳ Not found',multi:'+{n} more',
+      view_site:'View demo site →',b_opened:'Demo opened',b_editor:'Editor opened',b_edited:'Demo edited',
+      eng_title:'Engaged, no submit',eng_sub:'clicked a CTA but did not submit the form',eng_none:'No engaged visitor without submit.',eng_more:'Show the {n} engaged visitors',
+      th_visitor:'Visitor',th_stage:'Stage reached',
+      st_view:'Viewed page',st_scroll:'Scrolled',st_cta:'Clicked a CTA',st_open:'Opened "coverage"',st_submit:'Submitted form',
+      cta_title:'Which button triggers the search',c_nav:'Top bar',c_hero:'Hero',c_coverage:'Coverage section',c_pricing:'Pricing section',
+      trend_title:'Trend · last 14 days',lg_view:'Visits (server)',lg_real:'Real visitors (JS)',lg_cta:'CTA clicks',
+      jr_title:'Journey',no_journey:'No journey recorded (lead predates tracking).',visit_label:'Visit {n}',visits_n:'{n} visits',k_leads:'Leads (emails)',
+      e_view:'Visit',e_ready:'Page loaded (JS ✓)',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Opened coverage',e_submit:'Submitted form',e_found:'Salon found ✓',e_nf:'Not found',
+      w_nav:'top bar',w_hero:'hero',w_coverage:'coverage section',w_pricing:'pricing section',
+      d_ip:'IP',d_ua:'Browser (UA)',u_min:'min',u_h:'h',u_d:'d',
+      none:'No visits recorded yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: '},
+    zh:{brand:'落地页追踪',refresh:'刷新',maj:'更新',loading:'加载中…',
+      sub:'营销主页漏斗 · maquickpage.fr',
+      k_real:'真实访客',k_real_sub:'JS 已确认（真实浏览器）',k_uniq:'原始访客（服务器）',k_uniq_sub:'含机器人/无 JS',k_view:'访问（页面浏览）',k_scroll:'滚动 50%+',k_cta:'点击 CTA',k_open:'打开覆盖查询',k_submit:'提交表单',
+      k_found:'已覆盖',k_notfound:'未找到 (48h)',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
+      funnel_title:'按真实访客的漏斗',fn_note:'标识 = IP + 浏览器（无 Cookie）',
+      src_title:'真实访客来源',src_direct:'直接访问 / 未知',via:'来自 {s}',
+      f_real:'真实访客',f_uniq:'访客',f_scroll:'滚动 ≥ 50%',f_cta:'点击了 CTA',f_open:'打开了覆盖查询',f_submit:'提交了表单',
+      leads_title:'可追踪线索',leads_none:'暂无表单提交。',
+      th_email:'邮箱',th_status:'结果',th_events:'操作',th_scroll:'滚动',th_seen:'最近活动',
+      s_found:'✅ 已覆盖',s_nf:'⏳ 未找到',multi:'+{n} 个',
+      view_site:'查看 demo 网站 →',b_opened:'打开过 demo',b_editor:'打开过编辑器',b_edited:'编辑过 demo',
+      eng_title:'有互动但未提交',eng_sub:'点击了 CTA 但未提交表单',eng_none:'暂无此类访客。',eng_more:'查看 {n} 位互动访客',
+      th_visitor:'访客',th_stage:'最高阶段',
+      st_view:'查看了页面',st_scroll:'已滚动',st_cta:'点击了 CTA',st_open:'打开了覆盖查询',st_submit:'提交了表单',
+      cta_title:'哪个按钮触发查询',c_nav:'顶部栏',c_hero:'主视觉',c_coverage:'覆盖区块',c_pricing:'价格区块',
+      trend_title:'趋势 · 最近 14 天',lg_view:'访问（服务器）',lg_real:'真实访客（JS）',lg_cta:'CTA 点击',
+      jr_title:'路径',no_journey:'无行为记录（该线索早于追踪上线）。',visit_label:'第 {n} 次访问',visits_n:'{n} 次访问',k_leads:'线索（邮箱）',
+      e_view:'访问',e_ready:'页面加载（JS ✓）',e_scroll:'滚动 {p}%',e_cta:'CTA · {w}',e_open:'打开覆盖查询',e_submit:'提交表单',e_found:'找到沙龙 ✓',e_nf:'未找到',
+      w_nav:'顶部栏',w_hero:'主视觉',w_coverage:'覆盖区块',w_pricing:'价格区块',
+      d_ip:'IP',d_ua:'浏览器 (UA)',u_min:'分钟',u_h:'小时',u_d:'天',
+      none:'暂无访问记录。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：'}
+  };
+  var lang=(function(){try{var s=localStorage.getItem('outil-coiffure-lang');return T[s]?s:'fr';}catch(e){return 'fr';}})();
+  function t(k,p){var s=(T[lang]&&T[lang][k])||T.fr[k]||k;if(p)for(var x in p)s=s.replace('{'+x+'}',p[x]);return s;}
+
+  function applyStatic(){
+    document.documentElement.lang=lang==='zh'?'zh-CN':lang;
+    $('t-brand').textContent=t('brand');$('refresh').textContent='↻ '+t('refresh');
+    Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){b.classList.toggle('active',b.dataset.lang===lang);});
+  }
+  function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(DATA)render(DATA);}
+
+  var DATA=null, expLead={}, expEng={}, engOpen=false, periodDays=30;
+  function esc(s){return s==null?'':String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function kpi(v,l,sub,cls){return'<div class="kpi '+(cls||'')+'"><div class="v">'+v+'</div><div class="l">'+esc(l)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>';}
+  function pctOf(n,base){return base>0?Math.round(n/base*100)+'%':'—';}
+  function frow(name,val,max,base){
+    var w=Math.min(100,Math.round(val/(max||1)*100));
+    var pc=base!=null?'<span class="pct">'+pctOf(val,base)+'</span>':'';
+    return'<div class="frow"><div class="fname">'+esc(name)+pc+'</div><div class="fbar-wrap"><div class="fbar" style="width:'+w+'%"></div><span class="fval">'+val+'</span></div></div>';
+  }
+  function fmtDate(ts){if(!ts)return'';var v=Date.parse(String(ts).replace(' ','T')+'Z');if(isNaN(v))return ts;return new Intl.DateTimeFormat(lang==='zh'?'zh-CN':lang,{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(v);}
+  function fmtWhen(ts){if(!ts)return'';var v=Date.parse(String(ts).replace(' ','T')+'Z');if(isNaN(v))return'';var d=(Date.now()-v)/1000;
+    if(d<3600)return Math.max(1,Math.round(d/60))+' '+t('u_min');if(d<86400)return Math.round(d/3600)+' '+t('u_h');return Math.round(d/86400)+' '+t('u_d');}
+
+  // Rendu d'un event de parcours (label + heure + méta).
+  function evLabel(e){
+    var m=e.meta||{};
+    switch(e.event){
+      case 'landing_view':return t('e_view');
+      case 'landing_ready':return t('e_ready')+(m.ref?' · '+m.ref:'');
+      case 'landing_scroll':return t('e_scroll',{p:m.pct||0});
+      case 'landing_cta':return t('e_cta',{w:t('w_'+(m.which||''))||m.which||''});
+      case 'landing_check_open':return t('e_open');
+      case 'landing_check_submit':return t('e_submit');
+      case 'landing_check_found':return t('e_found');
+      case 'landing_check_notfound':return t('e_nf');
+      default:return e.event;
+    }
+  }
+  function evClass(ev){
+    if(ev==='landing_check_submit'||ev==='landing_check_found'||ev==='landing_check_notfound')return' is-submit';
+    if(ev==='landing_view')return' is-view';return'';
+  }
+  function timeline(journey){
+    if(!journey||!journey.length)return'<div class="dlabel">'+t('jr_title')+'</div><div class="tl-none">'+t('no_journey')+'</div>';
+    var maxVisit=journey[journey.length-1].visit||1,lastV=0,out='';
+    journey.forEach(function(e){
+      if(maxVisit>1&&e.visit&&e.visit!==lastV){lastV=e.visit;out+='<div class="tl-visit">'+t('visit_label',{n:e.visit})+'</div>';}
+      out+='<div class="tl-ev'+evClass(e.event)+'"><span class="tl-meta">'+esc(evLabel(e))+'</span><span class="tl-t">'+esc(fmtDate(e.ts))+'</span></div>';
+    });
+    return'<div class="dlabel">'+t('jr_title')+'</div><div class="tl">'+out+'</div>';
+  }
+  function detailCell(v,cols){
+    return'<tr class="detail"><td colspan="'+cols+'">'+timeline(v.journey)
+      +'<div class="dlabel" style="margin-top:10px">'+t('d_ip')+'</div><div class="dmono">'+esc(v.ip||'—')+'</div>'
+      +'<div class="dlabel" style="margin-top:8px">'+t('d_ua')+'</div><div class="dmono">'+esc(v.ua||'—')+'</div>'
+      +'</td></tr>';
+  }
+  function stageLabel(st){return st>=5?t('st_submit'):st>=4?t('st_open'):st>=3?t('st_cta'):st>=2?t('st_scroll'):t('st_view');}
+
+  function render(d){
+    var f=d.funnel||{},vf=d.visitorFunnel||{},cta=d.cta||{},daily=d.daily||[],leads=d.leads||[],engaged=d.engaged||[],lm=d.leadMetrics||{};
+
+    var real=vf.real||0;
+    var html='<div class="section-title">'+esc(t('sub'))+'</div>';
+    html+='<div class="kpis">';
+    html+=kpi(real,t('k_real'),t('k_real_sub'),'gold');
+    html+=kpi(f.view||0,t('k_view'),'','');
+    html+=kpi(lm.uniqueEmails||0,t('k_leads'),(lm.submissions||0)+' envoi(s)','hot');
+    html+=kpi(lm.found||0,t('k_found'),'','ok');
+    html+=kpi(lm.notfound||0,t('k_notfound'),'','');
+    html+='</div>';
+
+    // Toutes les étapes utilisent la même population JS confirmée.
+    var base=real||0;
+    html+='<div class="section-title">'+t('funnel_title')+' · <span style="text-transform:none;font-weight:600">'+t('fn_note')+'</span></div><div class="funnel">';
+    html+=frow(t('f_real'),base,base,base);
+    html+=frow(t('f_scroll'),vf.scroll50||0,base,base);
+    html+=frow(t('f_cta'),vf.cta||0,base,base);
+    html+=frow(t('f_open'),vf.open||0,base,base);
+    html+=frow(t('f_submit'),vf.submit||0,base,base);
+    html+='</div>';
+
+    // === D'OÙ VIENNENT LES VRAIS VISITEURS ===
+    var sources=d.sources||[];
+    if(sources.length){
+      var smax=sources[0].n||1;
+      html+='<div class="section-title">'+t('src_title')+'</div><div class="funnel">';
+      sources.slice(0,12).forEach(function(s){
+        var label=s.source==='direct'?t('src_direct'):(s.source.indexOf('src:')===0?'?src='+s.source.slice(4):s.source);
+        html+=frow(label,s.n,smax,real);
+      });
+      html+='</div>';
+    }
+
+    // === LEADS TRAÇABLES (email → parcours) ===
+    html+='<div class="section-title">'+t('leads_title')+' ('+leads.length+')</div>';
+    if(!leads.length)html+='<div class="card"><div class="msg" style="padding:20px">'+t('leads_none')+'</div></div>';
+    else{
+      html+='<div class="tbl-wrap"><table><thead><tr>'
+        +'<th>'+t('th_email')+'</th><th>'+t('th_status')+'</th>'
+        +'<th class="num">'+t('th_events')+'</th><th class="num hide-sm">'+t('th_scroll')+'</th>'
+        +'<th>'+t('th_seen')+'</th></tr></thead><tbody>';
+      leads.forEach(function(l,i){
+        var open=expLead[i];
+        var extra=(l.emails&&l.emails.length>1)?' <span class="loc">'+t('multi',{n:l.emails.length-1})+'</span>':'';
+        var loc=[l.salon,l.ville].filter(Boolean).map(esc).join(' · ');
+        if(l.visits>1)loc+=(loc?' · ':'')+esc(t('visits_n',{n:l.visits}));
+        if(l.source)loc+=(loc?' · ':'')+esc(t('via',{s:l.source==='direct'?t('src_direct'):l.source}));
+        var badge=l.found?'<span class="badge b-found">'+t('s_found')+'</span>':'<span class="badge b-nf">'+t('s_nf')+'</span>';
+        // Bande site démo (leads couverts) : miniature + lien + activité démo.
+        // stopPropagation : cliquer un lien ne doit pas replier/déplier la ligne.
+        var demoStrip='';
+        if(l.demoUrl){
+          var dbadges='';
+          if(l.demo){
+            if(l.demo.opened)dbadges+=' <span class="badge b-demo">'+t('b_opened')+'</span>';
+            if(l.demo.editorOpened)dbadges+=' <span class="badge b-demo">'+t('b_editor')+'</span>';
+            if(l.demo.edited)dbadges+=' <span class="badge b-edit">'+t('b_edited')+'</span>';
+          }
+          demoStrip='<div class="demo-strip">'
+            +(l.screenshot?'<a href="'+esc(l.demoUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img class="demo-thumb" src="'+esc(l.screenshot)+'" alt="" loading="lazy"></a>':'')
+            +'<a class="demo-link" href="'+esc(l.demoUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+t('view_site')+'</a>'
+            +dbadges+'</div>';
+        }
+        html+='<tr class="row" data-lead="'+i+'">'
+          +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="email">'+esc(l.email)+'</span>'+extra+(loc?'<div class="loc" style="margin-left:14px">'+loc+'</div>':'')+demoStrip+'</td>'
+          +'<td>'+badge+'</td>'
+          +'<td class="num">'+(l.preTracking?'—':(l.events||0))+'</td>'
+          +'<td class="num hide-sm">'+(l.scrollMax?l.scrollMax+'%':'—')+'</td>'
+          +'<td class="when" title="'+esc(l.last)+'">'+fmtDate(l.last)+'<div style="font-size:11px">'+fmtWhen(l.last)+'</div></td>'
+          +'</tr>';
+        if(open)html+=detailCell(l,5);
+      });
+      html+='</tbody></table></div>';
+    }
+
+    // === ENGAGÉS SANS ENVOI (near-miss) ===
+    var engTotal=d.engagedTotal||engaged.length;
+    if(engaged.length){
+      html+='<div class="section-title">'+t('eng_title')+' ('+engTotal+') · <span style="text-transform:none;font-weight:600">'+t('eng_sub')+'</span></div>';
+      html+='<div class="tbl-wrap"><table><thead><tr>'
+        +'<th>'+t('th_visitor')+'</th><th>'+t('th_stage')+'</th>'
+        +'<th class="num">'+t('th_events')+'</th><th class="num hide-sm">'+t('th_scroll')+'</th>'
+        +'<th>'+t('th_seen')+'</th></tr></thead><tbody>';
+      engaged.forEach(function(v,i){
+        var open=expEng[i];
+        html+='<tr class="row" data-eng="'+i+'">'
+          +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="dmono" style="font-size:12.5px">'+esc(v.ip||'—')+'</span></td>'
+          +'<td>'+esc(stageLabel(v.stage))+(v.visits>1?' <span class="loc">· '+esc(t('visits_n',{n:v.visits}))+'</span>':'')+(v.source?' <span class="loc">· '+esc(t('via',{s:v.source}))+'</span>':'')+'</td>'
+          +'<td class="num">'+(v.events||0)+'</td>'
+          +'<td class="num hide-sm">'+(v.scrollMax?v.scrollMax+'%':'—')+'</td>'
+          +'<td class="when" title="'+esc(v.last)+'">'+fmtDate(v.last)+'<div style="font-size:11px">'+fmtWhen(v.last)+'</div></td>'
+          +'</tr>';
+        if(open)html+=detailCell(v,5);
+      });
+      html+='</tbody></table></div>';
+    }
+
+    // === Répartition CTA ===
+    html+='<div class="section-title">'+t('cta_title')+'</div><div class="card"><div class="cta-grid">';
+    [['nav','c_nav'],['hero','c_hero'],['coverage','c_coverage'],['pricing','c_pricing']].forEach(function(x){
+      html+='<div class="cta-item"><div class="v">'+(cta[x[0]]||0)+'</div><div class="l">'+esc(t(x[1]))+'</div></div>';
+    });
+    html+='</div></div>';
+
+    // === Tendance 14 jours ===
+    if(daily.length){
+      var maxV=1;daily.forEach(function(r){if((r.views||0)>maxV)maxV=r.views||0;});
+      html+='<div class="section-title">'+t('trend_title')+'</div><div class="card"><div class="bars">';
+      daily.forEach(function(r){
+        var vh=Math.round((r.views||0)/maxV*100),rh=Math.round((r.real||0)/maxV*100),ch=Math.round((r.cta||0)/maxV*100);
+        var dd=(r.day||'').slice(5).replace('-','/');
+        html+='<div class="bar-col" title="'+esc(r.day)+'">'
+          +'<div class="bar-val">'+(r.real||0)+'</div>'
+          +'<div class="bar-stack"><div class="bar-seg v-view" style="height:'+vh+'%"></div><div class="bar-seg v-ready" style="height:'+rh+'%"></div><div class="bar-seg v-cta" style="height:'+ch+'%"></div></div>'
+          +'<div class="bar-day">'+esc(dd)+'</div></div>';
+      });
+      html+='</div><div class="legend"><span><i style="background:#e7d9b0"></i>'+t('lg_view')+'</span><span><i style="background:#C8A24B"></i>'+t('lg_real')+'</span><span><i style="background:#A8842F"></i>'+t('lg_cta')+'</span></div></div>';
+    }
+
+    if(!(f.view||vf.visitors||leads.length)){html='<div class="msg">'+t('none')+'</div>';}
+    $('content').innerHTML=html;
+
+    Array.prototype.forEach.call(document.querySelectorAll('tr.row[data-lead]'),function(tr){
+      tr.onclick=function(){var i=tr.getAttribute('data-lead');expLead[i]=!expLead[i];render(DATA);};});
+    Array.prototype.forEach.call(document.querySelectorAll('tr.row[data-eng]'),function(tr){
+      tr.onclick=function(){var i=tr.getAttribute('data-eng');expEng[i]=!expEng[i];render(DATA);};});
+  }
+
+  function load(){
+    $('updated').textContent='…';
+    fetch(JSON_URL+'?days='+periodDays+'&t='+Date.now(),{credentials:'same-origin',cache:'no-store'}).then(function(r){
+      if(r.status===401||r.status===302||r.redirected)throw new Error('auth');
+      if(!r.ok)throw new Error('http '+r.status);
+      return r.json();
+    }).then(function(d){
+      DATA=d;var n=new Date();
+      $('updated').textContent=t('maj')+' '+n.getHours()+'h'+('0'+n.getMinutes()).slice(-2);
+      render(d);
+    }).catch(function(e){
+      if(e.message==='auth')$('content').innerHTML='<div class="msg">'+t('auth')+'<br><br><a href="/admin/login">'+t('signin')+'</a></div>';
+      else $('content').innerHTML='<div class="msg">'+t('err')+esc(e.message)+'</div>';
+      $('updated').textContent='';
+    });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){
+    b.addEventListener('click',function(){setLang(b.dataset.lang);});
+  });
+  $('refresh').onclick=load;
+  Array.prototype.forEach.call(document.querySelectorAll('.pbtn'),function(b){b.onclick=function(){periodDays=Number(b.dataset.days);document.querySelectorAll('.pbtn').forEach(function(x){x.classList.toggle('on',x===b);});load();};});
+  applyStatic();
+  load();
+})();
+</script>
+</body>
+</html>

@@ -82,6 +82,41 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // === Suivi funnel landing (best-effort, jamais bloquant) ===
+  // window.mqsTrack est fourni par /_assets/track.js ; absent → no-op.
+  const track = (ev, meta) => { try { window.mqsTrack && window.mqsTrack(ev, meta || null); } catch (e) { /* silencieux */ } };
+
+  // Beacon « vrai navigateur » : envoyé dès le chargement. Distingue les humains
+  // (JS exécuté) du bruit serveur (bots/scanners qui ne lancent jamais le JS —
+  // le landing_view serveur les compte tous). Porte la provenance : hostname du
+  // referrer (null = accès direct / favori / lien app).
+  (function trackReady() {
+    let ref = null;
+    try { if (document.referrer) ref = new URL(document.referrer).hostname; } catch (e) { /* silencieux */ }
+    track('landing_ready', { ref });
+  })();
+
+  // Profondeur de scroll : renvoie le maximum seulement s'il a progressé depuis
+  // le dernier masquage (un retour d'app mobile ne fige plus la première valeur).
+  (function setupScrollDepth() {
+    let maxPct = 0, sentPct = 0;
+    function onScroll() {
+      const doc = document.documentElement;
+      const scrollable = (doc.scrollHeight - doc.clientHeight);
+      const pct = scrollable > 0 ? Math.round((doc.scrollTop || window.pageYOffset || 0) / scrollable * 100) : 100;
+      if (pct > maxPct) maxPct = Math.min(100, pct);
+    }
+    function flush() {
+      if (maxPct <= sentPct) return;
+      sentPct = maxPct;
+      track('landing_scroll', { pct: maxPct });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+    onScroll();
+  })();
+
   // === État ===
   let opened = false;
 
@@ -106,6 +141,7 @@
   function openModal() {
     if (opened) return;
     opened = true;
+    track('landing_check_open');
     modal.hidden = false;
     showStep('input');
     requestAnimationFrame(() => {
@@ -163,6 +199,7 @@
     formError.hidden = true;
     submitBtn.disabled = true;
     submitBtn.textContent = '…';
+    track('landing_check_submit');
     showStep('loading');
 
     try {
@@ -208,7 +245,9 @@
   // === Wire-up des CTAs ===
   ['hp-cta-nav', 'hp-cta-hero', 'hp-cta-coverage', 'hp-cta-pricing'].forEach(id => {
     const el = $(id);
-    if (el) el.addEventListener('click', openModal);
+    if (!el) return;
+    const which = id.replace('hp-cta-', ''); // nav | hero | coverage | pricing
+    el.addEventListener('click', () => { track('landing_cta', { which }); openModal(); });
   });
 
   modalClose.addEventListener('click', closeModal);

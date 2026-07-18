@@ -20,6 +20,7 @@
 import express from 'express';
 import db from '../db.js';
 import { sendSignupSuccessEmail } from '../email-sender.js';
+import { logEvent, clientIp } from './tracking.js';
 
 const router = express.Router();
 
@@ -147,7 +148,9 @@ function findSalon({ rawUrl, placeName, placeId }) {
 // Body: { google_maps_url, email }
 // =============================================================================
 router.post('/landing/check', express.json({ limit: '10kb' }), async (req, res) => {
-  const ip = (req.ip || req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim();
+  // MÊME dérivation IP que le funnel (clientIp) → le rapprochement lead↔journey
+  // par (ip|ua) matche exactement. UA tronqué à 250 (idem preview_events côté join).
+  const ip = clientIp(req);
   const userAgent = (req.headers['user-agent'] || '').slice(0, 250);
 
   // Rate limit par IP
@@ -189,6 +192,9 @@ router.post('/landing/check', express.json({ limit: '10kb' }), async (req, res) 
   } catch (err) {
     console.error('[landing/check] DB insert lead error:', err.message);
   }
+
+  // Funnel landing : issue de la recherche de couverture (bas de l'entonnoir).
+  logEvent({ event: salon ? 'landing_check_found' : 'landing_check_notfound', ip: ip || null, ua: userAgent });
 
   if (salon) {
     // === SALON TROUVÉ ===

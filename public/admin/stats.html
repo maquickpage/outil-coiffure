@@ -22,11 +22,24 @@
   .hbtn{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
   .hbtn:hover{background:rgba(255,255,255,.12);}
   .hbtn.gold{background:#c9a96e;color:#1a1a1a;border-color:#c9a96e;}
+  .periods{display:inline-flex;background:rgba(255,255,255,.1);border-radius:9px;padding:3px;gap:2px;}
+  .pbtn{border:0;background:transparent;color:rgba(255,255,255,.7);padding:5px 9px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;}
+  .pbtn.on{background:#fff;color:#1a1a1a;}
   .controls{background:#fff;border-bottom:1px solid var(--border);padding:12px 0;}
   .controls-inner{max-width:1100px;margin:0 auto;padding:0 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   .controls input[type=search]{flex:1;min-width:160px;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;outline:none;}
   .controls input:focus{border-color:var(--gold);}
   .toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--cool);cursor:pointer;user-select:none;}
+  .ipbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:12px;padding:9px 14px;margin-bottom:16px;font-size:13px;color:var(--cool);}
+  .ipbar-txt b{color:var(--ink);}
+  .ipbtn{margin-left:auto;border:1.5px solid var(--border);background:#fff;color:var(--ink);padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .ipbtn:hover{border-color:var(--gold);}
+  .ipbtn.on{background:#eef0f2;color:var(--cool);border-color:var(--border);}
+  .ipbtn:disabled{opacity:.5;cursor:default;}
+  .dflag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;}
+  .dflag.f-int{background:#e0e7ff;color:#3730a3;}
+  .dflag.f-bot{background:#eef0f2;color:#5b6470;}
+  .dev.muted{opacity:.62;}
   main{padding:16px;max-width:1100px;margin:0 auto;}
   .msg{text-align:center;color:var(--muted);padding:50px 20px;font-size:15px;}
   .msg a{color:var(--blue);font-weight:600;}
@@ -43,7 +56,7 @@
   .fbar-wrap{flex:1;background:#efeada;border-radius:8px;overflow:hidden;height:26px;position:relative;}
   .fbar{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-d));border-radius:8px;min-width:2px;}
   .fval{position:absolute;right:10px;top:0;height:26px;display:flex;align-items:center;font-size:12.5px;font-weight:700;}
-  .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow-x:auto;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
   th{text-align:left;padding:11px 12px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none;}
   th.sortable:hover{color:var(--ink);}
@@ -128,6 +141,7 @@
     <div class="topbar-inner">
       <span class="brand" id="t-brand">Suivi des maquettes</span>
       <span class="spacer"></span>
+      <div class="periods" aria-label="Période"><button class="pbtn" data-days="7">7j</button><button class="pbtn on" data-days="30">30j</button><button class="pbtn" data-days="90">90j</button></div>
       <span class="updated" id="updated"></span>
       <button class="hbtn" id="refresh">↻ Actualiser</button>
       <button class="hbtn gold" id="export">⬇ CSV</button>
@@ -136,7 +150,6 @@
   <div class="controls">
     <div class="controls-inner">
       <input type="search" id="q" placeholder="Rechercher…" autocomplete="off">
-      <label class="toggle"><input type="checkbox" id="humansOnly" checked> <span id="t-humans">Humains seulement</span></label>
       <label class="toggle"><input type="checkbox" id="autorefresh"> <span id="t-auto">Auto (60s)</span></label>
     </div>
   </div>
@@ -149,43 +162,52 @@
 <script>
 (function(){
   'use strict';
-  var CSV_URL='/admin/api/preview-visits.csv', PREVIEW_BASE='https://maquickpage.fr/preview/';
+  var CSV_URL='/admin/api/preview-visits.csv', JSON_URL='/admin/api/suivi.json', PREVIEW_REDIR='/admin/api/suivi/preview/';
   var $=function(id){return document.getElementById(id);};
-  var raw=[], sortKey='status', sortDir=-1, statusFilter='all', autoTimer=null, expanded={};
+  var salonsData=[], META={myIp:'',excludedIps:[],totals:{}}, sortKey='status', sortDir=-1, statusFilter='all', autoTimer=null, expanded={}, periodDays=30;
   var inCalling=new Set(); // slugs déjà dans la prospection (rempli par loadCallingSlugs)
 
   var T={
     fr:{brand:'Suivi des maquettes',refresh:'Actualiser',exp:'CSV',maj:'maj',back:'← Admin',search:'Rechercher salon, ville, email…',humans:'Humains seulement',auto:'Auto (60s)',loading:'Chargement…',
       k_visited:'Salons visités',k_pricing:'Ont vu les tarifs',k_domains:'Ont vu les domaines',k_custom:'Domaine perso tapé',k_edited:'Ont édité leur démo',k_cgv:'CGV acceptées',k_pay:'Paiement initié',k_clients:'Devenus clients',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
-      funnel_title:'Entonnoir comportemental',f_visited:'Visité la maquette',f_pricing:'Étape 1/3 · Tarifs',f_domains:'Étape 2/3 · Domaines',f_pay:'Paiement initié',f_client:'Devenu client',
-      recall:'À rappeler',th_salon:'Salon',th_level:'Niveau atteint',th_status:'Statut',th_signals:'Signaux',th_count:'Nb',th_scroll:'Scroll',th_date:'Dernière activité',
+      funnel_title:'Entonnoir comportemental (prospect · bots + IP internes exclus)',f_visited:'Visité la maquette',f_pricing:'A vu les tarifs',f_domains:'A vu les domaines',f_pay:'Paiement initié',f_client:'Devenu client',
+      k_prospect_ev:'Actions prospect',k_filtered:'{b} bots · {i} internes filtrés',
+      my_ip:'Ton IP :',n_excluded:'{n} IP exclue(s)',ip_exclude:'Exclure mon trafic',ip_included:'Réinclure mon trafic',d_internal:'interne',d_bot:'bot',
+      recall:'À rappeler',th_salon:'Salon',th_level:'Niveau atteint',th_status:'Statut',th_signals:'Signaux',th_count:'Nb',th_visits:'Visites',th_scroll:'Scroll',th_date:'Dernière activité',
       f_all:'Tous',stt_client:'✅ Client',stt_hot:'🔥 Chaud',stt_engaged:'Engagé',stt_interested:'Intéressé',stt_curious:'Curieux',
       tg_pay:'Paiement',tg_cgv:'CGV',tg_email:'Email 3/3',tg_domains:'Domaines 2/3',tg_pricing:'Tarifs 1/3',tg_custom:'Domaine perso',tg_edited:'Démo éditée',tg_editor:'Éditeur ouvert',tg_devices:'{n} appareils',tg_scroll:'scroll {n}%',
       st_client:'✅ Client',st_pay:'🔥 Procéder au paiement',st_cgv:'🔥 CGV acceptées',st_editsave:'🔥 A édité sa démo',st_editopen:'A ouvert l\'éditeur',st_custom:'Domaine perso tapé',st_email:'Étape 3/3 · Email',st_domains:'Étape 2/3 · Domaines',st_pricing:'Étape 1/3 · Tarifs',st_scroll:'A scrollé',st_view:'A vu la page',
       e_view:'Vue page',e_scroll:'Scroll',e_pricing:'Étape 1/3 · Tarifs',e_domains:'Étape 2/3 · Domaines',e_custom:'Domaine perso',e_email:'Étape 3/3 · Email',e_cgv:'CGV acceptées',e_editopen:'Éditeur ouvert',e_editsave:'Démo éditée',e_pay:'Procéder au paiement',
       e_demo_mail:'📧 Démo envoyée par email (cockpit)',e_demo_sms:'📱 SMS démo copié (cockpit)',tg_demo_mail:'📧 Démo envoyée',tg_demo_sms:'📱 SMS démo',
       d_events:'Événements',d_ip:'IP',d_device:'Appareil',d_plan:'Plan choisi',d_devices:'Appareils & connexions',d_visits:'visites',d_connections:'Connexions',d_ua:'Navigateur (UA)',
-      see:'Voir →',none:'Aucune visite pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j'},
+      see:'Voir →',none:'Aucune visite pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j',
+      ttl_photos:'Photos du salon (héro + galerie)',ttl_incall:'Déjà en prospection — ouvrir dans le cockpit',ttl_addcall:'Ajouter à la prospection téléphonique',toast_already:'Déjà dans la prospection',toast_added:'Ajouté à la prospection ✓',toast_nonum:' · numéro à retrouver (bouton 🔎 dans Prospection)',toast_err:'Erreur : ',ua_unknown:'Inconnu',ua_bot:'Bot / scanner',ua_other:'Autre'},
     en:{brand:'Mockup tracking',refresh:'Refresh',exp:'CSV',maj:'upd.',back:'← Admin',search:'Search salon, city, email…',humans:'Humans only',auto:'Auto (60s)',loading:'Loading…',
       k_visited:'Salons visited',k_pricing:'Saw pricing',k_domains:'Saw domains',k_custom:'Typed custom domain',k_edited:'Edited demo',k_cgv:'Accepted terms',k_pay:'Clicked pay',k_clients:'Became clients',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
-      funnel_title:'Behavioral funnel',f_visited:'Visited the mockup',f_pricing:'Step 1/3 · Pricing',f_domains:'Step 2/3 · Domains',f_pay:'Clicked pay',f_client:'Became client',
-      recall:'To call',th_salon:'Salon',th_level:'Stage reached',th_status:'Status',th_signals:'Signals',th_count:'#',th_scroll:'Scroll',th_date:'Last activity',
+      funnel_title:'Behavioral funnel (prospect · bots + internal IPs excluded)',f_visited:'Visited the mockup',f_pricing:'Saw pricing',f_domains:'Saw domains',f_pay:'Clicked pay',f_client:'Became client',
+      k_prospect_ev:'Prospect actions',k_filtered:'{b} bots · {i} internal filtered',
+      my_ip:'Your IP:',n_excluded:'{n} IP(s) excluded',ip_exclude:'Exclude my traffic',ip_included:'Re-include my traffic',d_internal:'internal',d_bot:'bot',
+      recall:'To call',th_salon:'Salon',th_level:'Stage reached',th_status:'Status',th_signals:'Signals',th_count:'#',th_visits:'Visits',th_scroll:'Scroll',th_date:'Last activity',
       f_all:'All',stt_client:'✅ Client',stt_hot:'🔥 Hot',stt_engaged:'Engaged',stt_interested:'Interested',stt_curious:'Curious',
       tg_pay:'Pay',tg_cgv:'Terms',tg_email:'Email 3/3',tg_domains:'Domains 2/3',tg_pricing:'Pricing 1/3',tg_custom:'Custom domain',tg_edited:'Edited demo',tg_editor:'Opened editor',tg_devices:'{n} devices',tg_scroll:'scroll {n}%',
       st_client:'✅ Client',st_pay:'🔥 Clicked pay',st_cgv:'🔥 Accepted terms',st_editsave:'🔥 Edited demo',st_editopen:'Opened editor',st_custom:'Typed custom domain',st_email:'Step 3/3 · Email',st_domains:'Step 2/3 · Domains',st_pricing:'Step 1/3 · Pricing',st_scroll:'Scrolled',st_view:'Viewed page',
       e_view:'Page view',e_scroll:'Scroll',e_pricing:'Step 1/3 · Pricing',e_domains:'Step 2/3 · Domains',e_custom:'Custom domain',e_email:'Step 3/3 · Email',e_cgv:'Accepted terms',e_editopen:'Editor opened',e_editsave:'Demo edited',e_pay:'Clicked pay',
       d_events:'Events',d_ip:'IP',d_device:'Device',d_plan:'Chosen plan',d_devices:'Devices & connections',d_visits:'visits',d_connections:'Connections',d_ua:'Browser (UA)',
-      see:'View →',none:'No visits yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: ',u_min:'min',u_h:'h',u_d:'d'},
+      see:'View →',none:'No visits yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: ',u_min:'min',u_h:'h',u_d:'d',
+      ttl_photos:'Salon photos (hero + gallery)',ttl_incall:'Already in prospecting — open in cockpit',ttl_addcall:'Add to phone prospecting',toast_already:'Already in prospecting',toast_added:'Added to prospecting ✓',toast_nonum:' · number to find (🔎 button in Prospecting)',toast_err:'Error: ',ua_unknown:'Unknown',ua_bot:'Bot / scanner',ua_other:'Other'},
     zh:{brand:'样板追踪',refresh:'刷新',exp:'CSV',maj:'更新',back:'← 后台',search:'搜索沙龙、城市、邮箱…',humans:'仅真人',auto:'自动 (60秒)',loading:'加载中…',
       k_visited:'已访问的沙龙',k_pricing:'查看了价格',k_domains:'查看了域名',k_custom:'输入了自定义域名',k_edited:'编辑了样板',k_cgv:'已接受条款',k_pay:'点击了付款',k_clients:'已成为客户',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
-      funnel_title:'行为漏斗',f_visited:'访问了样板',f_pricing:'步骤 1/3 · 价格',f_domains:'步骤 2/3 · 域名',f_pay:'点击了付款',f_client:'已成为客户',
-      recall:'待联系',th_salon:'沙龙',th_level:'最高阶段',th_status:'状态',th_signals:'信号',th_count:'次数',th_scroll:'滚动',th_date:'最近活动',
+      funnel_title:'行为漏斗（潜客 · 已排除机器人+内部 IP）',f_visited:'访问了样板',f_pricing:'查看了价格',f_domains:'查看了域名',f_pay:'点击了付款',f_client:'已成为客户',
+      k_prospect_ev:'潜客操作数',k_filtered:'已过滤 {b} 机器人 · {i} 内部',
+      my_ip:'你的 IP：',n_excluded:'已排除 {n} 个 IP',ip_exclude:'排除我的流量',ip_included:'重新计入我的流量',d_internal:'内部',d_bot:'机器人',
+      recall:'待联系',th_salon:'沙龙',th_level:'最高阶段',th_status:'状态',th_signals:'信号',th_count:'次数',th_visits:'访问',th_scroll:'滚动',th_date:'最近活动',
       f_all:'全部',stt_client:'✅ 客户',stt_hot:'🔥 高意向',stt_engaged:'已互动',stt_interested:'感兴趣',stt_curious:'浏览',
       tg_pay:'付款',tg_cgv:'条款',tg_email:'邮箱 3/3',tg_domains:'域名 2/3',tg_pricing:'价格 1/3',tg_custom:'自定义域名',tg_edited:'已编辑',tg_editor:'打开编辑器',tg_devices:'{n} 台设备',tg_scroll:'滚动 {n}%',
       st_client:'✅ 客户',st_pay:'🔥 点击了付款',st_cgv:'🔥 已接受条款',st_editsave:'🔥 编辑了样板',st_editopen:'打开了编辑器',st_custom:'输入了自定义域名',st_email:'步骤 3/3 · 邮箱',st_domains:'步骤 2/3 · 域名',st_pricing:'步骤 1/3 · 价格',st_scroll:'已滚动',st_view:'查看了页面',
       e_view:'页面浏览',e_scroll:'滚动',e_pricing:'步骤 1/3 · 价格',e_domains:'步骤 2/3 · 域名',e_custom:'自定义域名',e_email:'步骤 3/3 · 邮箱',e_cgv:'已接受条款',e_editopen:'打开编辑器',e_editsave:'编辑样板',e_pay:'点击了付款',
       d_events:'事件',d_ip:'IP',d_device:'设备',d_plan:'所选套餐',d_devices:'设备与连接',d_visits:'次访问',d_connections:'连接时间',d_ua:'浏览器 (UA)',
-      see:'查看 →',none:'暂无访问。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：',u_min:'分钟',u_h:'小时',u_d:'天'}
+      see:'查看 →',none:'暂无访问。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：',u_min:'分钟',u_h:'小时',u_d:'天',
+      ttl_photos:'沙龙照片（主图 + 相册）',ttl_incall:'已在勘查中 — 在驾驶舱打开',ttl_addcall:'加入电话勘查',toast_already:'已在勘查中',toast_added:'已加入勘查 ✓',toast_nonum:' · 待查号码（勘查页 🔎 按钮）',toast_err:'错误：',ua_unknown:'未知',ua_bot:'机器人 / 扫描器',ua_other:'其他'}
   };
   var lang=(function(){try{var s=localStorage.getItem('outil-coiffure-lang');return T[s]?s:'fr';}catch(e){return 'fr';}})();
   function t(k,p){var s=(T[lang]&&T[lang][k])||T.fr[k]||k;if(p)for(var x in p)s=s.replace('{'+x+'}',p[x]);return s;}
@@ -194,10 +216,10 @@
     document.documentElement.lang=lang==='zh'?'zh-CN':lang;
     $('t-brand').textContent=t('brand');$('refresh').textContent='↻ '+t('refresh');$('export').textContent='⬇ '+t('exp');
     var _ba=$('back-admin');if(_ba)_ba.textContent=t('back');
-    $('q').placeholder=t('search');$('t-humans').textContent=t('humans');$('t-auto').textContent=t('auto');
+    $('q').placeholder=t('search');$('t-auto').textContent=t('auto');
     Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){b.classList.toggle('active',b.dataset.lang===lang);});
   }
-  function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(raw.length)render();}
+  function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(salonsData.length)render();}
 
   var STAGE={preview_ouvert:1,pricing_ouvert:3,etape_domaine:4,etape_email:5,domaine_perso:6,editeur_ouvert:7,editeur_modifie:8,cgv_accepte:9,paiement_initie:10};
   var PLAN={TWO_YEAR:'9,90€ · 24 mois',ONE_YEAR:'17,90€ · 12 mois',FLEX:'29€ · sans engagement'};
@@ -219,14 +241,10 @@
     return'curious';
   }
   function statusBadge(key){return'<span class="badge '+STATUS_BADGE[key]+'">'+esc(t('stt_'+key))+'</span>';}
-  // Tags = 1 tag pour l'étape de checkout la plus avancée + les signaux distincts.
+  // Tags = signaux PARALLÈLES uniquement (l'étape de checkout est déjà dite par
+  // le badge statut → on ne la répète pas ici : plus de doublon Chaud↔Paiement).
   function tagsOf(s){
     var e=s.events,out=[];
-    if(e['paiement_initie'])out.push(['tg_pay','t-hot',null]);
-    else if(e['cgv_accepte'])out.push(['tg_cgv','t-hot',null]);
-    else if(e['etape_email'])out.push(['tg_email','t-hot',null]);
-    else if(e['etape_domaine'])out.push(['tg_domains','t-warm',null]);
-    else if(e['pricing_ouvert']||e['etape_prix'])out.push(['tg_pricing','t-warm',null]);
     if(e['domaine_perso'])out.push(['tg_custom','t-warm',null]);
     if(e['editeur_modifie'])out.push(['tg_edited','t-warm',null]);
     else if(e['editeur_ouvert'])out.push(['tg_editor','',null]);
@@ -234,7 +252,9 @@
     if(e['demo_email_envoyee'])out.push(['tg_demo_mail','t-warm',null]);
     if(e['demo_sms_copiee'])out.push(['tg_demo_sms','',null]);
     if(s.scroll>0)out.push(['tg_scroll','',{n:s.scroll}]);
-    var nd=Object.keys(s.devices).length;if(nd>1)out.push(['tg_devices','',{n:nd}]);
+    // Appareils prospect distincts (ni bot ni interne)
+    var nd=(s.devices||[]).filter(function(d){return !d.bot&&!d.internal;}).length;
+    if(nd>1)out.push(['tg_devices','',{n:nd}]);
     return out;
   }
   function tagsHtml(s){var ts=tagsOf(s);if(!ts.length)return'<span style="color:var(--muted);font-size:12px">—</span>';
@@ -242,50 +262,22 @@
   var BOT_RE=/bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
   function isBot(ua){return !ua||BOT_RE.test(ua);}
 
-  function parseCSV(text){
-    if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
-    var rows=[],row=[],cur='',q=false,i=0,c;
-    for(;i<text.length;i++){c=text[i];
-      if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
-      else{if(c==='"')q=true;else if(c===','){row.push(cur);cur='';}else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}else if(c==='\r'){}else cur+=c;}}
-    if(cur!==''||row.length){row.push(cur);rows.push(row);}
-    if(!rows.length)return[];
-    var head=rows[0],out=[];
-    for(var r=1;r<rows.length;r++){if(rows[r].length===1&&rows[r][0]==='')continue;var o={};for(var k=0;k<head.length;k++)o[head[k]]=rows[r][k]||'';out.push(o);}
-    return out;
-  }
-  function aggregate(events){
-    var bySlug={};
-    events.forEach(function(e){var slug=e.slug;if(!slug)return;
-      var s=bySlug[slug]||(bySlug[slug]={slug:slug,salon:e.salon||slug,ville:e.ville||'',email:e.email||'',status:e.subscription_status||'',plan:'',token:'',heat:0,last:'',count:0,scroll:0,events:{},devices:{},real:false});
-      if(e.salon&&e.salon.trim())s.real=true;
-      if(e.salon)s.salon=e.salon;if(e.ville)s.ville=e.ville;if(e.email)s.email=e.email;if(e.subscription_status)s.status=e.subscription_status;
-      if(e.edit_token&&!s.token)s.token=e.edit_token;
-      var st=STAGE[e.event]||0;if(st>s.heat)s.heat=st;s.count++;
-      var ev=s.events[e.event]||(s.events[e.event]={n:0,last:''});ev.n++;if(e.ts>ev.last)ev.last=e.ts;
-      if(e.event==='scroll_max'&&e.meta){try{var m=JSON.parse(e.meta);if(m.pct>s.scroll)s.scroll=m.pct;}catch(x){}}
-      if((e.event==='etape_domaine'||e.event==='paiement_initie')&&e.meta&&!s.plan){try{var mp=JSON.parse(e.meta);if(mp.plan)s.plan=mp.plan;}catch(x){}}
-      var uak=e.user_agent||'(inconnu)';
-      var dv=s.devices[uak]||(s.devices[uak]={ua:uak,n:0,last:'',ips:{},times:[]});
-      dv.n++;if(e.ts>dv.last)dv.last=e.ts;if(e.ts)dv.times.push(e.ts);if(e.ip)dv.ips[e.ip]=1;
-      if(e.ts>s.last)s.last=e.ts;});
-    // "A scrollé" (niveau 2) seulement si scroll réel >0% (un scroll_max à 0%
-    // = vu sans scroller, ne doit pas surclasser un simple preview).
-    // .filter(real) écarte les slugs sans salon réel = scanners (phpinfo.php, .env…).
-    return Object.keys(bySlug).map(function(k){var s=bySlug[k];if(s.scroll>0&&s.heat<2)s.heat=2;s.skey=statusOf(s);return s;}).filter(function(s){return s.real;});
-  }
+  // L'agrégation lourde (parse 200k events, séparation par appareil, exclusion
+  // bots + IP internes) est faite CÔTÉ SERVEUR (/api/suivi.json). Ici on ne fait
+  // que dériver le statut commercial à partir des events prospect déjà agrégés.
+  function decorate(salons){salons.forEach(function(s){s.skey=statusOf(s);});return salons;}
   function isClient(s){return s.status==='live'||s.status==='active'||s.status==='trialing';}
   function fmtWhen(ts){if(!ts)return'—';var v=Date.parse(ts.replace(' ','T')+'Z');if(isNaN(v))return ts;var d=(Date.now()-v)/1000;
     if(d<3600)return Math.max(1,Math.round(d/60))+' '+t('u_min');if(d<86400)return Math.round(d/3600)+' '+t('u_h');return Math.round(d/86400)+' '+t('u_d');}
-  function fmtDate(ts){if(!ts)return'';var p=ts.split(' ');if(p.length<2)return ts;var d=p[0].split('-');return d[2]+'/'+d[1]+' '+p[1].slice(0,5);}
+  function fmtDate(ts){if(!ts)return'';var v=Date.parse(String(ts).replace(' ','T')+'Z');if(isNaN(v))return ts;return new Intl.DateTimeFormat(lang==='zh'?'zh-CN':lang,{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(v);}
   function esc(s){return s==null?'':String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function kpi(v,l,sub,cls){return'<div class="kpi '+(cls||'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';}
-  function frow(name,val,max){var pct=Math.round(val/max*100);return'<div class="frow"><div class="fname">'+name+'</div><div class="fbar-wrap"><div class="fbar" style="width:'+pct+'%"></div><span class="fval">'+val+'</span></div></div>';}
+  function frow(name,val,max){var pct=Math.min(100,Math.round(val/(max||1)*100));return'<div class="frow"><div class="fname">'+name+'</div><div class="fbar-wrap"><div class="fbar" style="width:'+pct+'%"></div><span class="fval">'+val+'</span></div></div>';}
   function arrow(k){if(sortKey!==k)return'';return'<span class="arr">'+(sortDir>0?'▲':'▼')+'</span>';}
 
   // Identifie l'appareil à partir du user_agent → icône + libellé lisible.
   function parseUA(ua){
-    if(!ua||ua==='(inconnu)')return{icon:'❓',label:'Inconnu'};
+    if(!ua||ua==='(inconnu)')return{icon:'❓',label:t('ua_unknown')};
     var u=ua.toLowerCase(),os,icon,br='';
     if(/iphone/.test(u)){os='iPhone';icon='📱';}
     else if(/ipad/.test(u)){os='iPad';icon='📱';}
@@ -293,8 +285,8 @@
     else if(/macintosh|mac os/.test(u)){os='Mac';icon='💻';}
     else if(/windows/.test(u)){os='Windows';icon='🖥️';}
     else if(/linux/.test(u)){os='Linux';icon='🖥️';}
-    else if(/bot|crawl|spider|preview|scan|proofpoint|mimecast|barracuda|safelinks/.test(u)){os='Bot / scanner';icon='🤖';}
-    else{os='Autre';icon='🖥️';}
+    else if(/bot|crawl|spider|preview|scan|proofpoint|mimecast|barracuda|safelinks/.test(u)){os=t('ua_bot');icon='🤖';}
+    else{os=t('ua_other');icon='🖥️';}
     if(/edg\//.test(u))br='Edge';else if(/crios|chrome/.test(u))br='Chrome';else if(/fxios|firefox/.test(u))br='Firefox';else if(/safari/.test(u))br='Safari';
     return{icon:icon,label:os+(br?' · '+br:'')};
   }
@@ -303,23 +295,21 @@
       return '<div class="devt">'+esc(t(EVENT_KEY[k]||k))+' <b>×'+s.events[k].n+'</b> · <span style="color:var(--muted)">'+fmtDate(s.events[k].last)+'</span></div>';
     }).join('');
     var planBlock=s.plan?'<div><div class="dlabel">'+t('d_plan')+'</div><div class="devt"><b>'+esc(PLAN[s.plan]||s.plan)+'</b></div></div>':'';
-    // Appareils triés par dernière connexion (le plus récent en haut)
-    var devs=Object.keys(s.devices).map(function(k){return s.devices[k];})
-      .sort(function(a,b){return a.last<b.last?1:(a.last>b.last?-1:0);})
-      .map(function(d){
+    // Appareils (déjà triés serveur, plus récent en haut). Bot/interne marqués.
+    var devs=(s.devices||[]).map(function(d){
         var p=parseUA(d.ua);
         var seen={},tl=[];
-        d.times.forEach(function(ts){var f=fmtDate(ts);if(!seen[f]){seen[f]=1;tl.push({f:f,ts:ts});}});
+        (d.times||[]).forEach(function(ts){var f=fmtDate(ts);if(!seen[f]){seen[f]=1;tl.push({f:f,ts:ts});}});
         tl.sort(function(a,b){return a.ts<b.ts?1:-1;});
-        var times=tl.slice(0,24).map(function(o){return '<span>'+esc(o.f)+'</span>';}).join('')+(tl.length>24?' …':'');
-        var ips=Object.keys(d.ips).map(esc).join(', ')||'—';
-        return '<details class="dev"><summary>'
-          +'<span class="ico">'+p.icon+'</span><span class="dlab">'+esc(p.label)+'</span>'
+        var times=tl.slice(0,24).map(function(o){return '<span>'+esc(o.f)+'</span>';}).join('')+((d.times||[]).length>=24?' …':'');
+        var flag=d.internal?'<span class="dflag f-int">'+t('d_internal')+'</span>':(d.bot?'<span class="dflag f-bot">'+t('d_bot')+'</span>':'');
+        return '<details class="dev'+(d.internal||d.bot?' muted':'')+'"><summary>'
+          +'<span class="ico">'+p.icon+'</span><span class="dlab">'+esc(p.label)+'</span>'+flag
           +'<span class="dtime">· '+esc(fmtDate(d.last))+'</span>'
-          +'<span class="dcnt">'+d.n+' '+t('d_visits')+'</span></summary>'
+          +'<span class="dcnt">'+d.visits+' '+t('d_visits')+'</span></summary>'
           +'<div class="dev-detail">'
-          +'<div class="dlabel">'+t('d_connections')+'</div><div class="dtimes">'+times+'</div>'
-          +'<div class="dlabel">'+t('d_ip')+'</div><div class="dmono">'+ips+'</div>'
+          +'<div class="dlabel">'+t('d_connections')+' <span style="font-weight:400;text-transform:none">('+d.n+' '+esc(t('d_events'))+')</span></div><div class="dtimes">'+times+'</div>'
+          +'<div class="dlabel">'+t('d_ip')+'</div><div class="dmono">'+esc(d.ip||'—')+'</div>'
           +'<div class="dlabel" style="margin-top:8px">'+t('d_ua')+'</div><div class="dmono">'+esc(d.ua)+'</div>'
           +'</div></details>';
       }).join('');
@@ -331,33 +321,42 @@
   }
 
   function render(){
-    var humansOnly=$('humansOnly').checked;
-    var events=humansOnly?raw.filter(function(e){return !isBot(e.user_agent);}):raw;
-    var salons=aggregate(events);
+    var salons=salonsData.slice();
     var q=($('q').value||'').toLowerCase().trim();
     if(q)salons=salons.filter(function(s){return(s.salon+' '+s.ville+' '+s.email).toLowerCase().indexOf(q)>=0;});
-    var visited=salons.length;
-    var pricing=salons.filter(function(s){return s.heat>=3;}).length;
-    var domains=salons.filter(function(s){return s.heat>=4;}).length;
+    var visited=salons.filter(function(s){return s.hasProspect;}).length;
+    var pricing=salons.filter(function(s){return s.hasProspect&&s.heat>=3;}).length;
+    var domains=salons.filter(function(s){return s.hasProspect&&s.heat>=4;}).length;
     var custom=salons.filter(function(s){return s.events['domaine_perso'];}).length;
     var edited=salons.filter(function(s){return s.events['editeur_modifie'];}).length;
     var cgv=salons.filter(function(s){return s.events['cgv_accepte'];}).length;
-    var pay=salons.filter(function(s){return s.events['paiement_initie'];}).length;
-    var clients=salons.filter(isClient).length;
-    var totalEvents=raw.length,botEvents=raw.filter(function(e){return isBot(e.user_agent);}).length;
-    var humanPct=totalEvents?Math.round((totalEvents-botEvents)/totalEvents*100):0;
+    var pay=salons.filter(function(s){return s.hasProspect&&s.events['paiement_initie'];}).length;
+    var clients=salons.filter(function(s){return s.hasProspect&&isClient(s);}).length;
 
-    var html='<div class="kpis">';
-    html+=kpi(visited,t('k_visited'),'','');
-    html+=kpi(pricing,t('k_pricing'),'','gold');
-    html+=kpi(domains,t('k_domains'),'','gold');
+    // Bandeau IP : montre l'IP de l'admin + bouton d'exclusion (Flaw 2).
+    var myIp=META.myIp,excl=(META.excludedIps||[]).indexOf(myIp)>=0;
+    var nExcl=(META.excludedIps||[]).length;
+    var html='';
+    if(myIp){
+      html+='<div class="ipbar">'
+        +'<span class="ipbar-txt">'+t('my_ip')+' <b class="dmono">'+esc(myIp)+'</b>'
+        +(nExcl?' · '+t('n_excluded',{n:nExcl}):'')+'</span>'
+        +'<button class="ipbtn'+(excl?' on':'')+'" id="ipToggle">'+(excl?t('ip_included'):t('ip_exclude'))+'</button>'
+        +'</div>';
+    }
+
+    // KPI = SIGNAUX HORS ENTONNOIR uniquement (pas de doublon avec les barres) :
+    // domaine perso tapé, démo éditée, CGV, clients + qualité du trafic.
+    var tot=META.totals||{};
+    html+='<div class="kpis">';
     html+=kpi(custom,t('k_custom'),'','hot');
     html+=kpi(edited,t('k_edited'),'','hot');
     html+=kpi(cgv,t('k_cgv'),'','hot');
-    html+=kpi(pay,t('k_pay'),'','hot');
     html+=kpi(clients,t('k_clients'),'','ok');
-    html+=kpi(humanPct+'%',t('k_human'),t('k_human_sub',{n:botEvents}),'');
+    html+=kpi(tot.humanEvents||0,t('k_prospect_ev'),t('k_filtered',{b:tot.botEvents||0,i:tot.internalEvents||0}),'');
     html+='</div>';
+
+    // Entonnoir comportemental (prospect uniquement : bots + IP internes exclus).
     var maxF=Math.max(visited,1);
     html+='<div class="section-title">'+t('funnel_title')+'</div><div class="funnel">';
     html+=frow(t('f_visited'),visited,maxF)+frow(t('f_pricing'),pricing,maxF)+frow(t('f_domains'),domains,maxF)+frow(t('f_pay'),pay,maxF)+frow(t('f_client'),clients,maxF);
@@ -371,7 +370,7 @@
     shown.sort(function(a,b){var av,bv;
       if(sortKey==='status'){av=STATUS_ORDER[a.skey]||0;bv=STATUS_ORDER[b.skey]||0;if(av===bv){av=a.last;bv=b.last;}}
       else if(sortKey==='salon'){av=a.salon.toLowerCase();bv=b.salon.toLowerCase();}
-      else if(sortKey==='count'){av=a.count;bv=b.count;}
+      else if(sortKey==='count'){av=a.visits;bv=b.visits;}
       else{av=a.last;bv=b.last;}
       return av<bv?-1*sortDir:(av>bv?1*sortDir:0);});
 
@@ -389,7 +388,7 @@
         +'<th class="sortable" data-k="salon">'+t('th_salon')+arrow('salon')+'</th>'
         +'<th class="sortable" data-k="status">'+t('th_status')+arrow('status')+'</th>'
         +'<th>'+t('th_signals')+'</th>'
-        +'<th class="sortable num" data-k="count">'+t('th_count')+arrow('count')+'</th>'
+        +'<th class="sortable num" data-k="count">'+t('th_visits')+arrow('count')+'</th>'
         +'<th class="sortable" data-k="last">'+t('th_date')+arrow('last')+'</th>'
         +'<th></th></tr></thead><tbody>';
       shown.forEach(function(s){var open=expanded[s.slug];
@@ -397,12 +396,12 @@
           +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="salon">'+esc(s.salon)+'</span><div class="loc" style="margin-left:14px">'+esc(s.ville)+(s.email?' · '+esc(s.email):'')+'</div></td>'
           +'<td>'+statusBadge(s.skey)+'</td>'
           +'<td>'+tagsHtml(s)+'</td>'
-          +'<td class="num">'+s.count+'</td>'
+          +'<td class="num" title="'+s.count+' '+esc(t('d_events'))+'">'+s.visits+'</td>'
           +'<td class="when" title="'+esc(s.last)+'">'+fmtDate(s.last)+'<div style="font-size:11px">'+fmtWhen(s.last)+'</div></td>'
-          +'<td style="white-space:nowrap"><a class="tlink" href="'+PREVIEW_BASE+encodeURIComponent(s.slug)+(s.token?'?token='+encodeURIComponent(s.token):'')+'" target="_blank" rel="noopener" data-stop="1">'+t('see')+'</a> <a class="tlink" href="#" data-stop="1" data-photos="'+esc(s.slug)+'" title="Photos du salon (héro + galerie)" style="font-size:15px;text-decoration:none">📷</a> '
+          +'<td style="white-space:nowrap"><a class="tlink" href="'+PREVIEW_REDIR+encodeURIComponent(s.slug)+'" target="_blank" rel="noopener" data-stop="1">'+t('see')+'</a> <a class="tlink" href="#" data-stop="1" data-photos="'+esc(s.slug)+'" title="'+esc(t('ttl_photos'))+'" style="font-size:15px;text-decoration:none">📷</a> '
           +(inCalling.has(s.slug)
-            ?'<a class="tlink" href="/admin/calling.html?slug='+encodeURIComponent(s.slug)+'" data-stop="1" title="Déjà en prospection — ouvrir dans le cockpit" style="font-size:15px;text-decoration:none">✅</a>'
-            :'<a class="tlink" href="#" data-stop="1" data-call="'+esc(s.slug)+'" title="Ajouter à la prospection téléphonique" style="font-size:15px;text-decoration:none">📞</a>')
+            ?'<a class="tlink" href="/admin/calling.html?slug='+encodeURIComponent(s.slug)+'" data-stop="1" title="'+esc(t('ttl_incall'))+'" style="font-size:15px;text-decoration:none">✅</a>'
+            :'<a class="tlink" href="#" data-stop="1" data-call="'+esc(s.slug)+'" title="'+esc(t('ttl_addcall'))+'" style="font-size:15px;text-decoration:none">📞</a>')
           +'</td></tr>';
         if(open)html+=detailRow(s);
       });
@@ -414,6 +413,15 @@
       th.onclick=function(){var k=th.getAttribute('data-k');if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='salon')?1:-1;}render();};});
     Array.prototype.forEach.call(document.querySelectorAll('.fbtn'),function(b){
       b.onclick=function(){statusFilter=b.getAttribute('data-filter');render();};});
+    var ipT=$('ipToggle');
+    if(ipT)ipT.onclick=function(){
+      var on=(META.excludedIps||[]).indexOf(META.myIp)<0; // pas encore exclu → on exclut
+      ipT.disabled=true;ipT.textContent='…';
+      fetch('/admin/api/suivi/exclude-ip',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({ip:META.myIp,on:on})})
+        .then(function(r){return r.json();})
+        .then(function(j){if(j.excludedIps)META.excludedIps=j.excludedIps;load();}) // recharge : l'entonnoir se recompte serveur
+        .catch(function(){ipT.disabled=false;render();});
+    };
     Array.prototype.forEach.call(document.querySelectorAll('tr.row'),function(tr){
       tr.onclick=function(e){if(e.target.closest('[data-stop]'))return;var sl=tr.getAttribute('data-slug');expanded[sl]=!expanded[sl];render();};});
     Array.prototype.forEach.call(document.querySelectorAll('[data-photos]'),function(a){
@@ -435,31 +443,32 @@
       .then(function(j){
         inCalling.add(slug); // état persistant : l'icône passe à ✅ (re-render)
         var p=j.prospect||{};
-        var tel=p.telephone?(' · '+p.telephone):' · numéro à retrouver (bouton 🔎 dans Prospection)';
-        stToast((j.already?'Déjà dans la prospection':'Ajouté à la prospection ✓')+tel);
+        var tel=p.telephone?(' · '+p.telephone):t('toast_nonum');
+        stToast((j.already?t('toast_already'):t('toast_added'))+tel);
         render();
       })
-      .catch(function(e){if(el&&el._prev)el.textContent=el._prev;stToast('Erreur : '+e.message);});
+      .catch(function(e){if(el&&el._prev)el.textContent=el._prev;stToast(t('toast_err')+e.message);});
   }
 
   // Salons déjà dans la prospection téléphonique → icône ✅ persistante.
   function loadCallingSlugs(){
     fetch('/admin/api/calling/slugs',{credentials:'same-origin',headers:{'Accept':'application/json'}})
       .then(function(r){return r.ok?r.json():{slugs:[]};})
-      .then(function(j){inCalling=new Set(j.slugs||[]);if(raw.length)render();})
+      .then(function(j){inCalling=new Set(j.slugs||[]);if(salonsData.length)render();})
       .catch(function(){});
   }
 
   function load(){
     $('updated').textContent='…';
     loadCallingSlugs();
-    fetch(CSV_URL+'?t='+Date.now(),{credentials:'same-origin',cache:'no-store'}).then(function(r){
+    fetch(JSON_URL+'?days='+periodDays+'&t='+Date.now(),{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}}).then(function(r){
       if(r.status===401||r.status===302||r.redirected)throw new Error('auth');
       if(!r.ok)throw new Error('http '+r.status);
-      return r.text();
-    }).then(function(txt){
-      if(/<!doctype html|<html/i.test(txt.slice(0,200)))throw new Error('auth');
-      raw=parseCSV(txt);var n=new Date();
+      return r.json();
+    }).then(function(d){
+      salonsData=decorate(d.salons||[]);
+      META={myIp:d.myIp||'',excludedIps:d.excludedIps||[],totals:d.totals||{}};
+      var n=new Date();
       $('updated').textContent=t('maj')+' '+n.getHours()+'h'+('0'+n.getMinutes()).slice(-2);
       render();
     }).catch(function(e){
@@ -471,9 +480,9 @@
 
   // (langue gérée par admin-nav.js, partagé sur toutes les pages)
   $('refresh').onclick=load;
+  Array.prototype.forEach.call(document.querySelectorAll('.pbtn'),function(b){b.onclick=function(){periodDays=Number(b.dataset.days);document.querySelectorAll('.pbtn').forEach(function(x){x.classList.toggle('on',x===b);});load();};});
   $('export').onclick=function(){window.open(CSV_URL,'_blank');};
-  $('q').addEventListener('input',function(){if(raw.length)render();});
-  $('humansOnly').addEventListener('change',function(){if(raw.length)render();});
+  $('q').addEventListener('input',function(){if(salonsData.length)render();});
   $('autorefresh').addEventListener('change',function(){if(this.checked)autoTimer=setInterval(load,60000);else clearInterval(autoTimer);});
   // (Modale photos → module partagé /admin/photo-modal.js, utilisé aussi par le cockpit)
   function stToast(m,ms){var t=$('st-toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('on');},ms||3500);}
