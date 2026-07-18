@@ -24,7 +24,7 @@ const ALLOWED_CLIENT_EVENTS = new Set(['pricing_ouvert', 'etape_prix', 'etape_do
 // Funnel de la landing maquickpage.fr (page marketing) — events ANONYMES, sans
 // salon rattaché (slug=null). N'exigent donc PAS salonExists() (contrairement
 // aux events maquette ci-dessus qui sont rattachés à un salon réel).
-const ALLOWED_LANDING_EVENTS = new Set(['landing_scroll', 'landing_cta', 'landing_check_open', 'landing_check_submit']);
+const ALLOWED_LANDING_EVENTS = new Set(['landing_ready', 'landing_scroll', 'landing_cta', 'landing_check_open', 'landing_check_submit']);
 
 let insertStmt = null;
 export function logEvent({ event, slug = null, token = null, src = null, meta = null, ip = null, ua = null }) {
