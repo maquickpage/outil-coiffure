@@ -86,6 +86,16 @@
   // window.mqsTrack est fourni par /_assets/track.js ; absent → no-op.
   const track = (ev, meta) => { try { window.mqsTrack && window.mqsTrack(ev, meta || null); } catch (e) { /* silencieux */ } };
 
+  // Beacon « vrai navigateur » : envoyé dès le chargement. Distingue les humains
+  // (JS exécuté) du bruit serveur (bots/scanners qui ne lancent jamais le JS —
+  // le landing_view serveur les compte tous). Porte la provenance : hostname du
+  // referrer (null = accès direct / favori / lien app).
+  (function trackReady() {
+    let ref = null;
+    try { if (document.referrer) ref = new URL(document.referrer).hostname; } catch (e) { /* silencieux */ }
+    track('landing_ready', { ref });
+  })();
+
   // Profondeur de scroll : on envoie UN seul event landing_scroll (le max atteint)
   // au moment où l'utilisateur quitte/masque la page — mirroir du scroll_max maquette.
   (function setupScrollDepth() {

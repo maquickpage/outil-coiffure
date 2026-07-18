@@ -996,7 +996,7 @@ router.get('/api/landing-stats.json', (req, res) => {
   let rows, leadRows = [];
   try {
     rows = db.prepare(`
-      SELECT ts, event, meta, ip, user_agent
+      SELECT ts, event, src, meta, ip, user_agent
       FROM preview_events
       WHERE event LIKE 'landing_%'
       ORDER BY ts ASC
@@ -1021,7 +1021,7 @@ router.get('/api/landing-stats.json', (req, res) => {
   const vkey = (ip, ua) => (ip || '?') + '|' + (ua || '').slice(0, 250);
   const STAGE = { view: 1, scroll50: 2, cta: 3, open: 4, submit: 5 };
 
-  const funnel = { view: 0, scroll50: 0, cta: 0, check_open: 0, submit: 0, found: 0, notfound: 0 };
+  const funnel = { view: 0, ready: 0, scroll50: 0, cta: 0, check_open: 0, submit: 0, found: 0, notfound: 0 };
   const cta = { nav: 0, hero: 0, coverage: 0, pricing: 0 };
   const dailyMap = {};
   const visitors = new Map(); // ip|ua -> parcours
@@ -1031,19 +1031,24 @@ router.get('/api/landing-stats.json', (req, res) => {
     total++;
     if (isBot(r.user_agent)) { bots++; continue; }
     const day = (r.ts || '').slice(0, 10);
-    const d = dailyMap[day] || (dailyMap[day] = { day, view: 0, cta: 0, submit: 0 });
+    const d = dailyMap[day] || (dailyMap[day] = { day, view: 0, ready: 0, cta: 0, submit: 0 });
     let meta = {};
     if (r.meta) { try { meta = JSON.parse(r.meta) || {}; } catch { /* ignore */ } }
 
     const k = vkey(r.ip, r.user_agent);
     let v = visitors.get(k);
-    if (!v) { v = { ip: r.ip || '', ua: r.user_agent || '', first: r.ts, last: r.ts, stage: 0, steps: { scroll50: false, cta: false, open: false, submit: false }, events: [], scrollMax: 0, found: null, leads: [] }; visitors.set(k, v); }
+    if (!v) { v = { ip: r.ip || '', ua: r.user_agent || '', first: r.ts, last: r.ts, stage: 0, ready: false, src: null, ref: null, steps: { scroll50: false, cta: false, open: false, submit: false }, events: [], scrollMax: 0, found: null, leads: [] }; visitors.set(k, v); }
     if (r.ts && r.ts < v.first) v.first = r.ts;
     if (r.ts && r.ts > v.last) v.last = r.ts;
+    // Provenance : premier ?src= vu (campagne), sinon referrer du landing_ready.
+    if (r.src && !v.src) v.src = r.src;
     v.events.push({ event: r.event, ts: r.ts, meta });
 
     switch (r.event) {
       case 'landing_view': funnel.view++; d.view++; if (v.stage < STAGE.view) v.stage = STAGE.view; break;
+      // landing_ready = beacon JS au chargement → « vrai navigateur » (les bots
+      // serveur n'exécutent pas le JS). meta.ref = hostname du referrer.
+      case 'landing_ready': funnel.ready++; d.ready++; v.ready = true; if (meta.ref && !v.ref) v.ref = String(meta.ref).slice(0, 100); if (v.stage < STAGE.view) v.stage = STAGE.view; break;
       case 'landing_scroll': { const p = meta.pct || 0; if (p > v.scrollMax) v.scrollMax = p; if (p >= 50) { funnel.scroll50++; v.steps.scroll50 = true; if (v.stage < STAGE.scroll50) v.stage = STAGE.scroll50; } break; }
       case 'landing_cta': funnel.cta++; d.cta++; if (cta[meta.which] != null) cta[meta.which]++; v.steps.cta = true; if (v.stage < STAGE.cta) v.stage = STAGE.cta; break;
       case 'landing_check_open': funnel.check_open++; v.steps.open = true; if (v.stage < STAGE.open) v.stage = STAGE.open; break;
@@ -1118,14 +1123,25 @@ router.get('/api/landing-stats.json', (req, res) => {
 
   // Entonnoir par VISITEUR UNIQUE — uniquement des étapes OBSERVÉES (events).
   // Pas de rétro-remplissage : un submit sans event scroll ne compte pas dans scroll50.
-  const vf = { visitors: 0, scroll50: 0, cta: 0, open: 0, submit: 0 };
+  // `real` = visiteurs confirmés navigateur (beacon JS landing_ready) — les hits
+  // serveur sans JS (bots, scanners, prefetch) gonflent `visitors` mais pas `real`.
+  const vf = { visitors: 0, real: 0, scroll50: 0, cta: 0, open: 0, submit: 0 };
+  // Provenance des VRAIS visiteurs : ?src= (campagne) prioritaire, sinon
+  // hostname du referrer, sinon accès direct.
+  const sourceMap = new Map();
   for (const v of visitors.values()) {
     vf.visitors++;
+    if (v.ready) {
+      vf.real++;
+      const s = v.src ? `src:${v.src}` : (v.ref || 'direct');
+      sourceMap.set(s, (sourceMap.get(s) || 0) + 1);
+    }
     if (v.steps.scroll50) vf.scroll50++;
     if (v.steps.cta) vf.cta++;
     if (v.steps.open) vf.open++;
     if (v.steps.submit) vf.submit++;
   }
+  const sources = [...sourceMap.entries()].map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n);
 
   // Parcours trié + découpage en visites : gap > 30 min = nouvelle visite.
   const SESSION_GAP_MS = 30 * 60 * 1000;
@@ -1152,12 +1168,14 @@ router.get('/api/landing-stats.json', (req, res) => {
         found: v.found, salon: primary.salon, ville: primary.ville,
         ...salonMeta(primary),
         ip: v.ip, ua: v.ua, first: v.first, last: v.last,
+        source: v.src ? `src:${v.src}` : (v.ref || null),
         events: v.events.length, submits: v.leads.length, scrollMax: v.scrollMax,
         visits, journey,
       });
     } else if (v.stage >= STAGE.cta) {
       engaged.push({
         ip: v.ip, ua: v.ua, first: v.first, last: v.last,
+        source: v.src ? `src:${v.src}` : (v.ref || null),
         stage: v.stage, events: v.events.length, scrollMax: v.scrollMax,
         visits, journey,
       });
@@ -1182,7 +1200,7 @@ router.get('/api/landing-stats.json', (req, res) => {
   const daily = Object.values(dailyMap).sort((a, b) => (a.day < b.day ? 1 : -1)).slice(0, 14).reverse();
   res.setHeader('Cache-Control', 'no-store, private, max-age=0');
   res.json({
-    funnel, visitorFunnel: vf, cta, daily,
+    funnel, visitorFunnel: vf, cta, daily, sources,
     leads, engaged: engaged.slice(0, 200), engagedTotal: engaged.length,
     bots, humans: total - bots, total,
   });

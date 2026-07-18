@@ -84,6 +84,7 @@
   .bar-stack{width:100%;max-width:34px;display:flex;flex-direction:column-reverse;height:100px;}
   .bar-seg{width:100%;border-radius:3px 3px 0 0;min-height:0;}
   .bar-seg.v-view{background:#e7d9b0;}
+  .bar-seg.v-ready{background:var(--gold);}
   .bar-seg.v-cta{background:var(--gold-d);}
   .bar-day{font-size:10px;color:var(--muted);white-space:nowrap;transform:rotate(-40deg);height:22px;}
   .bar-val{font-size:11px;font-weight:700;color:var(--cool);}
@@ -141,10 +142,11 @@
   var T={
     fr:{brand:'Suivi landing',sub_mockup:'Suivi maquettes',sub_landing:'Suivi landing',refresh:'Actualiser',maj:'maj',loading:'Chargement…',
       sub:'Funnel de la page marketing maquickpage.fr',
-      k_uniq:'Visiteurs uniques',k_view:'Visites (pages vues)',k_scroll:'Scroll 50%+',k_cta:'CTA cliqué',k_open:'Couverture ouverte',k_submit:'Formulaire envoyé',
+      k_real:'Vrais visiteurs',k_real_sub:'JS confirmé (navigateur réel)',k_uniq:'Visiteurs bruts (serveur)',k_uniq_sub:'bots & sans-JS inclus',k_view:'Visites (pages vues)',k_scroll:'Scroll 50%+',k_cta:'CTA cliqué',k_open:'Couverture ouverte',k_submit:'Formulaire envoyé',
       k_found:'Salon couvert',k_notfound:'Pas trouvé (48h)',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
-      funnel_title:'Entonnoir par visiteur unique',fn_note:'clé = IP + navigateur (sans cookie)',
-      f_uniq:'Visiteurs',f_scroll:'Scrollé ≥ 50%',f_cta:'Cliqué un CTA',f_open:'Ouvert « couverture »',f_submit:'Envoyé le formulaire',
+      funnel_title:'Entonnoir par vrai visiteur',fn_note:'clé = IP + navigateur (sans cookie)',
+      src_title:'D\'où viennent les vrais visiteurs',src_direct:'Accès direct / inconnu',via:'via {s}',
+      f_real:'Vrais visiteurs',f_uniq:'Visiteurs',f_scroll:'Scrollé ≥ 50%',f_cta:'Cliqué un CTA',f_open:'Ouvert « couverture »',f_submit:'Envoyé le formulaire',
       leads_title:'Leads traçables',leads_none:'Aucun formulaire envoyé pour le moment.',
       th_email:'Email',th_status:'Résultat',th_events:'Actions',th_scroll:'Scroll',th_seen:'Dernière activité',
       s_found:'✅ Couvert',s_nf:'⏳ Pas trouvé',multi:'+{n} autre(s)',
@@ -153,18 +155,19 @@
       th_visitor:'Visiteur',th_stage:'Étape atteinte',
       st_view:'A vu la page',st_scroll:'A scrollé',st_cta:'A cliqué un CTA',st_open:'A ouvert « couverture »',st_submit:'A envoyé le formulaire',
       cta_title:'Quel bouton déclenche la recherche',c_nav:'Barre du haut',c_hero:'Hero (héro)',c_coverage:'Section couverture',c_pricing:'Section tarifs',
-      trend_title:'Tendance · 14 derniers jours',lg_view:'Visites',lg_cta:'CTA cliqués',
+      trend_title:'Tendance · 14 derniers jours',lg_view:'Visites (serveur)',lg_real:'Vrais visiteurs (JS)',lg_cta:'CTA cliqués',
       jr_title:'Parcours',no_journey:'Aucun parcours enregistré (lead antérieur au tracking).',visit_label:'Visite {n}',visits_n:'{n} visites',k_leads:'Leads (emails)',
-      e_view:'Visite',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Couverture ouverte',e_submit:'Formulaire envoyé',e_found:'Salon trouvé ✓',e_nf:'Pas trouvé',
+      e_view:'Visite',e_ready:'Page chargée (JS ✓)',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Couverture ouverte',e_submit:'Formulaire envoyé',e_found:'Salon trouvé ✓',e_nf:'Pas trouvé',
       w_nav:'barre du haut',w_hero:'héro',w_coverage:'section couverture',w_pricing:'section tarifs',
       d_ip:'IP',d_ua:'Navigateur (UA)',u_min:'min',u_h:'h',u_d:'j',
       none:'Aucune visite enregistrée pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : '},
     en:{brand:'Landing tracking',sub_mockup:'Mockup tracking',sub_landing:'Landing tracking',refresh:'Refresh',maj:'upd.',loading:'Loading…',
       sub:'Marketing page funnel · maquickpage.fr',
-      k_uniq:'Unique visitors',k_view:'Visits (page views)',k_scroll:'Scroll 50%+',k_cta:'Clicked CTA',k_open:'Opened coverage',k_submit:'Submitted form',
+      k_real:'Real visitors',k_real_sub:'JS confirmed (real browser)',k_uniq:'Raw visitors (server)',k_uniq_sub:'incl. bots & no-JS',k_view:'Visits (page views)',k_scroll:'Scroll 50%+',k_cta:'Clicked CTA',k_open:'Opened coverage',k_submit:'Submitted form',
       k_found:'Salon covered',k_notfound:'Not found (48h)',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
-      funnel_title:'Funnel by unique visitor',fn_note:'key = IP + browser (cookieless)',
-      f_uniq:'Visitors',f_scroll:'Scrolled ≥ 50%',f_cta:'Clicked a CTA',f_open:'Opened "coverage"',f_submit:'Submitted form',
+      funnel_title:'Funnel by real visitor',fn_note:'key = IP + browser (cookieless)',
+      src_title:'Where real visitors come from',src_direct:'Direct / unknown',via:'via {s}',
+      f_real:'Real visitors',f_uniq:'Visitors',f_scroll:'Scrolled ≥ 50%',f_cta:'Clicked a CTA',f_open:'Opened "coverage"',f_submit:'Submitted form',
       leads_title:'Traceable leads',leads_none:'No form submitted yet.',
       th_email:'Email',th_status:'Result',th_events:'Actions',th_scroll:'Scroll',th_seen:'Last activity',
       s_found:'✅ Covered',s_nf:'⏳ Not found',multi:'+{n} more',
@@ -173,18 +176,19 @@
       th_visitor:'Visitor',th_stage:'Stage reached',
       st_view:'Viewed page',st_scroll:'Scrolled',st_cta:'Clicked a CTA',st_open:'Opened "coverage"',st_submit:'Submitted form',
       cta_title:'Which button triggers the search',c_nav:'Top bar',c_hero:'Hero',c_coverage:'Coverage section',c_pricing:'Pricing section',
-      trend_title:'Trend · last 14 days',lg_view:'Visits',lg_cta:'CTA clicks',
+      trend_title:'Trend · last 14 days',lg_view:'Visits (server)',lg_real:'Real visitors (JS)',lg_cta:'CTA clicks',
       jr_title:'Journey',no_journey:'No journey recorded (lead predates tracking).',visit_label:'Visit {n}',visits_n:'{n} visits',k_leads:'Leads (emails)',
-      e_view:'Visit',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Opened coverage',e_submit:'Submitted form',e_found:'Salon found ✓',e_nf:'Not found',
+      e_view:'Visit',e_ready:'Page loaded (JS ✓)',e_scroll:'Scroll {p}%',e_cta:'CTA · {w}',e_open:'Opened coverage',e_submit:'Submitted form',e_found:'Salon found ✓',e_nf:'Not found',
       w_nav:'top bar',w_hero:'hero',w_coverage:'coverage section',w_pricing:'pricing section',
       d_ip:'IP',d_ua:'Browser (UA)',u_min:'min',u_h:'h',u_d:'d',
       none:'No visits recorded yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: '},
     zh:{brand:'落地页追踪',sub_mockup:'样板追踪',sub_landing:'落地页追踪',refresh:'刷新',maj:'更新',loading:'加载中…',
       sub:'营销主页漏斗 · maquickpage.fr',
-      k_uniq:'独立访客',k_view:'访问（页面浏览）',k_scroll:'滚动 50%+',k_cta:'点击 CTA',k_open:'打开覆盖查询',k_submit:'提交表单',
+      k_real:'真实访客',k_real_sub:'JS 已确认（真实浏览器）',k_uniq:'原始访客（服务器）',k_uniq_sub:'含机器人/无 JS',k_view:'访问（页面浏览）',k_scroll:'滚动 50%+',k_cta:'点击 CTA',k_open:'打开覆盖查询',k_submit:'提交表单',
       k_found:'已覆盖',k_notfound:'未找到 (48h)',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
-      funnel_title:'按独立访客的漏斗',fn_note:'标识 = IP + 浏览器（无 Cookie）',
-      f_uniq:'访客',f_scroll:'滚动 ≥ 50%',f_cta:'点击了 CTA',f_open:'打开了覆盖查询',f_submit:'提交了表单',
+      funnel_title:'按真实访客的漏斗',fn_note:'标识 = IP + 浏览器（无 Cookie）',
+      src_title:'真实访客来源',src_direct:'直接访问 / 未知',via:'来自 {s}',
+      f_real:'真实访客',f_uniq:'访客',f_scroll:'滚动 ≥ 50%',f_cta:'点击了 CTA',f_open:'打开了覆盖查询',f_submit:'提交了表单',
       leads_title:'可追踪线索',leads_none:'暂无表单提交。',
       th_email:'邮箱',th_status:'结果',th_events:'操作',th_scroll:'滚动',th_seen:'最近活动',
       s_found:'✅ 已覆盖',s_nf:'⏳ 未找到',multi:'+{n} 个',
@@ -193,9 +197,9 @@
       th_visitor:'访客',th_stage:'最高阶段',
       st_view:'查看了页面',st_scroll:'已滚动',st_cta:'点击了 CTA',st_open:'打开了覆盖查询',st_submit:'提交了表单',
       cta_title:'哪个按钮触发查询',c_nav:'顶部栏',c_hero:'主视觉',c_coverage:'覆盖区块',c_pricing:'价格区块',
-      trend_title:'趋势 · 最近 14 天',lg_view:'访问',lg_cta:'CTA 点击',
+      trend_title:'趋势 · 最近 14 天',lg_view:'访问（服务器）',lg_real:'真实访客（JS）',lg_cta:'CTA 点击',
       jr_title:'路径',no_journey:'无行为记录（该线索早于追踪上线）。',visit_label:'第 {n} 次访问',visits_n:'{n} 次访问',k_leads:'线索（邮箱）',
-      e_view:'访问',e_scroll:'滚动 {p}%',e_cta:'CTA · {w}',e_open:'打开覆盖查询',e_submit:'提交表单',e_found:'找到沙龙 ✓',e_nf:'未找到',
+      e_view:'访问',e_ready:'页面加载（JS ✓）',e_scroll:'滚动 {p}%',e_cta:'CTA · {w}',e_open:'打开覆盖查询',e_submit:'提交表单',e_found:'找到沙龙 ✓',e_nf:'未找到',
       w_nav:'顶部栏',w_hero:'主视觉',w_coverage:'覆盖区块',w_pricing:'价格区块',
       d_ip:'IP',d_ua:'浏览器 (UA)',u_min:'分钟',u_h:'小时',u_d:'天',
       none:'暂无访问记录。',auth:'请先登录管理后台，然后刷新此页面。',signin:'→ 登录',err:'加载错误：'}
@@ -228,6 +232,7 @@
     var m=e.meta||{};
     switch(e.event){
       case 'landing_view':return t('e_view');
+      case 'landing_ready':return t('e_ready')+(m.ref?' · '+m.ref:'');
       case 'landing_scroll':return t('e_scroll',{p:m.pct||0});
       case 'landing_cta':return t('e_cta',{w:t('w_'+(m.which||''))||m.which||''});
       case 'landing_check_open':return t('e_open');
@@ -260,32 +265,40 @@
 
   function render(d){
     var f=d.funnel||{},vf=d.visitorFunnel||{},cta=d.cta||{},daily=d.daily||[],leads=d.leads||[],engaged=d.engaged||[];
-    var bots=d.bots||0,total=d.total||0,humanEvents=d.humans||0;
-    var humanPct=total?Math.round(humanEvents/total*100):0;
 
     var html='<div class="section-title">'+esc(t('sub'))+'</div>';
     html+='<div class="kpis">';
-    html+=kpi(vf.visitors||0,t('k_uniq'),'','gold');
-    html+=kpi(f.view||0,t('k_view'),'','');
-    html+=kpi(vf.scroll50||0,t('k_scroll'),pctOf(vf.scroll50||0,vf.visitors||0),'gold');
-    html+=kpi(vf.cta||0,t('k_cta'),pctOf(vf.cta||0,vf.visitors||0),'gold');
-    html+=kpi(vf.open||0,t('k_open'),'','gold');
-    html+=kpi(vf.submit||0,t('k_submit'),pctOf(vf.submit||0,vf.visitors||0),'hot');
+    var real=vf.real||0;
+    html+=kpi(real,t('k_real'),t('k_real_sub'),'gold');
+    html+=kpi(vf.visitors||0,t('k_uniq'),t('k_uniq_sub'),'');
     html+=kpi(leads.length,t('k_leads'),'','hot');
     html+=kpi(f.found||0,t('k_found'),'','ok');
     html+=kpi(f.notfound||0,t('k_notfound'),'','');
-    html+=kpi(total?humanPct+'%':'—',t('k_human'),total?t('k_human_sub',{n:bots}):'','');
     html+='</div>';
 
     // Entonnoir par visiteur unique
-    var base=vf.visitors||0;
+    // Entonnoir par VRAI visiteur (JS confirmé). Fallback sur les visiteurs
+    // bruts tant qu'aucun landing_ready n'existe (données antérieures au beacon).
+    var base=real||vf.visitors||0;
     html+='<div class="section-title">'+t('funnel_title')+' · <span style="text-transform:none;font-weight:600">'+t('fn_note')+'</span></div><div class="funnel">';
-    html+=frow(t('f_uniq'),vf.visitors||0,base,base);
+    html+=frow(real?t('f_real'):t('f_uniq'),base,base,base);
     html+=frow(t('f_scroll'),vf.scroll50||0,base,base);
     html+=frow(t('f_cta'),vf.cta||0,base,base);
     html+=frow(t('f_open'),vf.open||0,base,base);
     html+=frow(t('f_submit'),vf.submit||0,base,base);
     html+='</div>';
+
+    // === D'OÙ VIENNENT LES VRAIS VISITEURS ===
+    var sources=d.sources||[];
+    if(sources.length){
+      var smax=sources[0].n||1;
+      html+='<div class="section-title">'+t('src_title')+'</div><div class="funnel">';
+      sources.slice(0,12).forEach(function(s){
+        var label=s.source==='direct'?t('src_direct'):(s.source.indexOf('src:')===0?'?src='+s.source.slice(4):s.source);
+        html+=frow(label,s.n,smax,real);
+      });
+      html+='</div>';
+    }
 
     // === LEADS TRAÇABLES (email → parcours) ===
     html+='<div class="section-title">'+t('leads_title')+' ('+leads.length+')</div>';
@@ -300,6 +313,7 @@
         var extra=(l.emails&&l.emails.length>1)?' <span class="loc">'+t('multi',{n:l.emails.length-1})+'</span>':'';
         var loc=[l.salon,l.ville].filter(Boolean).map(esc).join(' · ');
         if(l.visits>1)loc+=(loc?' · ':'')+esc(t('visits_n',{n:l.visits}));
+        if(l.source)loc+=(loc?' · ':'')+esc(t('via',{s:l.source==='direct'?t('src_direct'):l.source}));
         var badge=l.found?'<span class="badge b-found">'+t('s_found')+'</span>':'<span class="badge b-nf">'+t('s_nf')+'</span>';
         // Bande site démo (leads couverts) : miniature + lien + activité démo.
         // stopPropagation : cliquer un lien ne doit pas replier/déplier la ligne.
@@ -340,7 +354,7 @@
         var open=expEng[i];
         html+='<tr class="row" data-eng="'+i+'">'
           +'<td><span class="caret">'+(open?'▾':'▸')+'</span><span class="dmono" style="font-size:12.5px">'+esc(v.ip||'—')+'</span></td>'
-          +'<td>'+esc(stageLabel(v.stage))+(v.visits>1?' <span class="loc">· '+esc(t('visits_n',{n:v.visits}))+'</span>':'')+'</td>'
+          +'<td>'+esc(stageLabel(v.stage))+(v.visits>1?' <span class="loc">· '+esc(t('visits_n',{n:v.visits}))+'</span>':'')+(v.source?' <span class="loc">· '+esc(t('via',{s:v.source}))+'</span>':'')+'</td>'
           +'<td class="num">'+(v.events||0)+'</td>'
           +'<td class="num hide-sm">'+(v.scrollMax?v.scrollMax+'%':'—')+'</td>'
           +'<td class="when" title="'+esc(v.last)+'">'+fmtDate(v.last)+'<div style="font-size:11px">'+fmtWhen(v.last)+'</div></td>'
@@ -362,14 +376,14 @@
       var maxV=1;daily.forEach(function(r){if((r.view||0)>maxV)maxV=r.view||0;});
       html+='<div class="section-title">'+t('trend_title')+'</div><div class="card"><div class="bars">';
       daily.forEach(function(r){
-        var vh=Math.round((r.view||0)/maxV*100),ch=Math.round((r.cta||0)/maxV*100);
+        var vh=Math.round((r.view||0)/maxV*100),rh=Math.round((r.ready||0)/maxV*100),ch=Math.round((r.cta||0)/maxV*100);
         var dd=(r.day||'').slice(5).replace('-','/');
         html+='<div class="bar-col" title="'+esc(r.day)+'">'
-          +'<div class="bar-val">'+(r.view||0)+'</div>'
-          +'<div class="bar-stack"><div class="bar-seg v-view" style="height:'+vh+'%"></div><div class="bar-seg v-cta" style="height:'+ch+'%"></div></div>'
+          +'<div class="bar-val">'+(r.ready||0)+'</div>'
+          +'<div class="bar-stack"><div class="bar-seg v-view" style="height:'+vh+'%"></div><div class="bar-seg v-ready" style="height:'+rh+'%"></div><div class="bar-seg v-cta" style="height:'+ch+'%"></div></div>'
           +'<div class="bar-day">'+esc(dd)+'</div></div>';
       });
-      html+='</div><div class="legend"><span><i style="background:#e7d9b0"></i>'+t('lg_view')+'</span><span><i style="background:#A8842F"></i>'+t('lg_cta')+'</span></div></div>';
+      html+='</div><div class="legend"><span><i style="background:#e7d9b0"></i>'+t('lg_view')+'</span><span><i style="background:#C8A24B"></i>'+t('lg_real')+'</span><span><i style="background:#A8842F"></i>'+t('lg_cta')+'</span></div></div>';
     }
 
     if(!(f.view||vf.visitors||leads.length)){html='<div class="msg">'+t('none')+'</div>';}
