@@ -835,19 +835,26 @@ router.get('/provisioning-status/:slug', (req, res) => {
 const SUIVI_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
 const SUIVI_STAGE = { preview_ouvert: 1, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
 const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
+const INTERNAL_ACTIVITY_EVENTS = new Set(['demo_email_envoyee', 'demo_sms_copiee']);
+
+function trackingPeriod(value) {
+  const days = [7, 30, 90].includes(Number(value)) ? Number(value) : 30;
+  return { days, eventSql: ` AND e.ts >= datetime('now', '-${days} days')` };
+}
 
 router.get('/api/suivi.json', (req, res) => {
   let rows, excludedRows, salonSlugs;
+  const period = trackingPeriod(req.query.days);
   try {
     rows = db.prepare(`
       SELECT e.ts, e.event, e.slug, e.meta, e.ip, e.user_agent,
              s.nom_clean, s.nom, s.ville, s.email, s.subscription_status
       FROM preview_events e
-      LEFT JOIN salons s ON s.slug = e.slug
-      WHERE e.slug IS NOT NULL
-      ORDER BY e.ts ASC
-      LIMIT 500000
-    `).all();
+       LEFT JOIN salons s ON s.slug = e.slug
+       WHERE e.slug IS NOT NULL
+       ${period.eventSql}
+       ORDER BY e.ts ASC
+     `).all();
     excludedRows = db.prepare('SELECT ip FROM suivi_excluded_ips').all();
     salonSlugs = db.prepare('SELECT slug FROM salons').all();
   } catch (e) {
@@ -865,7 +872,7 @@ router.get('/api/suivi.json', (req, res) => {
   for (const r of rows) {
     if (!realSlugs.has(r.slug)) continue; // écarte les slugs scanner (.env, phpinfo…)
     const bot = isBot(r.user_agent);
-    const internal = !bot && excluded.has(r.ip);
+    const internal = !bot && (excluded.has(r.ip) || INTERNAL_ACTIVITY_EVENTS.has(r.event));
     if (bot) botEvents++; else if (internal) internalEvents++; else humanEvents++;
 
     let s = bySlug.get(r.slug);
@@ -879,7 +886,7 @@ router.get('/api/suivi.json', (req, res) => {
     if (r.ville) s.ville = r.ville;
     if (r.email) s.email = r.email;
     if (r.subscription_status) s.status = r.subscription_status;
-    if (r.ts && r.ts > s.last) s.last = r.ts;
+    if (!bot && !internal && r.ts && r.ts > s.last) s.last = r.ts;
 
     const k = dkey(r.ip, r.user_agent);
     let d = s.devices.get(k);
@@ -944,6 +951,7 @@ router.get('/api/suivi.json', (req, res) => {
     salons.push({
       slug: s.slug, salon: s.salon || s.slug, ville: s.ville, email: s.email,
       status: s.status, last: s.last,
+      hasProspect: prospectEventCount > 0,
       heat, scroll, plan,
       visits: prospectVisits, count: prospectEventCount,
       events: prospectEvents,
@@ -956,6 +964,7 @@ router.get('/api/suivi.json', (req, res) => {
     salons,
     myIp: clientIp(req),
     excludedIps: [...excluded],
+    periodDays: period.days,
     totals: { salons: salons.length, humanEvents, botEvents, internalEvents },
   });
 });
@@ -994,24 +1003,25 @@ router.get('/api/suivi/preview/:slug', (req, res) => {
 const LANDING_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
 router.get('/api/landing-stats.json', (req, res) => {
   let rows, leadRows = [];
+  const period = trackingPeriod(req.query.days);
   try {
     rows = db.prepare(`
       SELECT ts, event, src, meta, ip, user_agent
-      FROM preview_events
-      WHERE event LIKE 'landing_%'
-      ORDER BY ts ASC
-      LIMIT 500000
-    `).all();
+       FROM preview_events
+       WHERE event LIKE 'landing_%'
+       AND ts >= datetime('now', '-${period.days} days')
+       ORDER BY ts ASC
+     `).all();
     // Rattachement email : peut échouer si la table n'existe pas encore.
     try {
       leadRows = db.prepare(`
         SELECT l.email, l.found, l.salon_slug, l.ip, l.user_agent, l.created_at AS ts,
                s.nom_clean, s.nom, s.ville, s.slug, s.screenshot_path, s.edit_token
-        FROM landing_leads l
-        LEFT JOIN salons s ON s.slug = l.salon_slug
-        ORDER BY l.created_at ASC
-        LIMIT 100000
-      `).all();
+         FROM landing_leads l
+         LEFT JOIN salons s ON s.slug = l.salon_slug
+         WHERE l.created_at >= datetime('now', '-${period.days} days')
+         ORDER BY l.created_at ASC
+       `).all();
     } catch (e) { console.error('[landing-stats] leads join failed:', e.message); leadRows = []; }
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -1023,6 +1033,11 @@ router.get('/api/landing-stats.json', (req, res) => {
 
   const funnel = { view: 0, ready: 0, scroll50: 0, cta: 0, check_open: 0, submit: 0, found: 0, notfound: 0 };
   const cta = { nav: 0, hero: 0, coverage: 0, pricing: 0 };
+  const parisDay = (ts) => {
+    const value = Date.parse(String(ts || '').replace(' ', 'T') + 'Z');
+    if (isNaN(value)) return '';
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(value);
+  };
   const dailyMap = {};
   const visitors = new Map(); // ip|ua -> parcours
   let bots = 0, total = 0;
@@ -1030,8 +1045,8 @@ router.get('/api/landing-stats.json', (req, res) => {
   for (const r of rows) {
     total++;
     if (isBot(r.user_agent)) { bots++; continue; }
-    const day = (r.ts || '').slice(0, 10);
-    const d = dailyMap[day] || (dailyMap[day] = { day, view: 0, ready: 0, cta: 0, submit: 0 });
+    const day = parisDay(r.ts);
+    const d = dailyMap[day] || (dailyMap[day] = { day, views: 0, realKeys: new Set(), ctaKeys: new Set(), submitKeys: new Set() });
     let meta = {};
     if (r.meta) { try { meta = JSON.parse(r.meta) || {}; } catch { /* ignore */ } }
 
@@ -1045,14 +1060,14 @@ router.get('/api/landing-stats.json', (req, res) => {
     v.events.push({ event: r.event, ts: r.ts, meta });
 
     switch (r.event) {
-      case 'landing_view': funnel.view++; d.view++; if (v.stage < STAGE.view) v.stage = STAGE.view; break;
+      case 'landing_view': funnel.view++; d.views++; if (v.stage < STAGE.view) v.stage = STAGE.view; break;
       // landing_ready = beacon JS au chargement → « vrai navigateur » (les bots
       // serveur n'exécutent pas le JS). meta.ref = hostname du referrer.
-      case 'landing_ready': funnel.ready++; d.ready++; v.ready = true; if (meta.ref && !v.ref) v.ref = String(meta.ref).slice(0, 100); if (v.stage < STAGE.view) v.stage = STAGE.view; break;
+      case 'landing_ready': funnel.ready++; d.realKeys.add(k); v.ready = true; if (meta.ref && !v.ref) v.ref = String(meta.ref).slice(0, 100); if (v.stage < STAGE.view) v.stage = STAGE.view; break;
       case 'landing_scroll': { const p = meta.pct || 0; if (p > v.scrollMax) v.scrollMax = p; if (p >= 50) { funnel.scroll50++; v.steps.scroll50 = true; if (v.stage < STAGE.scroll50) v.stage = STAGE.scroll50; } break; }
-      case 'landing_cta': funnel.cta++; d.cta++; if (cta[meta.which] != null) cta[meta.which]++; v.steps.cta = true; if (v.stage < STAGE.cta) v.stage = STAGE.cta; break;
+      case 'landing_cta': funnel.cta++; d.ctaKeys.add(k); if (cta[meta.which] != null) cta[meta.which]++; v.steps.cta = true; if (v.stage < STAGE.cta) v.stage = STAGE.cta; break;
       case 'landing_check_open': funnel.check_open++; v.steps.open = true; if (v.stage < STAGE.open) v.stage = STAGE.open; break;
-      case 'landing_check_submit': funnel.submit++; d.submit++; v.steps.submit = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
+      case 'landing_check_submit': funnel.submit++; d.submitKeys.add(k); v.steps.submit = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
       case 'landing_check_found': funnel.found++; v.found = true; v.steps.submit = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
       case 'landing_check_notfound': funnel.notfound++; if (v.found == null) v.found = false; v.steps.submit = true; if (v.stage < STAGE.submit) v.stage = STAGE.submit; break;
       default: break;
@@ -1107,7 +1122,12 @@ router.get('/api/landing-stats.json', (req, res) => {
     const k = vkey(l.ip, l.user_agent);
     const lead = { email: l.email, found: !!l.found, salon: (l.nom_clean && l.nom_clean.trim()) || l.nom || null, ville: l.ville || null, ts: l.ts, slug: l.slug || null, screenshot: l.screenshot_path || null, editToken: l.edit_token || null };
     const v = visitors.get(k);
-    if (v) {
+    const leadTime = Date.parse(String(l.ts || '').replace(' ', 'T') + 'Z');
+    const nearJourney = v && v.events.some(e => {
+      const eventTime = Date.parse(String(e.ts || '').replace(' ', 'T') + 'Z');
+      return !isNaN(leadTime) && !isNaN(eventTime) && Math.abs(leadTime - eventTime) <= 24 * 60 * 60 * 1000;
+    });
+    if (nearJourney) {
       if (v.found == null) v.found = !!l.found;
       if (l.ts && l.ts > v.last) v.last = l.ts;
       v.leads.push(lead);
@@ -1135,11 +1155,11 @@ router.get('/api/landing-stats.json', (req, res) => {
       vf.real++;
       const s = v.src ? `src:${v.src}` : (v.ref || 'direct');
       sourceMap.set(s, (sourceMap.get(s) || 0) + 1);
+      if (v.steps.scroll50) vf.scroll50++;
+      if (v.steps.cta) vf.cta++;
+      if (v.steps.open) vf.open++;
+      if (v.steps.submit) vf.submit++;
     }
-    if (v.steps.scroll50) vf.scroll50++;
-    if (v.steps.cta) vf.cta++;
-    if (v.steps.open) vf.open++;
-    if (v.steps.submit) vf.submit++;
   }
   const sources = [...sourceMap.entries()].map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n);
 
@@ -1197,11 +1217,22 @@ router.get('/api/landing-stats.json', (req, res) => {
   leads.sort((a, b) => (a.last < b.last ? 1 : -1));
   engaged.sort((a, b) => (b.stage - a.stage) || (a.last < b.last ? 1 : -1));
 
-  const daily = Object.values(dailyMap).sort((a, b) => (a.day < b.day ? 1 : -1)).slice(0, 14).reverse();
+  const todayParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const dayCursor = new Date(todayParts + 'T12:00:00Z');
+  const daily = [];
+  for (let i = 13; i >= 0; i--) {
+    const day = new Date(dayCursor.getTime() - i * 86400000).toISOString().slice(0, 10);
+    const d = dailyMap[day];
+    daily.push({ day, views: d ? d.views : 0, real: d ? d.realKeys.size : 0, cta: d ? d.ctaKeys.size : 0, submit: d ? d.submitKeys.size : 0 });
+  }
+  const visibleLeadRows = leadRows.filter(l => !isBot(l.user_agent));
+  const uniqueLeadEmails = new Set(visibleLeadRows.map(l => String(l.email || '').trim().toLowerCase()).filter(Boolean)).size;
   res.setHeader('Cache-Control', 'no-store, private, max-age=0');
   res.json({
     funnel, visitorFunnel: vf, cta, daily, sources,
     leads, engaged: engaged.slice(0, 200), engagedTotal: engaged.length,
+    periodDays: period.days,
+    leadMetrics: { submissions: visibleLeadRows.length, uniqueEmails: uniqueLeadEmails, found: visibleLeadRows.filter(l => l.found).length, notfound: visibleLeadRows.filter(l => !l.found).length },
     bots, humans: total - bots, total,
   });
 });

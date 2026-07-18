@@ -13,14 +13,13 @@
   .topbar{background:#1a1a1a;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:14px 0;}
   .topbar-inner{max-width:1100px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   .brand{font-weight:500;font-size:1.3rem;color:#c9a96e;letter-spacing:-.01em;}
-  .subtabs{display:inline-flex;gap:4px;background:rgba(255,255,255,.08);padding:3px;border-radius:11px;}
-  .subtab{padding:7px 14px;border-radius:8px;font-size:14.5px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;white-space:nowrap;transition:color .12s,background .12s;}
-  .subtab:hover{color:#fff;}
-  .subtab.on{background:#c9a96e;color:#1a1a1a;}
   .spacer{flex:1;}
   .updated{font-size:12px;color:rgba(255,255,255,.6);}
   .hbtn{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
   .hbtn:hover{background:rgba(255,255,255,.12);}
+  .periods{display:inline-flex;background:rgba(255,255,255,.1);border-radius:9px;padding:3px;gap:2px;}
+  .pbtn{border:0;background:transparent;color:rgba(255,255,255,.7);padding:5px 9px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;}
+  .pbtn.on{background:#fff;color:#1a1a1a;}
   main{padding:16px;max-width:1100px;margin:0 auto;}
   .msg{text-align:center;color:var(--muted);padding:50px 20px;font-size:15px;}
   .msg a{color:var(--blue);font-weight:600;}
@@ -44,7 +43,7 @@
   .cta-item .v{font-size:22px;font-weight:800;}
   .cta-item .l{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600;}
   /* Table leads / engagés traçables */
-  .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow-x:auto;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
   th{text-align:left;padding:11px 12px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
   td{padding:11px 12px;border-bottom:1px solid #f0ece1;vertical-align:middle;}
@@ -81,11 +80,12 @@
   details.more>summary::-webkit-details-marker{display:none;}
   .bars{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:6px;}
   .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;}
-  .bar-stack{width:100%;max-width:34px;display:flex;flex-direction:column-reverse;height:100px;}
+  .bar-stack{width:100%;max-width:34px;height:100px;position:relative;background:#f3efe5;border-radius:4px 4px 0 0;overflow:hidden;}
   .bar-seg{width:100%;border-radius:3px 3px 0 0;min-height:0;}
+  .bar-seg{position:absolute;bottom:0;left:0;}
   .bar-seg.v-view{background:#e7d9b0;}
-  .bar-seg.v-ready{background:var(--gold);}
-  .bar-seg.v-cta{background:var(--gold-d);}
+  .bar-seg.v-ready{background:var(--gold);width:68%;}
+  .bar-seg.v-cta{background:var(--gold-d);width:36%;}
   .bar-day{font-size:10px;color:var(--muted);white-space:nowrap;transform:rotate(-40deg);height:22px;}
   .bar-val{font-size:11px;font-weight:700;color:var(--cool);}
   .legend{display:flex;gap:16px;margin-top:14px;font-size:12px;color:var(--cool);flex-wrap:wrap;}
@@ -102,7 +102,8 @@
     <nav class="anav-tabs">
       <a class="anav-tab" data-path="/admin" href="/admin/">Tableau de bord</a>
       <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
-      <a class="anav-tab" data-path="/admin/stats" href="/admin/stats.html">Suivi</a>
+      <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
+      <a class="anav-tab" data-path="/admin/stats-landing.html" href="/admin/stats-landing.html">Suivi landing</a>
       <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
       <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
     </nav>
@@ -117,15 +118,13 @@
     </div>
   </div>
 </header>
-<script src="/admin/admin-nav.js?v=20260713-tracking"></script>
+<script src="/admin/admin-nav.js"></script>
 
 <div class="topbar">
   <div class="topbar-inner">
-    <div class="subtabs">
-      <a class="subtab" href="/admin/stats.html" id="sub-mockup">Suivi maquettes</a>
-      <a class="subtab on" href="/admin/stats-landing.html" id="sub-landing">Suivi landing</a>
-    </div>
+    <span class="brand" id="t-brand">Suivi landing</span>
     <span class="spacer"></span>
+    <div class="periods" aria-label="Période"><button class="pbtn" data-days="7">7j</button><button class="pbtn on" data-days="30">30j</button><button class="pbtn" data-days="90">90j</button></div>
     <span class="updated" id="updated"></span>
     <button class="hbtn" id="refresh">↻ Actualiser</button>
   </div>
@@ -140,7 +139,7 @@
   var $=function(id){return document.getElementById(id);};
 
   var T={
-    fr:{brand:'Suivi landing',sub_mockup:'Suivi maquettes',sub_landing:'Suivi landing',refresh:'Actualiser',maj:'maj',loading:'Chargement…',
+    fr:{brand:'Suivi landing',refresh:'Actualiser',maj:'maj',loading:'Chargement…',
       sub:'Funnel de la page marketing maquickpage.fr',
       k_real:'Vrais visiteurs',k_real_sub:'JS confirmé (navigateur réel)',k_uniq:'Visiteurs bruts (serveur)',k_uniq_sub:'bots & sans-JS inclus',k_view:'Visites (pages vues)',k_scroll:'Scroll 50%+',k_cta:'CTA cliqué',k_open:'Couverture ouverte',k_submit:'Formulaire envoyé',
       k_found:'Salon couvert',k_notfound:'Pas trouvé (48h)',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
@@ -161,7 +160,7 @@
       w_nav:'barre du haut',w_hero:'héro',w_coverage:'section couverture',w_pricing:'section tarifs',
       d_ip:'IP',d_ua:'Navigateur (UA)',u_min:'min',u_h:'h',u_d:'j',
       none:'Aucune visite enregistrée pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : '},
-    en:{brand:'Landing tracking',sub_mockup:'Mockup tracking',sub_landing:'Landing tracking',refresh:'Refresh',maj:'upd.',loading:'Loading…',
+    en:{brand:'Landing tracking',refresh:'Refresh',maj:'upd.',loading:'Loading…',
       sub:'Marketing page funnel · maquickpage.fr',
       k_real:'Real visitors',k_real_sub:'JS confirmed (real browser)',k_uniq:'Raw visitors (server)',k_uniq_sub:'incl. bots & no-JS',k_view:'Visits (page views)',k_scroll:'Scroll 50%+',k_cta:'Clicked CTA',k_open:'Opened coverage',k_submit:'Submitted form',
       k_found:'Salon covered',k_notfound:'Not found (48h)',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
@@ -182,7 +181,7 @@
       w_nav:'top bar',w_hero:'hero',w_coverage:'coverage section',w_pricing:'pricing section',
       d_ip:'IP',d_ua:'Browser (UA)',u_min:'min',u_h:'h',u_d:'d',
       none:'No visits recorded yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: '},
-    zh:{brand:'落地页追踪',sub_mockup:'样板追踪',sub_landing:'落地页追踪',refresh:'刷新',maj:'更新',loading:'加载中…',
+    zh:{brand:'落地页追踪',refresh:'刷新',maj:'更新',loading:'加载中…',
       sub:'营销主页漏斗 · maquickpage.fr',
       k_real:'真实访客',k_real_sub:'JS 已确认（真实浏览器）',k_uniq:'原始访客（服务器）',k_uniq_sub:'含机器人/无 JS',k_view:'访问（页面浏览）',k_scroll:'滚动 50%+',k_cta:'点击 CTA',k_open:'打开覆盖查询',k_submit:'提交表单',
       k_found:'已覆盖',k_notfound:'未找到 (48h)',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
@@ -209,21 +208,21 @@
 
   function applyStatic(){
     document.documentElement.lang=lang==='zh'?'zh-CN':lang;
-    $('sub-mockup').textContent=t('sub_mockup');$('sub-landing').textContent=t('sub_landing');$('refresh').textContent='↻ '+t('refresh');
+    $('t-brand').textContent=t('brand');$('refresh').textContent='↻ '+t('refresh');
     Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){b.classList.toggle('active',b.dataset.lang===lang);});
   }
   function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(DATA)render(DATA);}
 
-  var DATA=null, expLead={}, expEng={}, engOpen=false;
+  var DATA=null, expLead={}, expEng={}, engOpen=false, periodDays=30;
   function esc(s){return s==null?'':String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function kpi(v,l,sub,cls){return'<div class="kpi '+(cls||'')+'"><div class="v">'+v+'</div><div class="l">'+esc(l)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>';}
   function pctOf(n,base){return base>0?Math.round(n/base*100)+'%':'—';}
   function frow(name,val,max,base){
-    var w=Math.round(val/(max||1)*100);
+    var w=Math.min(100,Math.round(val/(max||1)*100));
     var pc=base!=null?'<span class="pct">'+pctOf(val,base)+'</span>':'';
     return'<div class="frow"><div class="fname">'+esc(name)+pc+'</div><div class="fbar-wrap"><div class="fbar" style="width:'+w+'%"></div><span class="fval">'+val+'</span></div></div>';
   }
-  function fmtDate(ts){if(!ts)return'';var p=String(ts).split(' ');if(p.length<2)return ts;var d=p[0].split('-');return d[2]+'/'+d[1]+' '+p[1].slice(0,5);}
+  function fmtDate(ts){if(!ts)return'';var v=Date.parse(String(ts).replace(' ','T')+'Z');if(isNaN(v))return ts;return new Intl.DateTimeFormat(lang==='zh'?'zh-CN':lang,{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(v);}
   function fmtWhen(ts){if(!ts)return'';var v=Date.parse(String(ts).replace(' ','T')+'Z');if(isNaN(v))return'';var d=(Date.now()-v)/1000;
     if(d<3600)return Math.max(1,Math.round(d/60))+' '+t('u_min');if(d<86400)return Math.round(d/3600)+' '+t('u_h');return Math.round(d/86400)+' '+t('u_d');}
 
@@ -264,24 +263,22 @@
   function stageLabel(st){return st>=5?t('st_submit'):st>=4?t('st_open'):st>=3?t('st_cta'):st>=2?t('st_scroll'):t('st_view');}
 
   function render(d){
-    var f=d.funnel||{},vf=d.visitorFunnel||{},cta=d.cta||{},daily=d.daily||[],leads=d.leads||[],engaged=d.engaged||[];
+    var f=d.funnel||{},vf=d.visitorFunnel||{},cta=d.cta||{},daily=d.daily||[],leads=d.leads||[],engaged=d.engaged||[],lm=d.leadMetrics||{};
 
+    var real=vf.real||0;
     var html='<div class="section-title">'+esc(t('sub'))+'</div>';
     html+='<div class="kpis">';
-    var real=vf.real||0;
     html+=kpi(real,t('k_real'),t('k_real_sub'),'gold');
-    html+=kpi(vf.visitors||0,t('k_uniq'),t('k_uniq_sub'),'');
-    html+=kpi(leads.length,t('k_leads'),'','hot');
-    html+=kpi(f.found||0,t('k_found'),'','ok');
-    html+=kpi(f.notfound||0,t('k_notfound'),'','');
+    html+=kpi(f.view||0,t('k_view'),'','');
+    html+=kpi(lm.uniqueEmails||0,t('k_leads'),(lm.submissions||0)+' envoi(s)','hot');
+    html+=kpi(lm.found||0,t('k_found'),'','ok');
+    html+=kpi(lm.notfound||0,t('k_notfound'),'','');
     html+='</div>';
 
-    // Entonnoir par visiteur unique
-    // Entonnoir par VRAI visiteur (JS confirmé). Fallback sur les visiteurs
-    // bruts tant qu'aucun landing_ready n'existe (données antérieures au beacon).
-    var base=real||vf.visitors||0;
+    // Toutes les étapes utilisent la même population JS confirmée.
+    var base=real||0;
     html+='<div class="section-title">'+t('funnel_title')+' · <span style="text-transform:none;font-weight:600">'+t('fn_note')+'</span></div><div class="funnel">';
-    html+=frow(real?t('f_real'):t('f_uniq'),base,base,base);
+    html+=frow(t('f_real'),base,base,base);
     html+=frow(t('f_scroll'),vf.scroll50||0,base,base);
     html+=frow(t('f_cta'),vf.cta||0,base,base);
     html+=frow(t('f_open'),vf.open||0,base,base);
@@ -373,13 +370,13 @@
 
     // === Tendance 14 jours ===
     if(daily.length){
-      var maxV=1;daily.forEach(function(r){if((r.view||0)>maxV)maxV=r.view||0;});
+      var maxV=1;daily.forEach(function(r){if((r.views||0)>maxV)maxV=r.views||0;});
       html+='<div class="section-title">'+t('trend_title')+'</div><div class="card"><div class="bars">';
       daily.forEach(function(r){
-        var vh=Math.round((r.view||0)/maxV*100),rh=Math.round((r.ready||0)/maxV*100),ch=Math.round((r.cta||0)/maxV*100);
+        var vh=Math.round((r.views||0)/maxV*100),rh=Math.round((r.real||0)/maxV*100),ch=Math.round((r.cta||0)/maxV*100);
         var dd=(r.day||'').slice(5).replace('-','/');
         html+='<div class="bar-col" title="'+esc(r.day)+'">'
-          +'<div class="bar-val">'+(r.ready||0)+'</div>'
+          +'<div class="bar-val">'+(r.real||0)+'</div>'
           +'<div class="bar-stack"><div class="bar-seg v-view" style="height:'+vh+'%"></div><div class="bar-seg v-ready" style="height:'+rh+'%"></div><div class="bar-seg v-cta" style="height:'+ch+'%"></div></div>'
           +'<div class="bar-day">'+esc(dd)+'</div></div>';
       });
@@ -397,7 +394,7 @@
 
   function load(){
     $('updated').textContent='…';
-    fetch(JSON_URL+'?t='+Date.now(),{credentials:'same-origin',cache:'no-store'}).then(function(r){
+    fetch(JSON_URL+'?days='+periodDays+'&t='+Date.now(),{credentials:'same-origin',cache:'no-store'}).then(function(r){
       if(r.status===401||r.status===302||r.redirected)throw new Error('auth');
       if(!r.ok)throw new Error('http '+r.status);
       return r.json();
@@ -416,6 +413,7 @@
     b.addEventListener('click',function(){setLang(b.dataset.lang);});
   });
   $('refresh').onclick=load;
+  Array.prototype.forEach.call(document.querySelectorAll('.pbtn'),function(b){b.onclick=function(){periodDays=Number(b.dataset.days);document.querySelectorAll('.pbtn').forEach(function(x){x.classList.toggle('on',x===b);});load();};});
   applyStatic();
   load();
 })();
