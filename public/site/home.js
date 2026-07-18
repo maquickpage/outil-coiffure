@@ -96,10 +96,10 @@
     track('landing_ready', { ref });
   })();
 
-  // Profondeur de scroll : on envoie UN seul event landing_scroll (le max atteint)
-  // au moment où l'utilisateur quitte/masque la page — mirroir du scroll_max maquette.
+  // Profondeur de scroll : renvoie le maximum seulement s'il a progressé depuis
+  // le dernier masquage (un retour d'app mobile ne fige plus la première valeur).
   (function setupScrollDepth() {
-    let maxPct = 0, sent = false;
+    let maxPct = 0, sentPct = 0;
     function onScroll() {
       const doc = document.documentElement;
       const scrollable = (doc.scrollHeight - doc.clientHeight);
@@ -107,8 +107,8 @@
       if (pct > maxPct) maxPct = Math.min(100, pct);
     }
     function flush() {
-      if (sent || maxPct <= 0) return;
-      sent = true;
+      if (maxPct <= sentPct) return;
+      sentPct = maxPct;
       track('landing_scroll', { pct: maxPct });
     }
     window.addEventListener('scroll', onScroll, { passive: true });
