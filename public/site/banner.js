@@ -1,25 +1,23 @@
 /* =============================================================================
-   Banner MaQuickPage — TOP RIBBON + BOTTOM BAR
-   Design adapté de "Sitely CTA combo" → vanilla JS.
+   Chrome de conversion MaQuickPage — ribbon + prix passif + CTA inline + sheet.
 
    Comportement :
      - Sur /preview/{slug} :
          INVISIBLE tant que le user n'a pas scrollé jusqu'à .intro
          Trigger : mouseenter desktop OU IntersectionObserver ≥ 30% mobile
          Attend la fermeture de l'onboarding si actif
-         Affiche : ribbon (top) + bar (bottom)
+          Affiche : ribbon + prix passif + CTA inline
+          Le bottom sheet apparaît seulement près du footer, une fois par session
      - Sur /admin/{slug} :
          VISIBLE immédiatement
          Affiche : bar (bottom) UNIQUEMENT — pas de ribbon dans l'éditeur
-     - Pas de bouton "réduire" : la bar reste toujours visible (pas de pill).
      - N'apparaît PAS si :
          - URL ?nocapture=1 (Puppeteer screenshots)
          - URL ?banner=off (dev)
          - Host = custom (= site coiffeur payé, Falkenstein)
      - CTA → ouvre la modal pricing via window.MqsPricingModal.open()
 
-   Décalage des FAB (bouton "Modifier mon site" sur preview, bouton "?" tuto
-   dans l'éditeur) : quand la bar est mounted, on pose `body.mqs-bar-active` +
+   Décalage des FAB : quand la sheet est visible, on pose `body.mqs-bar-active` +
    on set la CSS variable `--mqs-bar-h` (hauteur réelle de la bar). Les FAB
    utilisent ces signaux pour se décaler au-dessus de la bar uniquement
    pendant que celle-ci est visible.
@@ -40,39 +38,26 @@
   const host = window.location.hostname;
   const isDemoHost = host === 'maquickpage.fr' || host === 'localhost' || host === '127.0.0.1';
   if (!isDemoHost) return;
+  const isCheckoutDemo = (host === 'localhost' || host === '127.0.0.1') && params.get('checkoutDemo') === '1';
 
   let mounted = false;
+  let sheetShown = false;
+  let sheetDismissed = false;
+  let pageReadyAt = Date.now();
+  let sheetObserver = null;
+  let availableDomains = [];
+  let domainLookupFinished = false;
+  const SHEET_DISMISSED_KEY = `mqs-sheet-dismissed:${path}`;
 
   // Helpers
-  function openPricingModal() {
+  function openPricingModal(source) {
     if (typeof window.MqsPricingModal === 'object' && window.MqsPricingModal.open) {
-      window.MqsPricingModal.open();
+      window.MqsPricingModal.open(source || 'unknown', source === 'bottom_sheet' ? {
+        verifiedSuggestions: availableDomains,
+      } : null);
     } else {
       console.warn('[mqs-banner] MqsPricingModal not loaded');
     }
-  }
-
-  // Récupère le nom du salon depuis le DOM (id="hero-title") pour personnaliser
-  // le texte secondaire du ribbon.
-  function getSalonName() {
-    const el = document.getElementById('hero-title');
-    return (el && el.textContent && el.textContent.trim()) || 'votre site';
-  }
-
-  // Compteur "X sites publiés ce mois" — déterministe et partagé entre toutes
-  // les démos. Baseline 802 au 18 mai 2026 00:00 UTC, +1 toutes les 2 heures
-  // (= 12 par jour). Tous les visiteurs voient la même valeur au même moment.
-  function getSitesPublishedCount() {
-    const REF_MS = Date.UTC(2026, 4, 18, 0, 0, 0); // mai = month 4 (0-indexed)
-    const REF_VALUE = 802;
-    const TWO_HOURS_MS = 2 * 3600 * 1000;
-    const diff = Date.now() - REF_MS;
-    if (diff < 0) return REF_VALUE;
-    return REF_VALUE + Math.floor(diff / TWO_HOURS_MS);
-  }
-  function formatCount(n) {
-    // "1234" → "1 234" (espace insécable comme séparateur de milliers, format FR)
-    return n.toLocaleString('fr-FR').replace(/\s/g, ' ');
   }
 
   // Mesure la hauteur réelle de la bar (incluant son margin-bottom virtuel de
@@ -108,69 +93,203 @@
             <span class="mqs-ribbon-dot"></span>
             DÉMO
           </span>
-          <span class="mqs-ribbon-text">
-            Ce site a été créé avec <b>MaQuickPage</b>. Pas encore en ligne.
-          </span>
-          <span class="mqs-ribbon-text mqs-ribbon-text--sm">
-            Site de démonstration · ${getSalonName().replace(/[<>]/g, '')}
+          <span class="mqs-ribbon-message">
+            Votre site est prêt — <b>il ne reste qu'une étape</b> pour le mettre en ligne
           </span>
         </div>
-        <button class="mqs-ribbon-cta" type="button" aria-label="Publier mon site">
-          Publier mon site
+        <div class="mqs-ribbon-options" aria-label="Formules disponibles">
+          <button type="button"><small>24 mois</small><strong>9,90 €</strong><small>/mois</small></button>
+          <button type="button" class="is-popular"><span>POPULAIRE</span><small>12 mois</small><strong>17,90 €</strong><small>/mois</small></button>
+          <button type="button"><small>Sans engag.</small><strong>29 €</strong><small>/mois</small></button>
+        </div>
+        <button class="mqs-ribbon-cta" type="button" aria-label="Voir les détails">
+          Détails
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
             <path d="M2.5 6h7M6 2.5L9.5 6 6 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
       </div>
     `;
-    r.querySelector('.mqs-ribbon-cta').addEventListener('click', openPricingModal);
+    r.querySelector('.mqs-ribbon-cta').addEventListener('click', () => openPricingModal('top_ribbon'));
+    r.querySelectorAll('.mqs-ribbon-options button').forEach(button => {
+      button.addEventListener('click', () => openPricingModal('top_ribbon'));
+    });
     return r;
   }
 
+  function buildPassiveBanner() {
+    const section = document.createElement('aside');
+    section.id = 'mqs-passive-price';
+    section.setAttribute('aria-label', 'Tarifs MaQuickPage');
+    section.innerHTML = `
+      <div class="mqs-passive-price-inner">
+        <span class="mqs-passive-price-kicker">Votre site, prêt à être mis en ligne</span>
+        <strong>Plans dès 9,90 € TTC/mois</strong>
+        <span>Domaine, hébergement et mises à jour inclus</span>
+        <button type="button">Voir les formules →</button>
+      </div>
+    `;
+    section.querySelector('button').addEventListener('click', () => openPricingModal('mid_banner'));
+    return section;
+  }
+
   function buildBar() {
+    const count = availableDomains.length;
+    const firstHostname = count ? escapeHtml(availableDomains[0].hostname) : '';
+    const secondHostname = count > 1 ? escapeHtml(availableDomains[1].hostname) : '';
+    const desktopRemaining = Math.max(0, count - 2);
+    const mobileRemaining = Math.max(0, count - 1);
+    const desktopTitle = count
+      ? 'Votre adresse web est déjà réservée — <span>choisissez laquelle</span>'
+      : 'Trouvez l’adresse idéale pour votre salon';
+    const mobileTitle = desktopTitle;
+    const desktopDetail = count
+      ? `<span class="mqs-domain-preview-list"><strong><span aria-hidden="true">✓</span> ${firstHostname}</strong>${secondHostname ? `<strong><span aria-hidden="true">✓</span> ${secondHostname}</strong>` : ''}${desktopRemaining ? `<span>+${desktopRemaining} autres</span>` : ''}</span>`
+      : '<span>Consultez nos suggestions ou recherchez directement le nom de votre choix.</span>';
+    const mobileDetail = count
+      ? `<strong class="mqs-domain-preview"><span aria-hidden="true">✓</span> ${firstHostname}</strong>${mobileRemaining ? `<span>+${mobileRemaining} autres</span>` : ''}`
+      : '<span>Consultez nos suggestions ou recherchez directement le nom de votre choix.</span>';
+    const cta = count ? 'Choisir mon adresse' : 'Explorer les domaines';
+    const mobileCta = cta;
     const b = document.createElement('div');
     b.id = 'mqs-bar-wrap';
     b.innerHTML = `
-      <div class="mqs-bar" id="mqs-bar">
+      <div class="mqs-bar" id="mqs-bar" role="complementary" aria-label="Découvrir les adresses disponibles">
+        <div class="mqs-sheet-handle" aria-hidden="true"></div>
+        <button class="mqs-sheet-close" type="button" aria-label="Fermer">×</button>
         <div class="mqs-bar-inner">
-          <div class="mqs-bar-avatars" aria-hidden="true">
-            <div class="mqs-ava mqs-ava--1"></div>
-            <div class="mqs-ava mqs-ava--2"></div>
-            <div class="mqs-ava mqs-ava--3"></div>
-            <div class="mqs-ava mqs-ava--n">+2K</div>
-          </div>
           <div class="mqs-bar-copy">
-            <div class="mqs-bar-copy-1"><b>${formatCount(getSitesPublishedCount())} sites</b> publiés ce mois sur MaQuickPage</div>
-            <div class="mqs-bar-copy-2">
-              <span class="mqs-bar-from">dès</span>
-              <span class="mqs-price-chip">9,90 €/mois</span>
-              <span class="mqs-bar-extra">— installation et domaine offerts</span>
+            <div class="mqs-bar-desktop">
+              <div class="mqs-bar-copy-1"><b>${desktopTitle}</b></div>
+              <div class="mqs-bar-copy-2">${desktopDetail}</div>
+            </div>
+            <div class="mqs-bar-mobile">
+              <div class="mqs-bar-copy-1"><b>${mobileTitle}</b></div>
+              <div class="mqs-bar-copy-2">${mobileDetail}</div>
             </div>
           </div>
-          <button class="mqs-bar-cta" type="button">Voir les offres →</button>
+          <div class="mqs-bar-action"><button class="mqs-bar-cta" type="button"><span class="mqs-bar-cta-desktop">${cta}</span><span class="mqs-bar-cta-mobile">${mobileCta}</span> →</button><small>Gratuit · sans carte à cette étape</small></div>
         </div>
       </div>
     `;
-    b.querySelector('.mqs-bar-cta').addEventListener('click', openPricingModal);
+    b.querySelector('.mqs-bar-cta').addEventListener('click', () => {
+      try { window.mqsTrack && window.mqsTrack('paywall_peek_opened', getSheetMeta()); } catch (e) {}
+      openPricingModal('bottom_sheet');
+    });
+    b.querySelector('.mqs-sheet-close').addEventListener('click', dismissSheet);
     return b;
   }
 
   function mountBar() {
+    if (sheetShown || sheetDismissed) return;
     const existing = document.getElementById('mqs-bar-wrap');
     if (existing) existing.remove();
     const bar = buildBar();
     document.body.appendChild(bar);
+    sheetShown = true;
     setBarActive(true);
+    try { window.mqsTrack && window.mqsTrack('paywall_peek_viewed', getSheetMeta()); } catch (e) {}
     // Re-mesure après que le DOM ait peint, et au resize (la hauteur peut changer
     // si la 2e ligne wrap sur petite largeur).
     requestAnimationFrame(syncBarHeightVar);
+  }
+
+  function refreshBar() {
+    if (!sheetShown || sheetDismissed) return;
+    const current = document.getElementById('mqs-bar-wrap');
+    if (!current) return;
+    current.replaceWith(buildBar());
+    requestAnimationFrame(syncBarHeightVar);
+  }
+
+  function getSheetMeta() {
+    const doc = document.documentElement;
+    const max = Math.max(1, doc.scrollHeight - window.innerHeight);
+    return {
+      source: 'bottom_sheet',
+      scrollDepth: Math.min(100, Math.round((window.scrollY / max) * 100)),
+      timeOnPage: Math.round((Date.now() - pageReadyAt) / 1000),
+      availableDomainCount: availableDomains.length,
+      previewedHostname: availableDomains[0]?.hostname || null,
+    };
+  }
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+  }
+
+  async function loadAvailableDomains() {
+    if (!isPreview || domainLookupFinished) return;
+    const slug = path.split('/')[2];
+    if (!slug) return;
+    try {
+      const response = await fetch(`/api/domain/suggestions/${encodeURIComponent(slug)}?plan=ONE_YEAR`);
+      if (response.ok) {
+        const data = await response.json();
+        const suggestions = isCheckoutDemo
+          ? (data.suggestions || []).map(item => ({ ...item, available: true, isIncluded: true }))
+          : (data.suggestions || []);
+        availableDomains = suggestions.filter(item => item.available === true);
+      }
+    } catch (e) {
+      availableDomains = [];
+    } finally {
+      domainLookupFinished = true;
+      refreshBar();
+    }
+  }
+
+  function dismissSheet() {
+    const wrap = document.getElementById('mqs-bar-wrap');
+    if (wrap) wrap.remove();
+    sheetShown = false;
+    sheetDismissed = true;
+    setBarActive(false);
+    try { sessionStorage.setItem(SHEET_DISMISSED_KEY, '1'); } catch (e) {}
+    try { window.mqsTrack && window.mqsTrack('paywall_dismissed', getSheetMeta()); } catch (e) {}
+  }
+
+  function mountPageConversion() {
+    if (!isPreview) return;
+    const services = document.querySelector('#services, .services');
+    const gallery = document.querySelector('#galerie, .gallery');
+    if (services && gallery && !document.getElementById('mqs-passive-price')) {
+      services.insertAdjacentElement('afterend', buildPassiveBanner());
+    }
+
+    const footer = document.querySelector('footer');
+    if (!footer) return;
+    loadAvailableDomains();
+    // Le sentinel reste enfant direct de <body> pour ne jamais hériter de la
+    // grille d'un template hydraté.
+    const bodyAnchor = Array.from(document.body.children).find(el => el.tagName === 'SCRIPT') || null;
+    if (!document.getElementById('mqs-sheet-sentinel')) {
+      const sentinel = document.createElement('div');
+      sentinel.id = 'mqs-sheet-sentinel';
+      sentinel.setAttribute('aria-hidden', 'true');
+      document.body.insertBefore(sentinel, bodyAnchor);
+    }
+  }
+
+  function armSheetTrigger() {
+    if (!isPreview || sheetDismissed || sheetObserver) return;
+    const showOnFirstScroll = () => {
+      if (window.scrollY <= 0) return;
+      window.removeEventListener('scroll', showOnFirstScroll);
+      mountBar();
+    };
+    sheetObserver = { disconnect: () => window.removeEventListener('scroll', showOnFirstScroll) };
+    window.addEventListener('scroll', showOnFirstScroll, { passive: true });
+    showOnFirstScroll();
   }
 
   function showAll() {
     if (mounted) return;
     mounted = true;
 
-    // Ribbon (top noir "DÉMO + Publier mon site") : visible uniquement en /preview/{slug}.
+    // Ribbon (top noir "APERÇU + Voir les tarifs") : visible uniquement en /preview/{slug}.
     // Pas dans l'éditeur /admin/{slug} où l'utilisateur est déjà en train de
     // personnaliser son site — le ribbon serait redondant et visuellement parasite.
     if (isPreview && !document.getElementById('mqs-ribbon')) {
@@ -181,7 +300,9 @@
       // l'animation `transition: top` de 350ms.
       window.dispatchEvent(new CustomEvent('mqs-header-changed'));
     }
-    mountBar();
+    mountPageConversion();
+    if (isAdmin) mountBar();
+    else armSheetTrigger();
   }
 
   // Cache visuellement le ribbon + bar quand la modal pricing est ouverte
@@ -224,6 +345,19 @@
       setTimeout(tryShow, 300);
       return;
     }
+
+    try { sheetDismissed = sessionStorage.getItem(SHEET_DISMISSED_KEY) === '1'; } catch (e) {}
+
+    // Le premier geste de scroll révèle immédiatement la chrome et la bubble.
+    // Si OVH n'a pas encore répondu, la bubble affiche son fallback honnête puis
+    // se met à jour sans attendre que l'utilisateur atteigne le footer.
+    const showFromInitialScroll = () => {
+      if (window.scrollY <= 0 || isOnboardingActive()) return;
+      window.removeEventListener('scroll', showFromInitialScroll);
+      tryShow();
+      if (mounted && !sheetDismissed) mountBar();
+    };
+    window.addEventListener('scroll', showFromInitialScroll, { passive: true });
 
     let attempts = 0;
     const tryAttach = () => {

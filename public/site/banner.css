@@ -2,17 +2,32 @@
    Banner MaQuickPage — TOP RIBBON + BOTTOM BAR
    ============================================================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap');
+
+#mqs-ribbon,
+#mqs-bar-wrap,
+#mqs-passive-price {
+  font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#mqs-ribbon *,
+#mqs-bar-wrap *,
+#mqs-passive-price * {
+  box-sizing: border-box;
+}
+
 /* ── TOP RIBBON ──────────────────────────────────────────────────────────── */
 #mqs-ribbon {
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: 36px;
+  height: 48px;
   z-index: 2147483645;
-  background: #0E1014;
+  background: #0a0a0a;
   color: #E8E8EC;
   border-bottom: 1px solid rgba(255,255,255,.06);
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
-  font-size: 12.5px;
+  font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
+  font-size: 14px;
   letter-spacing: .005em;
   display: flex; align-items: center;
   animation: mqsRibbonIn .35s cubic-bezier(.2,.7,.2,1);
@@ -23,7 +38,7 @@
 }
 .mqs-ribbon-inner {
   width: 100%; height: 100%;
-  padding: 0 18px;
+  padding: 0 24px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px;
 }
@@ -33,12 +48,12 @@
 }
 .mqs-ribbon-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 20px; padding: 0 8px;
-  background: #D4FF3A;
+  height: 24px; padding: 0 9px;
+  background: #d9f24e;
   color: #0E1014;
   border-radius: 4px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 10.5px; font-weight: 600;
+  font-family: inherit;
+  font-size: 11.5px; font-weight: 600;
   letter-spacing: .08em;
   flex-shrink: 0;
 }
@@ -53,26 +68,10 @@
   70%  { box-shadow: 0 0 0 5px transparent;  opacity: .6; }
   100% { box-shadow: 0 0 0 0   transparent;  opacity: 1;  }
 }
-.mqs-ribbon-text {
-  opacity: .85;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.mqs-ribbon-text b { font-weight: 600; opacity: 1; }
-.mqs-ribbon-text--sm {
-  opacity: .45;
-  font-size: 11.5px;
-}
-@media (max-width: 900px) { .mqs-ribbon-text--sm { display: none; } }
-@media (max-width: 640px) {
-  .mqs-ribbon-text:not(.mqs-ribbon-text--sm) { font-size: 11.5px; }
-}
-
 .mqs-ribbon-cta {
   appearance: none; border: 0; background: transparent;
-  font: inherit; font-weight: 600; font-size: 12.5px;
-  color: #D4FF3A;
+  font: inherit; font-weight: 600; font-size: 14.5px;
+  color: #d9f24e;
   display: inline-flex; align-items: center; cursor: pointer;
   padding: 6px 2px;
   flex-shrink: 0;
@@ -80,14 +79,80 @@
 .mqs-ribbon-cta:hover { opacity: .85; }
 .mqs-ribbon-cta svg { margin-left: 6px; }
 
+/* ── PRIX PASSIF SUR LE RIBBON ────────────────────────────────────────────── */
+/* Prix affiché en clair dans le ribbon (barre haute fixe → visible en
+   permanence, sans scroll ni clic). Sur fond sombre, la puce prix est
+   inversée en pastille vert-lime pour ressortir. */
+.mqs-ribbon-message { color: #f4f4f2; font-size: 13px; white-space: nowrap; }
+.mqs-ribbon-message b { color: #d9f24e; }
+.mqs-ribbon-options { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.mqs-ribbon-options button {
+  position: relative; display: flex; align-items: baseline; gap: 5px;
+  min-height: 34px; padding: 6px 13px; border: 1px solid #33332f;
+  border-radius: 10px; background: #171717; color: #f4f4f2;
+  font: inherit; cursor: pointer; white-space: nowrap;
+}
+.mqs-ribbon-options button small { color: #8c8c87; font-size: 9px; }
+.mqs-ribbon-options button strong { font-size: 14px; color: #f4f4f2; }
+.mqs-ribbon-options button.is-popular { border-color: #596a17; background: #20270f; }
+.mqs-ribbon-options button.is-popular span {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  padding: 1px 7px; border-radius: 999px; background: #d9f24e; color: #182006;
+  font-size: 8px; font-weight: 800;
+}
+.mqs-ribbon-mobile,
+.mqs-ribbon-cta-mobile { display: none; }
+.mqs-ribbon-price-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.mqs-ribbon-price-main strong {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.035em;
+}
+.mqs-ribbon-from,
+.mqs-ribbon-period,
+.mqs-ribbon-price-extra { opacity: .66; font-weight: 500; }
+.mqs-ribbon-period { font-size: 12px; }
+.mqs-ribbon-all-in {
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #D4FF3A;
+  color: #0E1014;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.mqs-ribbon-price-extra { font-size: 12px; }
+/* Sur écrans étroits, on garde « dès 9,90 €/mois » et on lâche le détail,
+   puis le texte « Ce site a été créé… » avant de toucher au prix. */
+@media (max-width: 900px) { .mqs-ribbon-price-extra { display: none; } }
+@media (max-width: 760px) {
+  .mqs-ribbon-message, .mqs-ribbon-cta { display: none; }
+  .mqs-ribbon-options { min-width: max-content; }
+  .mqs-ribbon-inner { overflow: hidden; }
+}
+@media (max-width: 420px) {
+  .mqs-ribbon-inner { padding: 0 10px; gap: 8px; }
+  .mqs-ribbon-left { gap: 8px; }
+  .mqs-ribbon-price-main strong { font-size: 17px; }
+  .mqs-ribbon-from { display: none; }
+  .mqs-ribbon-cta { font-size: 12px; }
+  .mqs-ribbon-cta svg { display: none; }
+}
+
 /* ── BOTTOM BAR ──────────────────────────────────────────────────────────── */
 #mqs-bar-wrap {
   position: fixed;
-  left: 50%; bottom: 20px;
+  left: 50%; bottom: 22px;
   transform: translateX(-50%);
   z-index: 2147483644;
   animation: mqsBarRise .35s cubic-bezier(.2,.7,.2,1);
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
 }
 @keyframes mqsBarRise {
   from { opacity: 0; transform: translate(-50%, 16px); }
@@ -95,66 +160,120 @@
 }
 .mqs-bar {
   position: relative;
-  width: min(760px, calc(100vw - 40px));
-  background: #fff;
-  color: #111;
-  border-radius: 14px;
+  width: min(860px, calc(100vw - 40px));
+  background: #0f0f0f;
+  color: #f4f4f2;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
   box-shadow:
-    0 1px 0 rgba(255,255,255,.9) inset,
-    0 20px 60px -10px rgba(0,0,0,.45),
-    0 8px 24px -8px rgba(0,0,0,.3);
-  padding: 14px 16px 14px 18px;
+    0 1px 0 rgba(255,255,255,.08) inset,
+    0 26px 70px -12px rgba(0,0,0,.62);
+  padding: 15px 18px;
 }
 
 .mqs-bar-inner {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 20px;
 }
-.mqs-bar-avatars {
-  display: flex; align-items: center;
+.mqs-domain-offer-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 62px;
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  background: #edf8c9;
+  color: #33420a;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.mqs-sheet-handle {
+  display: none;
+  width: 42px;
+  height: 4px;
+  margin: -6px auto 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.24);
+}
+.mqs-sheet-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  display: none;
+  cursor: pointer;
+  font: 400 22px/1 inherit;
+}
+.mqs-sheet-close:hover {
+  background: #f1f1ef;
+  color: #111318;
+}
+.mqs-sheet-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   flex: 0 0 auto;
+  min-width: 118px;
+  padding-right: 17px;
+  border-right: 1px solid rgba(255,255,255,.12);
 }
-.mqs-ava {
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 2px solid #fff;
-  background-size: cover; background-position: center;
-  margin-right: -8px;
+.mqs-sheet-value s {
+  color: rgba(255,255,255,.42);
+  font-size: 14px;
 }
-.mqs-ava--1 { background: linear-gradient(135deg, #f3a683, #e17055); }
-.mqs-ava--2 { background: linear-gradient(135deg, #a29bfe, #6c5ce7); }
-.mqs-ava--3 { background: linear-gradient(135deg, #55efc4, #00b894); }
-.mqs-ava--n {
-  width: 30px; height: 30px; border-radius: 50%;
-  background: #0E1014; color: #D4FF3A;
-  border: 2px solid #fff;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; letter-spacing: .02em;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  margin-right: 0;
+.mqs-sheet-value strong {
+  color: #cdf24d;
+  font-size: 34px;
+  letter-spacing: -.05em;
 }
 
 .mqs-bar-copy {
   flex: 1 1 auto; min-width: 0; line-height: 1.35;
 }
+.mqs-bar-mobile,
+.mqs-bar-cta-mobile { display: none; }
 .mqs-bar-copy-1 {
-  font-size: 14.5px; font-weight: 500;
-  color: #0E1014;
+  margin-top: 0;
+  font-size: 15px; font-weight: 500;
+  color: #f4f4f2;
 }
 .mqs-bar-copy-1 b { font-weight: 700; }
+.mqs-bar-copy-1 span { color: #d9f24e; }
 .mqs-bar-copy-2 {
-  margin-top: 4px;
+  margin-top: 10px;
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
-  font-size: 12.5px;
-  color: rgba(0,0,0,.55);
+  font-size: 13px;
+  color: rgba(255,255,255,.55);
 }
-.mqs-bar-from,
-.mqs-bar-extra {
-  font-weight: 500;
-  color: rgba(0,0,0,.55);
+.mqs-domain-offer-label {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #263500;
+  color: #f5ffd7;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
+.mqs-domain-preview { color: #d3ec66; font-size: 13px; white-space: nowrap; }
+.mqs-domain-preview span { color: #b7e400; }
+.mqs-domain-preview-list {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  color: #d3ec66;
+}
+.mqs-domain-preview-list strong { padding: 6px 12px; border: 1px solid rgba(217,242,78,.35); border-radius: 9px; background: rgba(217,242,78,.12); font-size: 13px; white-space: nowrap; }
+.mqs-domain-preview-list strong span { color: #b7e400; }
+.mqs-domain-preview-list > span { padding: 6px 11px; border: 1px dashed rgba(255,255,255,.22); border-radius: 9px; color: rgba(255,255,255,.55); font-weight: 700; }
+.mqs-domain-helper { flex-basis: 100%; }
 .mqs-price-chip {
   display: inline-flex; align-items: center;
-  background: #0E1014; color: #D4FF3A;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  background: rgba(205,242,77,.12); color: #cdf24d;
+  font-family: inherit;
   font-size: 11.5px; font-weight: 600;
   padding: 2px 7px; border-radius: 5px;
   letter-spacing: .01em;
@@ -162,30 +281,103 @@
 
 .mqs-bar-cta {
   appearance: none; border: 0; cursor: pointer;
-  background: #0E1014; color: #fff;
-  font: inherit; font-weight: 600; font-size: 14px;
-  padding: 13px 18px;
-  border-radius: 10px;
+  background: #d9f24e; color: #1c2708;
+  font: inherit; font-weight: 800; font-size: 15px;
+  padding: 14px 24px;
+  border-radius: 12px;
   flex: 0 0 auto;
   transition: transform .15s ease, background .15s ease;
-  box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 2px 6px rgba(0,0,0,.25);
+  box-shadow: none;
   white-space: nowrap;
 }
-.mqs-bar-cta:hover { background: #1a1d23; transform: translateY(-1px); }
+.mqs-bar-action { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+.mqs-bar-action small { color: rgba(255,255,255,.42); font-size: 11px; font-weight: 600; }
+.mqs-bar-cta:hover { background: #dcff6b; transform: translateY(-1px); }
 .mqs-bar-cta:active { transform: translateY(0); }
+
+/* ── PASSIVE MID-SCROLL PRICE ────────────────────────────────────────────── */
+#mqs-passive-price {
+  position: relative;
+  z-index: 2;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(128,128,128,.18);
+  border-bottom: 1px solid rgba(128,128,128,.18);
+  background: #f4f4f2;
+  color: #0b0b0b;
+  font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
+}
+.mqs-passive-price-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.mqs-passive-price-kicker {
+  color: #73736f;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.mqs-passive-price-inner strong {
+  font-size: 16px;
+}
+.mqs-passive-price-inner > span:not(.mqs-passive-price-kicker) {
+  color: #73736f;
+  font-size: 13px;
+}
+.mqs-passive-price-inner button {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: #0b0b0b;
+  color: #fff;
+  cursor: pointer;
+  font: 700 12px/1 inherit;
+}
+
+/* ── INLINE CONVERSION BEFORE FOOTER ─────────────────────────────────────── */
+#mqs-sheet-sentinel { width: 1px; height: 1px; }
 
 /* ── Bar responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
+  #mqs-bar-wrap { bottom: 22px; width: calc(100% - 40px); }
   .mqs-bar {
-    width: calc(100vw - 24px);
-    padding: 12px 14px;
+    width: 100%;
+    padding: 18px;
+    border-radius: 16px;
   }
-  .mqs-bar-avatars { display: none; }
-  .mqs-bar-copy-1 { font-size: 13px; }
-  .mqs-bar-copy-2 { font-size: 11.5px; }
-  .mqs-bar-cta { padding: 11px 14px; font-size: 13px; }
+  .mqs-sheet-handle { display: none; }
+  .mqs-domain-offer-mark {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+  .mqs-bar-desktop,
+  .mqs-bar-cta-desktop { display: none; }
+  .mqs-bar-mobile,
+  .mqs-bar-cta-mobile { display: block; }
+  .mqs-bar-copy-1 { font-size: 15px; max-width: 125px; }
+  .mqs-bar-copy-2 { display: grid; gap: 8px; font-size: 12.5px; }
+  .mqs-domain-preview { font-size: 14px; }
+  .mqs-bar-copy-2 .mqs-price-chip { display: inline-flex; margin-top: 4px; }
+  .mqs-bar-cta { padding: 14px 24px; font-size: 15px; }
+  .mqs-passive-price-inner { flex-wrap: wrap; gap: 7px 12px; text-align: center; }
+  .mqs-passive-price-kicker { flex-basis: 100%; }
+  .mqs-passive-price-inner > span:not(.mqs-passive-price-kicker) { display: none; }
+}
+
+@media (max-width: 420px) {
+  .mqs-bar-inner { align-items: center; gap: 14px; }
+  .mqs-domain-offer-mark { display: none; }
+  .mqs-bar-action { align-items: center; }
+  .mqs-bar-cta { padding: 14px 20px; font-size: 15px; }
 }
 
 /* ── Ajustements pour les sites coiffeur (navbar fixée en haut) ─────────── */
 /* Le ribbon prend la place 36px en haut : on pousse la navbar existante. */
-body:has(#mqs-ribbon) .navbar { top: 36px !important; }
+body:has(#mqs-ribbon) .navbar { top: 48px !important; }
