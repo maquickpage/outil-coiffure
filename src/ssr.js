@@ -33,15 +33,57 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = join(__dirname, '..', 'public', 'site', 'index.html');
+const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
-// Cache du template lu une fois au boot. Si le fichier change, il faut redémarrer
-// le serveur (ou supprimer cette optimisation pour le dev).
-let templateCache = null;
-function loadTemplate() {
-  if (templateCache == null) {
-    templateCache = readFileSync(TEMPLATE_PATH, 'utf8');
+// Templates alternatifs du design kit (templates/<id>/). 'classic' n'est PAS
+// dans cette liste : il est servi par le site historique public/site/index.html
+// (comportement de prod inchangé, zéro régression). Un id inconnu retombe
+// aussi sur public/site.
+const ALT_TEMPLATE_IDS = new Set(['contrast', 'drama']);
+
+// Chrome de vente injectée autour des templates du design kit (CONTRACT.md §4).
+// public/site/index.html contient déjà ces balises en dur ; les templates du
+// design kit n'ont QUE le design du salon → on injecte la même chrome ici.
+// main.js (hydratation du site classic) est volontairement absent : chaque
+// template embarque son propre hydrate.js.
+const CHROME_HEAD = [
+  '<link rel="stylesheet" href="/_assets/banner.css?v=19">',
+  '<link rel="stylesheet" href="/_assets/pricing-modal.css?v=31">',
+  '<link rel="stylesheet" href="/_assets/waiting-screen.css?v=2">',
+  '<link rel="stylesheet" href="/_assets/preview-onboarding.css?v=4">',
+].join('\n    ');
+const CHROME_BODY = [
+  '<script src="/_assets/track.js?v=1"></script>',
+  '<script src="/_assets/pricing-modal.js?v=40"></script>',
+  '<script src="/_assets/banner.js?v=33"></script>',
+  '<script src="/_assets/waiting-screen.js?v=3"></script>',
+  '<script src="/_assets/preview-onboarding.js?v=7" defer></script>',
+].join('\n    ');
+
+// Cache par template, lu une fois au boot. Si un fichier change, il faut
+// redémarrer le serveur (ou supprimer cette optimisation pour le dev).
+const BOOT_VERSION = Date.now().toString(36);
+const templateCache = new Map();
+function loadTemplate(templateId) {
+  const id = ALT_TEMPLATE_IDS.has(templateId) ? templateId : 'classic';
+  if (!templateCache.has(id)) {
+    if (id === 'classic') {
+      templateCache.set(id, readFileSync(TEMPLATE_PATH, 'utf8'));
+    } else {
+      let html = readFileSync(join(TEMPLATES_DIR, id, 'index.html'), 'utf8');
+      // Assets relatifs du template → chemins absolus servis par /_templates
+      // (la page est rendue sur /preview/{slug} ou /, pas dans templates/<id>/).
+      // ?v={boot} : casse le cache client (maxAge 1h) à chaque redéploiement.
+      html = html
+        .replace('href="styles.css"', `href="/_templates/${id}/styles.css?v=${BOOT_VERSION}"`)
+        .replace('src="hydrate.js"', `src="/_templates/${id}/hydrate.js?v=${BOOT_VERSION}"`);
+      // Chrome de vente (bannière CTA, modale prix, tracking, waiting screen)
+      html = html.replace(/<\/head>/i, `    ${CHROME_HEAD}\n</head>`);
+      html = html.replace(/<\/body>/i, `    ${CHROME_BODY}\n</body>`);
+      templateCache.set(id, html);
+    }
   }
-  return templateCache;
+  return templateCache.get(id);
 }
 
 // Hosts considérés comme "domaine principal" SaaS (marketing + agency) — utilisé
@@ -116,7 +158,9 @@ function replaceElementByIdHtml(html, id, newInnerHtml) {
  */
 export function renderSalonHtml(view, options = {}) {
   const { canonicalUrl, siteUrl, noindex = false } = options;
-  let html = loadTemplate();
+  // Template choisi par salon (colonne salons.template, exposée dans la view
+  // par buildSalonView). Inconnu/absent → 'classic' (site historique).
+  let html = loadTemplate(view.template);
 
   // ============================================================================
   // 1. <HEAD> — SEO complet

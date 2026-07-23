@@ -510,6 +510,7 @@
     if (!m) return;
     m.querySelector('#mqs-modal-close')?.addEventListener('click', closeModal);
     m.querySelector('.mqs-drawer-scrim')?.addEventListener('click', closeModal);
+    m.querySelector('[data-funnel-step="A"]')?.addEventListener('click', () => goToStep('A'));
     m.querySelector('[data-funnel-step="B"]')?.addEventListener('click', () => goToStep('B'));
     m.querySelector('[data-funnel-step="C"]:not([disabled])')?.addEventListener('click', () => goToStep('C'));
 
@@ -930,4 +931,3 @@
   // === API publique ===
   window.MqsPricingModal = { open: openModal, close: closeModal };
 })();
-    m.querySelector('[data-funnel-step="A"]')?.addEventListener('click', () => goToStep('A'));
