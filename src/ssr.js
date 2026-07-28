@@ -52,7 +52,7 @@ const CHROME_HEAD = [
   '<link rel="stylesheet" href="/_assets/pricing-modal.css?v=45">',
   '<link rel="stylesheet" href="/_assets/waiting-screen.css?v=2">',
   '<link rel="stylesheet" href="/_assets/preview-onboarding.css?v=4">',
-  '<link rel="stylesheet" href="/_assets/style-switcher.css?v=4">',
+  '<link rel="stylesheet" href="/_assets/style-switcher.css?v=7">',
 ].join('\n    ');
 const CHROME_BODY = [
   '<script src="/_assets/track.js?v=1"></script>',
@@ -60,7 +60,7 @@ const CHROME_BODY = [
   '<script src="/_assets/pricing-modal.js?v=51"></script>',
   '<script src="/_assets/banner.js?v=36"></script>',
   '<script src="/_assets/waiting-screen.js?v=3"></script>',
-  '<script src="/_assets/style-switcher.js?v=4"></script>',
+  '<script src="/_assets/style-switcher.js?v=6"></script>',
   '<script src="/_assets/preview-onboarding.js?v=7" defer></script>',
 ].join('\n    ');
 
