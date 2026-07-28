@@ -65,11 +65,13 @@ async function apiGet() {
   return res.json();
 }
 
-async function apiPut(overrides) {
+async function apiPut(overrides, template) {
+  const body = { overrides };
+  if (template !== undefined) body.template = template;
   const res = await fetch(`/api/edit/${encodeURIComponent(state.slug)}${tokenQS()}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ overrides }),
+    body: JSON.stringify(body),
     credentials: 'same-origin',
   });
   if (!res.ok) {
@@ -243,6 +245,8 @@ function renderAll() {
   renderGallery(c.gallery);
   renderTestimonials(c.testimonials);
   renderContact(c.contact, c.socials);
+  renderTemplate(state.view.template);
+  renderDesign(c.design);
 
   // Signal à l'onboarding qu'on est dans le VRAI éditeur (= pas la page 401
   // qui sert le même HTML mais sans données). Sur DEMO, le tuto auto-démarre
@@ -311,9 +315,23 @@ function collectHero() {
 }
 
 // ----- INTRO -----
+// Aperçu de la photo d'illustration : la photo choisie, sinon celle que le
+// template Contrast prendra automatiquement (galerie ≠ hero, sinon hero).
+function refreshIntroImagePreview() {
+  const intro = state.draft.intro;
+  const galleryImgs = (state.draft.gallery && state.draft.gallery.images) || [];
+  const auto = galleryImgs.find(u => u && u !== state.draft.hero.backgroundImage)
+    || state.draft.hero.backgroundImage || '';
+  const isAuto = !intro.image;
+  $('intro-image-preview').src = intro.image || auto;
+  $('intro-image-auto-badge').hidden = !isAuto;
+  $('btn-intro-image-auto').hidden = isAuto;
+}
+
 function renderIntro(intro) {
   $('intro-title').value = intro.title || '';
   $('intro-description').value = intro.description || '';
+  refreshIntroImagePreview();
   $('intro-show-rating').checked = intro.showRating !== false;
   $('intro-fallback').value = intro.ratingFallback || '';
 
@@ -355,10 +373,39 @@ function toggleIntroFallback() {
   $('intro-fallback-block').style.display = showRating ? 'none' : 'block';
 }
 
+// Photo d'illustration de l'intro (design Contrast) : upload + retour en auto
+$('btn-intro-image').onclick = () => $('intro-file-input').click();
+$('btn-intro-image-auto').onclick = () => {
+  state.draft.intro.image = '';
+  refreshIntroImagePreview();
+  toast('Photo automatique réactivée — pensez à enregistrer', 'success');
+};
+$('intro-file-input').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const blob = await openCropModal(ev.target.result, 4/5);
+    if (!blob) return;
+    try {
+      toast('Envoi de l\'image…', 'success');
+      const result = await apiUploadImage(blob, 'intro');
+      state.draft.intro.image = result.url;
+      refreshIntroImagePreview();
+      toast(`Image envoyée (${result.sizeKb} Ko)`, 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+};
+
 function collectIntro() {
   return {
     title: $('intro-title').value.trim(),
     description: $('intro-description').value.trim(),
+    image: state.draft.intro.image || '',
     showRating: $('intro-show-rating').checked && state.hasGoogleNote && state.noteAvis >= 4,
     ratingFallback: $('intro-fallback').value.trim(),
     showSatisfaction: $('intro-show-satisfaction')?.checked !== false,
@@ -400,8 +447,19 @@ function buildServiceItem(s, idx) {
       <input type="text" placeholder="Nom du service (ex : Coupe Femme)" value="${escapeAttr(s.name || '')}" data-field="name" maxlength="80">
       <input type="text" placeholder="Description (optionnelle)" value="${escapeAttr(s.description || '')}" data-field="description" maxlength="200">
       <input type="text" placeholder="Tarif (ex : 35€ ou À partir de 35€)" value="${escapeAttr(s.price || '')}" data-field="price" maxlength="40">
+      <label class="service-category-field">
+        <span>Catégorie</span>
+        <select data-field="category">
+          <option value="femme">Femmes</option>
+          <option value="homme">Hommes</option>
+          <option value="autres">Autres</option>
+        </select>
+      </label>
     </div>
   `;
+  // Valeur du select (les anciens services sans catégorie tombent dans « Autres »)
+  item.querySelector('[data-field="category"]').value =
+    ['femme', 'homme', 'autres'].includes(s.category) ? s.category : 'autres';
 
   // Bouton suppression (eviter que clic ne ferme/ouvre le details)
   const removeBtn = item.querySelector('.btn-remove-service');
@@ -463,7 +521,7 @@ function updateServicesCount() {
 
 $('btn-add-service').onclick = () => {
   if (state.servicesArr.length >= 20) return;
-  state.servicesArr.push({ id: 's' + Date.now(), name: '', description: '', price: '' });
+  state.servicesArr.push({ id: 's' + Date.now(), name: '', description: '', price: '', category: 'autres' });
   renderServices({ items: state.servicesArr });
   // Focus le nouveau champ
   const last = $('services-list').lastElementChild;
@@ -475,7 +533,8 @@ function collectServices() {
     const name = item.querySelector('[data-field="name"]').value.trim();
     const description = item.querySelector('[data-field="description"]').value.trim();
     const price = item.querySelector('[data-field="price"]').value.trim();
-    return { id: state.servicesArr[i]?.id || ('s' + Date.now() + i), name, description, price };
+    const category = item.querySelector('[data-field="category"]')?.value || 'autres';
+    return { id: state.servicesArr[i]?.id || ('s' + Date.now() + i), name, description, price, category };
   }).filter(s => s.name);
   return { title: 'Nos Services', items };
 }
@@ -746,6 +805,37 @@ function collectSocials() {
   return out;
 }
 
+// ----- TEMPLATE (design du site — colonne dédiée, hors overrides) -----
+function renderTemplate(template) {
+  const choices = $('template-choices');
+  if (choices && !choices.children.length) {
+    choices.innerHTML = (window.__MQS_TEMPLATES__ || []).map(item => `
+      <label class="edit-field template-choice">
+        <input type="radio" name="site-template" value="${escapeAttr(item.id)}">
+        <span class="edit-label">${escapeAttr(item.name)} — ${escapeAttr(item.subtitle)}</span>
+        <span class="edit-help">${escapeAttr(item.description)}</span>
+      </label>
+    `).join('');
+  }
+  const radio = document.querySelector(`input[name="site-template"][value="${template || 'classic'}"]`);
+  if (radio) radio.checked = true;
+}
+
+function collectTemplate() {
+  const checked = document.querySelector('input[name="site-template"]:checked');
+  return checked ? checked.value : 'classic';
+}
+
+// ----- DESIGN (options visuelles — section overrides.design) -----
+function renderDesign(design) {
+  const cb = $('design-monochrome');
+  if (cb) cb.checked = !design || design.monochromePhotos !== false;
+}
+
+function collectDesign() {
+  return { monochromePhotos: $('design-monochrome')?.checked !== false };
+}
+
 // ===========================================================
 // SAVE PER SECTION
 // ===========================================================
@@ -760,6 +850,7 @@ async function save(section) {
     overrides.contact = collectContact();
     overrides.socials = collectSocials();
   }
+  if (section === 'template') overrides.design = collectDesign();
 
   // Merge avec les overrides existants pour ne pas perdre les autres sections
   const existing = state.view.has_overrides ? extractCurrentOverrides() : {};
@@ -771,7 +862,7 @@ async function save(section) {
   btn.textContent = 'Enregistrement…';
 
   try {
-    const res = await apiPut(merged);
+    const res = await apiPut(merged, section === 'template' ? collectTemplate() : undefined);
     state.view = res.view;
     state.draft = state.view.content;
     toast('Modifications enregistrées ✓', 'success');
@@ -793,7 +884,8 @@ function extractCurrentOverrides() {
     gallery: collectGallery(),
     testimonials: collectTestimonials(),
     contact: collectContact(),
-    socials: collectSocials()
+    socials: collectSocials(),
+    design: collectDesign()
   };
 }
 
@@ -808,6 +900,9 @@ $$('.edit-tab').forEach(tab => {
     tab.classList.add('active');
     const target = tab.dataset.tab;
     $$('.edit-section').forEach(s => s.classList.toggle('active', s.dataset.section === target));
+    // L'aperçu « photo automatique » dépend du hero et de la galerie — on le
+    // recalcule à l'ouverture de l'onglet (ils ont pu changer entre-temps).
+    if (target === 'intro') refreshIntroImagePreview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 });

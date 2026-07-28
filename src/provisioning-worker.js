@@ -231,14 +231,17 @@ async function runProvisioning(job, params) {
  * Sync le row d'un salon vers Falkenstein (= POST /api/sync/{slug} avec auth bearer).
  * Appelé après le passage LIVE pour que Falkenstein puisse servir ce site.
  * Idempotent : peut être rappelé sans souci (INSERT OR REPLACE côté Falkenstein).
- * En DRY_RUN : skip silencieusement si pas configuré.
+ * En DRY_RUN : skip si pas configuré. En production, le sync est obligatoire.
  */
 export async function syncSalonToFalkenstein(slug) {
   const FALKENSTEIN_URL = process.env.FALKENSTEIN_BASE_URL || 'https://customers.maquickpage.fr';
   const SYNC_TOKEN = process.env.SYNC_BEARER_TOKEN;
   if (!SYNC_TOKEN) {
-    console.warn(`[provisioning] ${slug} SYNC_BEARER_TOKEN absent → skip sync Falkenstein`);
-    return;
+    if (DRY_RUN) {
+      console.warn(`[provisioning] ${slug} SYNC_BEARER_TOKEN absent en DRY_RUN → skip sync Falkenstein`);
+      return;
+    }
+    throw new Error('SYNC_BEARER_TOKEN absent : sync Falkenstein impossible');
   }
   const row = db.prepare('SELECT * FROM salons WHERE slug = ?').get(slug);
   if (!row) {
@@ -256,14 +259,13 @@ export async function syncSalonToFalkenstein(slug) {
     });
     if (!res.ok) {
       const text = await res.text();
-      console.error(`[provisioning] ${slug} sync Falkenstein failed (${res.status}): ${text.slice(0, 200)}`);
-      // Non-fatal : on log mais on ne fait pas tomber la transaction
-      return;
+      throw new Error(`sync Falkenstein failed (${res.status}): ${text.slice(0, 200)}`);
     }
     const data = await res.json();
     console.log(`[provisioning] ${slug} sync Falkenstein OK (${data.action || 'ok'})`);
   } catch (err) {
     console.error(`[provisioning] ${slug} sync Falkenstein network error:`, err.message);
+    throw err;
   }
 }
 

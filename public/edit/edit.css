@@ -1025,3 +1025,43 @@ button {
 
 /* Cropper.js: forcer le 16:9 visuellement (fallback si la classe ne marche pas) */
 .cropper-container .cropper-crop-box .cropper-view-box { outline-color: rgba(201,169,110,0.85); }
+
+/* ----- Choix de template (Design du site) ----- */
+.template-choices { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+.template-choice {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    align-items: center;
+    padding: 16px 18px;
+    border: 1px solid var(--border, #e5e0d8);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+.template-choice:hover { border-color: #c9a96e; }
+.template-choice:has(input:checked) { border-color: #c9a96e; background: rgba(201, 169, 110, 0.07); }
+.template-choice input[type="radio"] { grid-row: 1 / span 2; accent-color: #c9a96e; width: 18px; height: 18px; }
+.template-choice .edit-label { margin: 0; }
+.template-choice .edit-help { grid-column: 2; margin-top: 2px; }
+
+/* ----- Catégorie de service (carrousel mobile par catégorie sur le site) ----- */
+.service-category-field {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.85rem; color: #6b6b6b;
+}
+.service-category-field select {
+    font: inherit; padding: 8px 10px;
+    border: 1px solid var(--border, #e5e0d8); border-radius: 8px;
+    background: #fff; color: #1a1a1a;
+}
+
+/* ----- Photo d'illustration intro (design Contrast) ----- */
+.intro-image-current { aspect-ratio: 4 / 5; max-width: 280px; }
+.intro-image-auto-badge {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(26, 26, 26, 0.75); color: #fff;
+    font-size: 0.72rem; letter-spacing: 0.5px;
+    padding: 5px 10px; border-radius: 6px;
+}

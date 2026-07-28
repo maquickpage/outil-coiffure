@@ -21,8 +21,10 @@ import db from '../db.js';
 import { checkDomainsParallel, checkDomainAvailability } from '../ovh-client.js';
 import { getProvisioningStatus } from '../provisioning-worker.js';
 import Stripe from 'stripe';
+import { isTemplateId, normalizeTemplateId } from '../templates.js';
 
 const router = express.Router();
+const CURRENT_CGV_VERSION = '1.1';
 
 // === Plans Stripe : doit matcher stripe_config.md ===
 // Domaine TOUJOURS offert pour le client, peu importe le plan.
@@ -295,17 +297,30 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
   if (cgv_accepted !== true) {
     return res.status(400).json({ error: 'Vous devez accepter les CGV pour continuer.' });
   }
-  if (!cgv_version || typeof cgv_version !== 'string') {
-    return res.status(400).json({ error: 'Version des CGV manquante.' });
+  if (cgv_version !== CURRENT_CGV_VERSION) {
+    return res.status(400).json({ error: 'Les CGV ont été mises à jour. Rechargez la page avant de continuer.' });
   }
   const plan = PLANS[String(planKey).toUpperCase()];
   if (!plan) return res.status(400).json({ error: 'plan invalide' });
-  if (!plan.priceId) return res.status(500).json({ error: 'STRIPE_PRICE_* env vars non configurés' });
-  if (!process.env.STRIPE_SECRET_KEY) return res.status(500).json({ error: 'STRIPE_SECRET_KEY non configuré' });
 
   // Vérifie que le salon existe + récupère le plan tarifaire pour stocker le contexte
-  const salon = db.prepare('SELECT id, slug, nom, nom_clean, ville FROM salons WHERE slug = ?').get(slug);
+  const salon = db.prepare('SELECT id, slug, nom, nom_clean, ville, template FROM salons WHERE slug = ?').get(slug);
   if (!salon) return res.status(404).json({ error: 'Salon introuvable' });
+  const requestedTemplate = req.body?.template;
+  const template = isTemplateId(requestedTemplate)
+    ? requestedTemplate
+    : normalizeTemplateId(salon.template);
+
+  // checkoutDemo est un bac à sable visuel, jamais une porte vers Stripe/OVH.
+  if (req.body?.checkout_demo === true) {
+    return res.status(409).json({
+      error: 'Mode démonstration : aucun paiement ne peut être lancé.',
+      code: 'CHECKOUT_DEMO_ONLY',
+    });
+  }
+
+  if (!plan.priceId) return res.status(500).json({ error: 'STRIPE_PRICE_* env vars non configurés' });
+  if (!process.env.STRIPE_SECRET_KEY) return res.status(500).json({ error: 'STRIPE_SECRET_KEY non configuré' });
 
   // === TEST BYPASS PAYMENT (uniquement pour les slugs whitelisted) =============
   // En mode bypass : skip Stripe, skip OVH check, trigger provisioning direct.
@@ -352,7 +367,8 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
           updated_at = datetime('now')
       WHERE slug = ?
     `).run(fakeSessionId, email, planKey, hostname, plan.commitmentMonths,
-           'cus_TEST_BYPASS', 'sub_TEST_BYPASS', cgv_version, clientIp, slug);
+           'cus_TEST_BYPASS', 'sub_TEST_BYPASS', CURRENT_CGV_VERSION, clientIp, slug);
+    db.prepare(`UPDATE salons SET template = ? WHERE slug = ?`).run(template, slug);
 
     // Lance provisioning en async
     const { startProvisioning } = await import('../provisioning-worker.js');
@@ -366,7 +382,7 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
     });
 
     const baseUrl = process.env.PUBLIC_BASE_URL || 'https://maquickpage.fr';
-    const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id=${fakeSessionId}&bypass=1`;
+    const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id=${fakeSessionId}&bypass=1&template=${encodeURIComponent(template)}`;
     return res.json({ url: successUrl, sessionId: fakeSessionId, bypass: true });
   }
 
@@ -377,8 +393,8 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
   const lineItems = [{ price: plan.priceId, quantity: 1 }];
 
   const baseUrl = process.env.PUBLIC_BASE_URL || 'https://maquickpage.fr';
-  const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${baseUrl}/preview/${slug}?signup=cancelled`;
+  const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id={CHECKOUT_SESSION_ID}&template=${encodeURIComponent(template)}`;
+  const cancelUrl = `${baseUrl}/preview/${slug}?signup=cancelled&template=${encodeURIComponent(template)}`;
 
   let session;
   try {
@@ -392,13 +408,23 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
           hostname,
           plan: planKey,
           commitment_months: String(plan.commitmentMonths),
+          first_month_cancellation_days: '30',
+          first_month_refundable: 'false',
+          template,
         },
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
       locale: 'fr',
       payment_method_types: ['card'],
-      metadata: { slug, hostname, plan: planKey },
+      metadata: {
+        slug,
+        hostname,
+        plan: planKey,
+        template,
+        first_month_cancellation_days: '30',
+        first_month_refundable: 'false',
+      },
     });
   } catch (err) {
     console.error('[/api/checkout/create-session] Stripe error:', err.message);
@@ -418,7 +444,7 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
         cgv_accepted_at = datetime('now'), cgv_version = ?, cgv_accepted_ip = ?,
         updated_at = datetime('now')
     WHERE slug = ?
-  `).run(session.id, email, planKey, hostname, plan.commitmentMonths, cgv_version, clientIp, slug);
+  `).run(session.id, email, planKey, hostname, plan.commitmentMonths, CURRENT_CGV_VERSION, clientIp, slug);
 
   res.json({ url: session.url, sessionId: session.id });
 });

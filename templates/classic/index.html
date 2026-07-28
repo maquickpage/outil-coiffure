@@ -1,22 +1,42 @@
 <!DOCTYPE html>
+<!--
+  ============================================================================
+  TEMPLATE « classic » — page salon de coiffure (référence)
+  ============================================================================
+  Ce fichier est le POINT DE DÉPART pour créer un nouveau template.
+  Pour en dériver un : copier tout le dossier templates/classic/ en
+  templates/<mon-nom>/ puis modifier index.html + styles.css (+ hydrate.js si
+  la structure change).
+
+  RÈGLE D'OR : ce template ne contient QUE le design du salon. En production,
+  la plateforme injecte AUTOUR de ça, sans que tu aies à t'en occuper :
+    • le <head> SEO (title, meta description, Open Graph, JSON-LD, canonical)
+    • window.__SALON_VIEW__ (les données du salon)
+    • la « chrome de vente » (bannière CTA, modale de prix, onboarding, tracking)
+  Toi, tu fournis : le <body> ci-dessous + styles.css + les polices.
+
+  CONTRAT À RESPECTER — voir ../CONTRACT.md. En résumé, garder les id="..."
+  ci-dessous (hero-title, intro-description, services-grid, gallery-grid,
+  contact-address, etc.) : le serveur (SEO) et hydrate.js (données) s'en servent.
+
+  APERÇU LOCAL : ouvrir ../_preview/index.html, ou ce fichier directement avec
+  ?fixture=salon-classique  (charge un salon d'exemple depuis ../_fixtures/).
+  ============================================================================
+-->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- title + meta description adjacents : le SSR (src/ssr.js) remplace ce
+         bloc d'une seule regex — ne pas insérer d'élément entre les deux. -->
     <title>Salon de Coiffure</title>
     <meta name="description" content="Salon de coiffure">
-    <!-- Performance : preconnect aux origines tierces critiques pour LCP/Core Web Vitals -->
+    <!-- Polices : PROPRE À CHAQUE TEMPLATE. Change-les librement pour ton design. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://images.unsplash.com">
-    <link rel="dns-prefetch" href="https://api.stripe.com">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/_assets/styles.css?v=10">
-    <link rel="stylesheet" href="/_assets/banner.css?v=19">
-    <link rel="stylesheet" href="/_assets/pricing-modal.css?v=45">
-    <link rel="stylesheet" href="/_assets/waiting-screen.css?v=2">
-    <link rel="stylesheet" href="/_assets/preview-onboarding.css?v=4">
-    <link rel="stylesheet" href="/_assets/style-switcher.css?v=4">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="loading-overlay" id="loading-overlay"></div>
@@ -213,13 +233,7 @@
         </div>
     </footer>
 
-    <script src="/_assets/track.js?v=1"></script>
-    <script src="/_assets/template-config.js?v=1"></script>
-    <script src="/_assets/main.js?v=10"></script>
-    <script src="/_assets/pricing-modal.js?v=51"></script>
-    <script src="/_assets/banner.js?v=36"></script>
-    <script src="/_assets/waiting-screen.js?v=3"></script>
-    <script src="/_assets/style-switcher.js?v=4"></script>
-    <script src="/_assets/preview-onboarding.js?v=7" defer></script>
+    <!-- Hydratation = données → DOM. En prod, main.js/hydrate.js est fourni par la plateforme. -->
+    <script src="hydrate.js"></script>
 </body>
 </html>

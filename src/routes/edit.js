@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import db from '../db.js';
+import { isTemplateId } from '../templates.js';
 import { buildSalonView } from '../defaults.js';
 import { uploadObject, deleteObject, isObjectStorageConfigured } from '../object-storage.js';
 import { recaptureAsync } from '../screenshot-worker.js';
@@ -66,16 +67,33 @@ router.get('/edit/:slug', requireToken, (req, res) => {
   res.json(view);
 });
 
-// PUT /api/edit/:slug - sauvegarde des overrides (JSON merge)
+// Templates disponibles (design kit templates/ + site historique 'classic').
+// Doit rester aligné avec ALT_TEMPLATE_IDS dans src/ssr.js.
+// PUT /api/edit/:slug - sauvegarde des overrides (JSON merge) + template éventuel
 router.put('/edit/:slug', express.json({ limit: '2mb' }), requireToken, (req, res) => {
   const overrides = req.body?.overrides;
   if (!overrides || typeof overrides !== 'object') {
     return res.status(400).json({ error: 'overrides manquants' });
   }
 
+  // Choix de template (optionnel, hors overrides : colonne dédiée)
+  const template = req.body?.template;
+  if (template !== undefined && !isTemplateId(template)) {
+    return res.status(400).json({ error: 'Template inconnu' });
+  }
+
   // Validation legere : taille raisonnable, types attendus
   if (overrides.services?.items && overrides.services.items.length > 20) {
     return res.status(400).json({ error: 'Maximum 20 services' });
+  }
+  // Normalisation des catégories de services (valeur inconnue → 'autres')
+  if (Array.isArray(overrides.services?.items)) {
+    const CATS = new Set(['femme', 'homme', 'autres']);
+    for (const item of overrides.services.items) {
+      if (item && typeof item === 'object') {
+        item.category = CATS.has(item.category) ? item.category : 'autres';
+      }
+    }
   }
   if (overrides.gallery?.images && overrides.gallery.images.length > 12) {
     return res.status(400).json({ error: 'Maximum 12 images dans la galerie' });
@@ -90,6 +108,10 @@ router.put('/edit/:slug', express.json({ limit: '2mb' }), requireToken, (req, re
         screenshot_path = NULL, screenshot_generated_at = NULL
     WHERE id = ?
   `).run(JSON.stringify(overrides), req.salon.id);
+
+  if (template !== undefined) {
+    db.prepare(`UPDATE salons SET template = ? WHERE id = ?`).run(template, req.salon.id);
+  }
 
   // Le screenshot vient d'etre invalide (screenshot_path = NULL) : on relance
   // une capture automatique. Le hero (ou n'importe quel contenu) a pu changer,
@@ -110,14 +132,14 @@ router.delete('/edit/:slug/overrides', requireToken, (req, res) => {
   res.json({ ok: true });
 });
 
-// POST /api/edit/:slug/upload-image - upload une image (hero ou galerie)
-// Body : champ "image" (file), champ "kind" ("hero" | "gallery")
+// POST /api/edit/:slug/upload-image - upload une image (hero, intro ou galerie)
+// Body : champ "image" (file), champ "kind" ("hero" | "intro" | "gallery")
 // Stockage : Hetzner Object Storage si configuré, sinon disk local (fallback dev).
 router.post('/edit/:slug/upload-image', upload.single('image'), requireToken, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Aucune image' });
   const kind = req.body?.kind;
-  if (!['hero', 'gallery'].includes(kind)) {
-    return res.status(400).json({ error: 'kind doit etre hero ou gallery' });
+  if (!['hero', 'intro', 'gallery'].includes(kind)) {
+    return res.status(400).json({ error: 'kind doit etre hero, intro ou gallery' });
   }
 
   let filename;
@@ -129,6 +151,13 @@ router.post('/edit/:slug/upload-image', upload.single('image'), requireToken, as
     pipeline = sharp(req.file.buffer)
       .rotate()
       .resize(1920, 1080, { fit: 'cover', position: 'center' })
+      .jpeg({ quality: 80, progressive: true, mozjpeg: true });
+  } else if (kind === 'intro') {
+    filename = `intro-${Date.now()}.jpg`;
+    // Intro (visuel vertical du template Contrast) : portrait 4:5
+    pipeline = sharp(req.file.buffer)
+      .rotate()
+      .resize(1080, 1350, { fit: 'cover', position: 'center' })
       .jpeg({ quality: 80, progressive: true, mozjpeg: true });
   } else {
     filename = `gallery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;

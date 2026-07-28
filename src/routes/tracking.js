@@ -19,7 +19,12 @@ const router = express.Router();
 const RESERVED = new Set(['login', 'logout', 'me', 'index.html', 'login.html', 'admin.css', 'admin.js', 'i18n.js', 'api', 'groups', 'salon', 'job', 'screenshot', 'upload-csv', 'export-csv', 'clean-names', 'csv-source', 'reset-clean-name']);
 
 // Events navigateur autorisés (anti-spam de la table si l'endpoint est sondé).
-const ALLOWED_CLIENT_EVENTS = new Set(['pricing_ouvert', 'etape_prix', 'etape_domaine', 'domaine_perso', 'etape_email', 'cgv_accepte', 'paiement_initie', 'scroll_max']);
+const ALLOWED_CLIENT_EVENTS = new Set(['pricing_ouvert', 'etape_prix', 'etape_domaine', 'domaine_perso', 'etape_email', 'cgv_accepte', 'paiement_initie', 'scroll_max', 'paywall_peek_viewed', 'paywall_peek_opened', 'paywall_dismissed', 'template_essaye']);
+
+// Funnel de la landing maquickpage.fr (page marketing) — events ANONYMES, sans
+// salon rattaché (slug=null). N'exigent donc PAS salonExists() (contrairement
+// aux events maquette ci-dessus qui sont rattachés à un salon réel).
+const ALLOWED_LANDING_EVENTS = new Set(['landing_ready', 'landing_scroll', 'landing_cta', 'landing_check_open', 'landing_check_submit']);
 
 // Funnel de la landing maquickpage.fr (page marketing) — events ANONYMES, sans
 // salon rattaché (slug=null). N'exigent donc PAS salonExists() (contrairement

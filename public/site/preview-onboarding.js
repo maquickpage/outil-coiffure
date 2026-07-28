@@ -268,9 +268,10 @@
     // pas de bouton flottant "Modifier mon site", pas de bannière. Comme ça
     // le rendu capturé reflète le vrai site comme un visiteur lambda.
     const params = new URLSearchParams(window.location.search);
-    if (params.has('nocapture') || params.get('onboarding') === 'off') {
+    if (params.has('nocapture')) {
       return;
     }
+    const onboardingDisabled = params.get('onboarding') === 'off';
 
     // Capture early : si ?token=xxx dans l'URL, on le stocke en sessionStorage
     const slug = getSlugFromUrl();
@@ -287,7 +288,7 @@
     if (isDemoHost) {
       // Site demo Helsinki → comportement actuel : bouton + onboarding tour
       injectEditButton();
-      if (!arrivingFromAdmin()) {
+      if (!onboardingDisabled && !arrivingFromAdmin()) {
         setTimeout(start, 800);
       }
     } else {

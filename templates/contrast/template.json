@@ -1,0 +1,19 @@
+{
+  "id": "contrast",
+  "name": "Contrast",
+  "description": "Mise en page magazine « Curly » : bandes plein cadre alternées noir/blanc, nom du salon en lettrage pinceau, titres Montserrat capitales, galerie en bandes parallaxe cinéma, accent corail. Pour salons tendance, barbershops et studios.",
+  "author": "MaQuickPage",
+  "version": "1.0.0",
+  "assets": {
+    "html": "index.html",
+    "css": "styles.css",
+    "js": "hydrate.js"
+  },
+  "fonts": [
+    "Montserrat",
+    "Kaushan Script"
+  ],
+  "options": {
+    "gallery.layout": ["grid", "masonry"]
+  }
+}

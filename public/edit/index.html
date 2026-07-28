@@ -9,8 +9,8 @@
     <link rel="stylesheet" href="/edit-app/edit.css?v=2">
     <link rel="stylesheet" href="/edit-app/onboarding.css?v=4">
     <!-- Bannière promo + modal pricing (réutilisées depuis /preview/{slug}) -->
-    <link rel="stylesheet" href="/_assets/banner.css?v=7">
-    <link rel="stylesheet" href="/_assets/pricing-modal.css?v=10">
+    <link rel="stylesheet" href="/_assets/banner.css?v=15">
+    <link rel="stylesheet" href="/_assets/pricing-modal.css?v=21">
 </head>
 <body>
 
@@ -63,6 +63,12 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
             </span>
             <span>Avis clients</span>
+        </button>
+        <button class="edit-tab" data-tab="template">
+            <span class="edit-tab-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </span>
+            <span>Design du site</span>
         </button>
         <button class="edit-tab" data-tab="contact">
             <span class="edit-tab-icon" aria-hidden="true">
@@ -196,6 +202,25 @@
                 </div>
             </details>
 
+            <details class="accordion">
+                <summary class="accordion-summary">
+                    <span class="accordion-chevron"></span>
+                    <span class="accordion-title">Photo d'illustration</span>
+                </summary>
+                <div class="accordion-body">
+                    <span class="edit-help">Photo affichée à côté de cette section (design « Contrast »). Sans photo choisie, une photo de votre galerie est utilisée automatiquement.</span>
+                    <div class="hero-image-current intro-image-current" id="intro-image-current">
+                        <img id="intro-image-preview" src="" alt="">
+                        <span class="intro-image-auto-badge" id="intro-image-auto-badge" hidden>Choisie automatiquement</span>
+                        <div class="hero-image-overlay">
+                            <button class="btn-change-image" id="btn-intro-image" type="button">Changer l'image</button>
+                            <button class="btn-change-image" id="btn-intro-image-auto" type="button" hidden>Revenir en automatique</button>
+                        </div>
+                    </div>
+                    <input type="file" id="intro-file-input" accept="image/*" hidden>
+                </div>
+            </details>
+
             <div class="edit-actions">
                 <button class="btn-save" data-section="intro">Enregistrer le texte</button>
             </div>
@@ -287,6 +312,27 @@
             <div class="testimonials-accordion-list" id="testimonials-list"></div>
             <div class="edit-actions">
                 <button class="btn-save" data-section="testimonials">Enregistrer les avis</button>
+            </div>
+        </section>
+
+        <!-- TAB TEMPLATE (design du site) -->
+        <section class="edit-section" data-section="template">
+            <div class="edit-section-head">
+                <h1>Design du site</h1>
+                <p>Choisissez l'ambiance visuelle de votre site. Vos textes, photos et informations restent identiques quel que soit le design.</p>
+            </div>
+            <div class="accordion-body" style="padding-top: 0;">
+                <div class="template-choices" id="template-choices"></div>
+                <div class="edit-field" id="design-monochrome-field">
+                    <span class="edit-label">Photos en noir &amp; blanc</span>
+                    <label class="edit-toggle">
+                        <input type="checkbox" id="design-monochrome" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Appliquer le filtre noir &amp; blanc aux photos</span>
+                    </label>
+                    <span class="edit-help">Signature des designs « Contrast » et « Drama ». Décochez pour afficher vos photos en couleur d'origine. Sans effet sur « Classic ».</span>
+                </div>
+                <button class="btn-save" data-section="template">Enregistrer le design</button>
             </div>
         </section>
 
@@ -447,14 +493,15 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="/edit-app/edit.js?v=5"></script>
+<script src="/_assets/template-config.js?v=1"></script>
+<script src="/edit-app/edit.js?v=6"></script>
 <script src="/edit-app/onboarding.js?v=7" defer></script>
 <!-- Bannière commerciale (s'affiche dès l'ouverture du menu d'édition, mêmes
      règles close/reappear qu'en /preview). La modal pricing est chargée en
      premier pour que window.MqsPricingModal soit dispo au click CTA. -->
 <script src="/_assets/track.js?v=1"></script>
-<script src="/_assets/pricing-modal.js?v=17"></script>
-<script src="/_assets/banner.js?v=20"></script>
+<script src="/_assets/pricing-modal.js?v=28"></script>
+<script src="/_assets/banner.js?v=28"></script>
 
 </body>
 </html>

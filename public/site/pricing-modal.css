@@ -3,7 +3,7 @@
    Inspiration: Stripe / Linear / Notion landing
    ============================================================================= */
 
-@import url('https://rsms.me/inter/inter.css');
+@import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap');
 
 #mqs-modal-backdrop {
     position: fixed;
@@ -19,7 +19,7 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
-    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
 }
@@ -33,11 +33,79 @@
     display: none;
 }
 
+/* Preview : panneau latéral. Le site reste visible à gauche pendant que le
+   visiteur parcourt le domaine, les formules et le paiement. */
+#mqs-pricing-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    display: flex;
+    justify-content: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+}
+
+#mqs-pricing-drawer,
+#mqs-pricing-drawer *,
+#mqs-modal-backdrop,
+#mqs-modal-backdrop * {
+    box-sizing: border-box;
+}
+
+#mqs-pricing-drawer.mqs-modal-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mqs-drawer-scrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    background: rgba(9, 10, 12, 0.36);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    cursor: pointer;
+}
+
+#mqs-pricing-drawer #mqs-modal {
+    width: min(920px, 68vw);
+    height: calc(100dvh - 24px);
+    max-height: none;
+    margin: 12px 12px 12px 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 24px;
+    box-shadow: -24px 0 70px -28px rgba(0, 0, 0, 0.48);
+    transform: translateX(calc(100% + 24px));
+    transition: transform 0.34s cubic-bezier(.22,.75,.2,1);
+}
+
+#mqs-pricing-drawer.mqs-modal-open #mqs-modal {
+    transform: translateX(0);
+}
+
+#mqs-pricing-drawer #mqs-modal-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    margin: -18px -18px 0 0;
+}
+
+#mqs-pricing-drawer .mqs-plan-price {
+    font-size: clamp(2.15rem, 3.3vw, 3.05rem);
+}
+
 #mqs-modal {
-    background: #f5f5f7;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-    width: min(960px, calc(100vw - 32px));
+    background: #f4f4f2;
+    border-radius: 26px;
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.5);
+    width: min(1120px, calc(100vw - 32px));
     max-height: calc(100vh - 32px);
     overflow-y: auto;
     overflow-x: hidden;
@@ -45,7 +113,7 @@
     transition: transform 0.3s ease;
     position: relative;
     color: #0a0a0a;
-    padding: 28px 32px 22px;
+    padding: 44px 44px 34px;
 }
 
 #mqs-modal-backdrop.mqs-modal-open #mqs-modal {
@@ -65,12 +133,12 @@
 
 #mqs-modal-close {
     position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 32px;
-    height: 32px;
+    top: 24px;
+    right: 24px;
+    width: 38px;
+    height: 38px;
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.04);
+    background: #e4e4e1;
     border: 0;
     cursor: pointer;
     display: flex;
@@ -79,6 +147,35 @@
     color: #6b7280;
     transition: background 0.15s ease, color 0.15s ease;
     z-index: 10;
+}
+
+.mqs-funnel-tabs {
+    display: flex;
+    width: fit-content;
+    gap: 4px;
+    margin: 0 auto 24px;
+    padding: 4px;
+    border-radius: 999px;
+    background: #dcdcd9;
+}
+
+.mqs-funnel-tabs button {
+    padding: 9px 18px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #5c5c59;
+    cursor: pointer;
+    font: 600 14px/1 inherit;
+}
+
+.mqs-funnel-tabs button.is-active {
+    background: #0a0a0a;
+    color: #ffffff;
+}
+
+.mqs-funnel-tabs button:disabled {
+    cursor: default;
 }
 
 #mqs-modal-close:hover {
@@ -100,8 +197,27 @@
     margin-bottom: 22px;
 }
 
+.mqs-launch-pill {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    gap: 8px;
+    margin: 10px auto 14px;
+    padding: 7px 12px;
+    border: 1px solid #d6ec9a;
+    border-radius: 999px;
+    background: #eaf7c2;
+    color: #33420a;
+    font-size: 0.68rem;
+}
+
+.mqs-launch-pill strong {
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
 .mqs-step-eyebrow {
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     color: #6b7280;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -109,8 +225,8 @@
 }
 
 .mqs-step-title {
-    font-size: clamp(1.4rem, 2.5vw, 1.7rem);
-    font-weight: 700;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 800;
     color: #0a0a0a;
     margin: 4px 0 4px;
     line-height: 1.15;
@@ -119,7 +235,7 @@
 }
 
 .mqs-step-sub {
-    font-size: 0.82rem;
+    font-size: 0.92rem;
     color: #6b7280;
     max-width: 520px;
     margin: 0 auto;
@@ -142,9 +258,10 @@
 /* === Plans grid : 3 cards equal width === */
 .mqs-plans {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-bottom: 18px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin: 4px 0 22px;
+    align-items: stretch;
 }
 
 @media (max-width: 760px) {
@@ -158,14 +275,32 @@
 /* === Plan card — compact === */
 .mqs-plan {
     background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 18px 18px 16px;
+    border: 1px solid #e4e4e0;
+    border-radius: 22px;
+    padding: 24px;
     cursor: pointer;
     position: relative;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    display: grid;
+    grid-template-rows: 56px 72px 34px 58px minmax(72px, auto) 30px 48px;
+    align-content: stretch;
+    min-width: 0;
+}
+
+.mqs-plan-heading {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    min-width: 0;
+}
+
+.mqs-plan-title {
+    font-size: 1.05rem;
+    line-height: 1.25;
+    max-width: 52%;
+    letter-spacing: -0.025em;
 }
 
 .mqs-plan:hover {
@@ -179,8 +314,17 @@
 
 /* === Plan POPULAR : background lavender === */
 .mqs-plan.mqs-plan-popular {
-    background: #e8e9ff;
-    border-color: transparent;
+    background: #f6fbdc;
+    color: #0a0a0a;
+    border: 2px solid #b7d73e;
+    transform: none;
+    box-shadow: 0 16px 34px -24px rgba(62, 82, 0, 0.4);
+}
+
+.mqs-plan-popular .mqs-plan-title,
+.mqs-plan-popular .mqs-plan-price,
+.mqs-plan-popular .mqs-plan-description {
+    color: #0a0a0a;
 }
 
 .mqs-plan.mqs-plan-popular.mqs-plan-selected {
@@ -189,7 +333,7 @@
 
 /* === Eyebrow badge (compact pill) === */
 .mqs-plan-eyebrow {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     color: #6b7280;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -197,48 +341,100 @@
     background: #f4f4f5;
     padding: 4px 10px;
     border-radius: 999px;
-    align-self: flex-start;
-    margin-bottom: 12px;
+    align-self: center;
+    margin-bottom: 0;
     display: inline-block;
+    white-space: nowrap;
 }
 
 .mqs-plan-popular .mqs-plan-eyebrow {
-    background: #ffffff;
-    color: #0a0a0a;
+    background: #cdf24d;
+    color: #0b0b0b;
     font-weight: 700;
 }
 
 /* === Prix — gros mais pas geant === */
 .mqs-plan-price-line {
     display: flex;
-    align-items: baseline;
-    gap: 3px;
-    margin-bottom: 8px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
     line-height: 1;
+    min-width: 0;
+}
+
+.mqs-plan-price-main {
+    display: flex;
+    align-items: flex-end;
+    gap: 7px;
+    min-width: 0;
 }
 
 .mqs-plan-price {
-    font-size: 1.85rem;
-    font-weight: 700;
+    font-size: clamp(2.15rem, 3vw, 2.75rem);
+    font-weight: 800;
     color: #0a0a0a;
     letter-spacing: -0.04em;
     line-height: 1;
     font-family: inherit;
+    white-space: nowrap;
+}
+
+.mqs-plan-discount {
+    flex: 0 0 auto;
+    padding: 7px 8px;
+    border-radius: 9px;
+    background: #eaf7c2;
+    color: #33420a;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.mqs-plan-discount-placeholder {
+    visibility: hidden;
 }
 
 .mqs-plan-period {
-    font-size: 0.82rem;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
     color: #6b7280;
     font-weight: 500;
     letter-spacing: -0.01em;
+    line-height: 1.1;
+    white-space: nowrap;
 }
 
 .mqs-plan-description {
-    font-size: 0.76rem;
+    font-size: 0.82rem;
     color: #6b7280;
-    margin: 0 0 14px;
+    margin: 0 0 8px;
     line-height: 1.4;
-    min-height: 2.8em; /* aligne les CTA des 3 cards meme si descriptions longueurs differentes */
+    min-height: 0;
+}
+
+.mqs-plan-saving {
+    min-height: 0;
+    margin: 0 0 10px;
+    color: #5b7a12;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    font-weight: 700;
+}
+
+.mqs-plan-saving strong {
+    font-weight: 800;
+}
+
+.mqs-plan-reference {
+    margin: 0 0 8px;
+    color: #5f636b;
+    font-size: 0.72rem;
+    line-height: 1.35;
+}
+
+.mqs-plan-popular .mqs-plan-saving {
+    color: #4c6500;
 }
 
 @media (max-width: 760px) {
@@ -247,25 +443,351 @@
     }
 }
 
+/* === Ligne secondaire factuelle (ex : « Engagement 24 mois ») ===
+   Rendue sur les 3 cards (vide si pas de note) pour garder les CTA alignés. */
+.mqs-plan-note {
+    font-size: 0.7rem;
+    color: #6b7280;
+    font-weight: 600;
+    margin: 0 0 12px;
+    min-height: 1.1em;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+}
+
+.mqs-plan-popular .mqs-plan-note {
+    color: #4b4d7a;
+}
+
+@media (max-width: 760px) {
+    .mqs-plan-note {
+        min-height: 0;
+        margin: 0 0 10px;
+    }
+    .mqs-plan-note:empty {
+        display: none;
+    }
+}
+
 /* === Bouton CTA dans chaque card : noir pill === */
 .mqs-plan-cta {
     background: #0a0a0a;
     color: #ffffff;
     border: 0;
-    padding: 10px 16px;
-    border-radius: 999px;
+    align-self: end;
+    min-height: 48px;
+    padding: 12px 14px;
+    border-radius: 13px;
     font-family: inherit;
     font-weight: 600;
-    font-size: 0.82rem;
+    font-size: 0.88rem;
     letter-spacing: -0.01em;
     cursor: pointer;
     width: 100%;
-    margin-bottom: 14px;
+    margin-top: auto;
+    margin-bottom: 0;
     transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.mqs-plan-popular .mqs-plan-cta {
+    background: #0a0a0a;
+    color: #ffffff;
+}
+
+.mqs-plan-popular .mqs-plan-cta:hover {
+    background: #242424;
+}
+
+.mqs-value-anchor {
+    position: relative;
+    display: block;
+    max-width: none;
+    margin: 0 0 28px;
+    padding: 24px 26px;
+    border-radius: 20px;
+    border: 2px solid #bedb52;
+    background: #f1f8d2;
+    color: #263500;
+}
+
+.mqs-value-anchor > h3 {
+    margin: 10px 80px 12px 0;
+    font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+}
+
+.mqs-value-anchor > p {
+    margin: 14px 0 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.mqs-value-anchor-intro {
+    max-width: 680px;
+    color: #536020;
+}
+
+.mqs-launch-price {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.mqs-launch-price s {
+    color: #7b8068;
+    font-size: 1rem;
+}
+
+.mqs-launch-price strong {
+    color: #263500;
+    font-size: 2.25rem;
+    letter-spacing: -.05em;
+}
+
+.mqs-value-anchor-discount {
+    position: absolute;
+    top: 22px;
+    right: 24px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    background: #263500;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.mqs-plans-heading {
+    margin: 0 0 14px;
+}
+
+.mqs-plans-heading h3 {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+}
+
+.mqs-plans-heading p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.mqs-value-anchor-classic,
+.mqs-value-anchor-mqp {
+    padding: 24px 26px;
+    border-radius: 18px;
+    min-width: 0;
+}
+
+.mqs-value-anchor-classic {
+    border: 1px solid #deded9;
+    background: #ffffff;
+}
+
+.mqs-value-anchor-mqp {
+    border: 2px solid #bedb52;
+    background: #f1f8d2;
+}
+
+.mqs-value-anchor-label,
+.mqs-value-anchor-brand,
+.mqs-value-anchor-offer {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+.mqs-value-anchor-label {
+    margin: 0 0 8px;
+    color: #6f6f6b;
+}
+
+.mqs-value-anchor h3 {
+    margin: 0 0 14px;
+    font-size: 1.08rem;
+}
+
+.mqs-value-anchor-line,
+.mqs-value-anchor-total {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 6px 0;
+    font-size: 0.82rem;
+}
+
+.mqs-value-anchor-total {
+    margin-top: 7px;
+    padding-top: 12px;
+    border-top: 1px solid #deded9;
+}
+
+.mqs-value-anchor small {
+    display: block;
+    margin-top: 10px;
+    color: #6f6f6b;
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.mqs-value-anchor-brand,
+.mqs-value-anchor-offer {
+    display: block;
+    color: #4c6500;
+}
+
+.mqs-value-anchor-offer {
+    margin-top: 9px;
+    color: #65752c;
+}
+
+.mqs-value-anchor-price {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin: 10px 0 2px;
+}
+
+.mqs-value-anchor-price s {
+    color: #81856e;
+    font-size: 1.1rem;
+}
+
+.mqs-value-anchor-price strong {
+    color: #263500;
+    font-size: 3.4rem;
+    line-height: 1;
+}
+
+.mqs-value-anchor-mqp p {
+    margin: 8px 0 0;
+    font-size: 0.82rem;
+    font-weight: 700;
 }
 
 .mqs-plan-cta:hover {
     background: #1a1a1a;
+}
+
+.mqs-value-block {
+    margin-top: 2px;
+    padding: 22px 24px;
+    border: 1px solid #dedfe3;
+    border-radius: 20px;
+    background: #ffffff;
+}
+
+.mqs-value-intro {
+    margin: -3px 0 18px;
+    color: #6f6f6c;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.mqs-value-grid a {
+    color: inherit;
+    font-weight: 700;
+}
+
+.mqs-installation-highlight {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 680px;
+    margin: 12px auto 0;
+    padding: 10px 14px;
+    border: 1px solid #cee68c;
+    border-radius: 12px;
+    background: #f5ffd7;
+    color: #26320a;
+    text-align: left;
+}
+
+.mqs-installation-highlight-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 23px;
+    width: 23px;
+    height: 23px;
+    border-radius: 50%;
+    background: #26320a;
+    color: #d4ff3a;
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+
+.mqs-installation-highlight strong,
+.mqs-installation-highlight small {
+    display: block;
+}
+
+.mqs-installation-highlight strong {
+    font-size: 0.75rem;
+    line-height: 1.35;
+}
+
+.mqs-installation-highlight small {
+    margin-top: 2px;
+    color: #536020;
+    font-size: 0.65rem;
+    line-height: 1.4;
+}
+
+.mqs-value-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 13px;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.mqs-value-heading strong {
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #efffba;
+    color: #26320a;
+    font-size: 0.74rem;
+}
+
+.mqs-value-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.mqs-value-grid > span {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-content: start;
+    column-gap: 7px;
+}
+
+.mqs-value-installation {
+    padding-right: 12px;
+    border-right: 1px solid #e5e7eb;
+}
+
+.mqs-value-grid b {
+    grid-row: 1 / 3;
+    color: #4c6500;
+}
+
+.mqs-value-grid strong {
+    font-size: 0.8rem;
+    line-height: 1.3;
+}
+
+.mqs-value-grid small {
+    margin-top: 3px;
+    color: #7b8089;
+    font-size: 0.74rem;
+    line-height: 1.45;
+}
+
+.mqs-plan-trust {
+    margin-top: 10px !important;
 }
 
 /* === Features list — compacte === */
@@ -355,6 +877,29 @@
     scrollbar-width: thin;
     scrollbar-color: #d1d5db transparent;
 }
+
+.mqs-domain-section {
+    margin-bottom: 18px;
+}
+
+.mqs-domain-section-title {
+    margin: 0 0 9px;
+    color: #111318;
+    font-size: 0.86rem;
+    font-weight: 750;
+}
+
+.mqs-domain-section-help {
+    margin: -3px 0 10px;
+    color: #6b7280;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.mqs-domain-custom-section {
+    padding-top: 17px;
+    border-top: 1px solid #dedfe3;
+}
 .mqs-domain-list::-webkit-scrollbar {
     width: 6px;
 }
@@ -420,8 +965,8 @@
 }
 
 .mqs-badge-offert {
-    background: #dcfce7;
-    color: #14532d;
+    background: #eaf7c2;
+    color: #33420a;
 }
 
 .mqs-badge-supplement {
@@ -526,7 +1071,7 @@
 
 /* === Custom input block (volet collapsible) === */
 .mqs-custom-block {
-    margin-bottom: 18px;
+    margin-bottom: 0;
     background: #fafafa;
     border: 1px dashed #d4d4d8;
     border-radius: 12px;
@@ -729,6 +1274,40 @@
     cursor: not-allowed;
 }
 
+/* === Footer étape 1 (domaine) : bouton unique « Voir les tarifs », aligné à droite === */
+.mqs-footer-solo {
+    justify-content: flex-end;
+}
+
+/* === Footer étape 2 (formule) : retour + ligne de réassurance empilés === */
+.mqs-footer-plan {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.mqs-footer-plan .mqs-btn-back {
+    align-self: flex-start;
+}
+
+.mqs-footer-plan .mqs-trust {
+    margin: 0;
+}
+
+/* === Rappel du domaine choisi, en tête de l'étape formule === */
+.mqs-step-domain-note {
+    margin: 10px 0 0;
+    font-size: 0.82rem;
+    color: #4b5563;
+}
+
+.mqs-step-domain-note strong {
+    color: #0a0a0a;
+}
+
 @media (max-width: 600px) {
     .mqs-footer-stepb,
     .mqs-footer-stepc {
@@ -757,54 +1336,372 @@
 }
 
 /* =============================================================================
-   STEP C — Email + résumé + paiement
+   STEP C — décision de paiement
    ============================================================================= */
 
-.mqs-summary {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 18px 20px;
+.mqs-payment-header {
     margin-bottom: 18px;
 }
 
-.mqs-summary-row {
+.mqs-payment-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: 14px;
+    align-items: stretch;
+}
+
+.mqs-order-card,
+.mqs-checkout-card {
+    border-radius: 18px;
+    padding: 22px;
+}
+
+.mqs-order-card {
+    background: #111318;
+    color: #ffffff;
+    box-shadow: 0 16px 35px rgba(17, 19, 24, 0.16);
+}
+
+.mqs-order-topline,
+.mqs-order-price-line,
+.mqs-order-total,
+.mqs-checkout-heading,
+.mqs-founder-trust {
     display: flex;
+    align-items: center;
+}
+
+.mqs-order-topline {
     justify-content: space-between;
-    align-items: baseline;
     gap: 12px;
-    padding: 6px 0;
+    margin-bottom: 12px;
 }
 
-.mqs-summary-row + .mqs-summary-row {
-    border-top: 1px solid #f3f4f6;
+.mqs-order-kicker {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
 }
 
-.mqs-summary-label {
-    font-size: 0.78rem;
-    color: #6b7280;
-    letter-spacing: -0.005em;
-    flex-shrink: 0;
+.mqs-order-popular {
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #d4ff3a;
+    color: #111318;
+    font-size: 0.65rem;
+    font-weight: 800;
 }
 
-.mqs-summary-value {
-    font-size: 0.92rem;
+.mqs-order-price-line {
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.mqs-order-price {
+    font-size: clamp(2.55rem, 5vw, 3.65rem);
+    line-height: 0.95;
+    letter-spacing: -0.065em;
+}
+
+.mqs-order-period {
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.72rem;
     font-weight: 600;
-    color: #0a0a0a;
-    text-align: right;
-    letter-spacing: -0.01em;
+    line-height: 1.2;
 }
 
-.mqs-summary-note {
-    border-top: 0 !important;
-    padding-top: 0 !important;
+.mqs-order-commitment {
+    margin: 10px 0 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.78rem;
 }
 
-.mqs-summary-sub {
-    font-size: 0.74rem;
-    color: #9ca3af;
-    text-align: right;
-    line-height: 1.4;
+.mqs-order-saving {
+    margin: 0 0 18px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+
+.mqs-order-saving strong {
+    color: #d4ff3a;
+}
+
+.mqs-order-domain {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.mqs-order-style {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border: 1px solid #e7e2d9;
+  border-radius: 10px;
+  background: #fbfaf7;
+}
+
+.mqs-order-style > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+
+.mqs-order-style small {
+  color: #777;
+  font-size: 10px;
+}
+
+.mqs-order-style strong {
+  color: #181818;
+  font-size: 13px;
+}
+
+.mqs-order-style a {
+  color: #555;
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.mqs-order-style-swatch {
+  width: 38px;
+  height: 30px;
+  border-radius: 6px;
+  background: #e8ddcb;
+}
+
+.mqs-order-style-contrast { background: linear-gradient(112deg, #111 0 58%, #ee6e60 58%); }
+.mqs-order-style-drama { background: linear-gradient(135deg, #080808, #5b4929); }
+
+.mqs-order-domain-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: #d4ff3a;
+    color: #111318;
+    font-size: 0.62rem;
+    font-weight: 800;
+}
+
+.mqs-order-domain small,
+.mqs-order-domain strong {
+    display: block;
+    min-width: 0;
+}
+
+.mqs-order-domain small {
+    margin-bottom: 2px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.64rem;
+}
+
+.mqs-order-domain strong {
+    overflow: hidden;
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mqs-order-included {
+    color: #d4ff3a;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.mqs-order-includes {
+    list-style: none;
+    margin: 18px 0;
+    padding: 0;
+}
+
+.mqs-order-includes li {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.75rem;
+}
+
+.mqs-order-includes li span {
+    color: #d4ff3a;
+    font-weight: 800;
+}
+
+.mqs-order-includes li > span:last-child {
+    color: rgba(255, 255, 255, 0.76);
+    font-weight: 400;
+}
+
+.mqs-order-includes li a {
+    color: #d4ff3a;
+    font-weight: 700;
+    text-underline-offset: 2px;
+}
+
+.mqs-order-installation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 11px 12px;
+    border: 1px solid rgba(212, 255, 58, 0.28);
+    border-radius: 10px;
+    background: rgba(212, 255, 58, 0.08);
+}
+
+.mqs-order-installation-discount {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    border-radius: 7px;
+    background: #d4ff3a;
+    color: #111318;
+    font-size: 0.65rem;
+    font-weight: 800;
+}
+
+.mqs-order-installation > span,
+.mqs-order-installation > span strong,
+.mqs-order-installation small {
+    display: block;
+}
+
+.mqs-order-installation > span strong {
+    color: #ffffff;
+    font-size: 0.72rem;
+}
+
+.mqs-order-installation small {
+    margin-top: 3px;
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 0.59rem;
+    line-height: 1.35;
+}
+
+.mqs-order-installation > strong {
+    flex: 0 0 auto;
+    color: #d4ff3a;
+    font-size: 1.05rem;
+}
+
+.mqs-order-installation-price {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+}
+
+.mqs-order-installation-price s {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.7rem;
+}
+
+.mqs-order-installation-price strong {
+    color: #cdf24d;
+    font-size: 1.2rem;
+}
+
+.mqs-order-launch-note {
+    margin: -5px 0 14px;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.64rem;
+    line-height: 1.45;
+}
+
+.mqs-order-total {
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.76rem;
+}
+
+.mqs-order-total-wrap .mqs-order-total + .mqs-order-total {
+    margin-top: 8px;
+}
+
+.mqs-order-total-wrap {
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.mqs-order-total-wrap .mqs-order-total {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.mqs-order-total-wrap small {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.62rem;
+    line-height: 1.35;
+}
+
+.mqs-order-total span {
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.mqs-order-total strong {
+    font-size: 1rem;
+}
+
+.mqs-checkout-card {
+    background: #ffffff;
+    border: 1px solid #dedfe3;
+    box-shadow: 0 10px 30px rgba(10, 10, 10, 0.06);
+}
+
+.mqs-checkout-heading {
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.mqs-checkout-heading > span:last-child,
+.mqs-checkout-heading strong,
+.mqs-checkout-heading small {
+    display: block;
+}
+
+.mqs-checkout-heading strong {
+    font-size: 0.9rem;
+}
+
+.mqs-checkout-heading small {
+    margin-top: 2px;
+    color: #7b8089;
+    font-size: 0.69rem;
+}
+
+.mqs-checkout-lock {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #efffba;
+}
+
+.mqs-checkout-lock svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: #111318;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
 }
 
 .mqs-email-block {
@@ -813,13 +1710,20 @@
 
 .mqs-email-input {
     width: 100%;
+    min-height: 46px;
 }
 
-/* === CGV checkbox block === */
+.mqs-email-help {
+    margin: 6px 0 0;
+    color: #8a8f98;
+    font-size: 0.66rem;
+    line-height: 1.4;
+}
+
 .mqs-cgv-block {
-    margin-bottom: 16px;
-    padding: 12px 14px;
-    background: #fafafa;
+    margin-bottom: 14px;
+    padding: 11px 12px;
+    background: #f7f7f8;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
 }
@@ -857,4 +1761,1015 @@
 
 .mqs-cgv-link:hover {
     color: #1a1a1a;
+}
+
+.mqs-payment-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    min-height: 50px;
+    padding: 13px 17px;
+    border: 0;
+    border-radius: 11px;
+    background: #cdf24d;
+    color: #0b0b0b;
+    box-shadow: 0 8px 20px rgba(17, 19, 24, 0.2);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.mqs-payment-cta:hover:not(:disabled) {
+    background: #dcff6b;
+    transform: translateY(-1px);
+    box-shadow: 0 11px 24px rgba(17, 19, 24, 0.25);
+}
+
+.mqs-payment-cta:disabled {
+    background: #d8d8d5;
+    color: #8a8a87;
+    opacity: 1;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.mqs-payment-fineprint {
+    margin: 8px 0 0;
+    color: #8a8f98;
+    font-size: 0.64rem;
+    text-align: center;
+}
+
+.mqs-checkout-error {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border: 1px solid #fecaca;
+    border-radius: 9px;
+    background: #fff1f2;
+    color: #9f1239;
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.mqs-founder-trust {
+    gap: 12px;
+    margin-top: 14px;
+    padding: 13px 15px;
+    border: 1px solid #dedfe3;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.mqs-founder-mark {
+    display: grid;
+    place-items: center;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #111318;
+    color: #d4ff3a;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.mqs-founder-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.mqs-founder-copy strong,
+.mqs-founder-copy span,
+.mqs-founder-legal span,
+.mqs-founder-legal a {
+    display: block;
+}
+
+.mqs-founder-copy strong {
+    margin-bottom: 3px;
+    font-size: 0.78rem;
+}
+
+.mqs-founder-copy span,
+.mqs-founder-legal {
+    color: #747982;
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.mqs-founder-copy a,
+.mqs-founder-legal a {
+    color: #111318;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.mqs-founder-legal {
+    flex: 0 0 auto;
+    padding-left: 14px;
+    border-left: 1px solid #e5e7eb;
+    text-align: right;
+}
+
+.mqs-founder-legal a {
+    margin-top: 3px;
+}
+
+.mqs-payment-back {
+    margin-top: 5px;
+    padding-left: 0;
+}
+
+@media (max-width: 700px) {
+    #mqs-modal {
+        padding: 34px 18px 20px;
+    }
+    .mqs-funnel-tabs {
+        margin: 0 auto 20px;
+    }
+    .mqs-funnel-tabs button {
+        padding: 8px 11px;
+        font-size: 0.68rem;
+    }
+    .mqs-value-anchor,
+    .mqs-payment-layout {
+        grid-template-columns: 1fr;
+    }
+    .mqs-plan.mqs-plan-popular {
+        transform: none;
+    }
+    .mqs-order-card,
+    .mqs-checkout-card {
+        padding: 18px;
+    }
+    .mqs-order-price {
+        font-size: 2.65rem;
+    }
+    .mqs-founder-trust {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+    .mqs-founder-copy {
+        flex-basis: calc(100% - 58px);
+    }
+    .mqs-founder-legal {
+        flex-basis: 100%;
+        padding: 10px 0 0 54px;
+        border-top: 1px solid #e5e7eb;
+        border-left: 0;
+        text-align: left;
+    }
+    .mqs-value-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .mqs-value-installation {
+        padding-right: 0;
+        border-right: 0;
+    }
+    .mqs-value-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+/* Step 2 exact draft layout */
+#mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal {
+    width: min(760px, 100vw);
+    padding: 22px 44px 44px;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-funnel-tabs {
+    margin-bottom: 22px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-header {
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-title {
+    max-width: none;
+    margin: 10px 0 0;
+    font-size: 40px;
+    line-height: 1.06;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-sub {
+    max-width: none;
+    margin: 9px auto 0;
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-domain-note {
+    margin: 5px auto 0;
+    color: #6f6f69;
+    font-size: 14px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-domain-note::first-letter {
+    text-transform: uppercase;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor {
+    margin-bottom: 12px;
+    padding: 13px 22px 11px;
+    border: 1.5px solid #b8dc2b;
+    border-radius: 18px;
+    background: #ebf9a9;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-brand {
+    color: #536b18;
+    font-size: 11px;
+    letter-spacing: .1em;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor > h3 {
+    margin: 3px 0 8px;
+    font-size: 20px;
+    line-height: 1.1;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-line {
+    padding: 3px 0;
+    color: #53612e;
+    font-size: 14px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-line strong {
+    color: #7d885d;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-total {
+    margin-top: 5px;
+    min-height: 0;
+    padding: 10px 0 0;
+    border-color: rgba(83,107,24,.2);
+    font-size: 15px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-launch-price {
+    gap: 10px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-launch-price s {
+    color: #778359;
+    font-size: 18px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-launch-price strong {
+    color: #1c2708;
+    font-size: 34px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-heading {
+    margin-bottom: 18px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-heading h3 {
+    margin-bottom: 8px;
+    font-size: 25px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-heading p {
+    max-width: 650px;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans {
+    gap: 18px;
+    padding-top: 0;
+    margin-bottom: 0;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan {
+    display: grid;
+    grid-template-rows: 34px 50px 38px 68px 58px 44px;
+    min-height: 0;
+    padding: 24px 20px 20px;
+    border: 1px solid #dddeda;
+    border-radius: 15px;
+    background: #fff;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan.mqs-plan-popular {
+    margin-top: 0;
+    border: 2px solid #b7d73e;
+    background: #f5ffd2;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-heading {
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+    margin: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-title {
+    max-width: 62%;
+    font-size: 16px;
+    line-height: 1.2;
+    letter-spacing: -.02em;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-title-flex {
+    font-size: 15px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-eyebrow {
+    flex-shrink: 0;
+    padding: 5px 8px;
+    background: #e9e9e4;
+    color: #85857d;
+    font-size: 8px;
+    line-height: 1.2;
+    letter-spacing: .035em;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-popular .mqs-plan-eyebrow {
+    background: #d9f24e;
+    color: #263500;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-price-line {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 8px;
+    margin: 0;
+    margin-bottom: 0;
+    line-height: 1;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-price {
+    font-size: 34px !important;
+    line-height: 1;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-discount {
+    display: inline-block;
+    margin: 0;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #d9f24e;
+    color: #263500;
+    box-shadow: none;
+    font-size: 12px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-discount-placeholder {
+    display: none;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-period {
+    margin: 0;
+    color: #9a9a94;
+    font-size: 11px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-offer {
+    align-self: start;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-freedom {
+    background: #f0f0ed;
+    color: #666760;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-flex-status {
+    align-self: start;
+    width: 100%;
+    margin: 0;
+    padding-top: 14px;
+    border-top: 1px solid #e4e4df;
+    color: #506d18;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.45;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-description {
+    align-self: start;
+    margin: 0;
+    color: #77776f;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-cta {
+    min-height: 42px;
+    align-self: end;
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid #d7d7d2;
+    border-radius: 11px;
+    background: #fff;
+    color: #111;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-cta:hover {
+    background: #242424;
+    color: #fff;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-popular .mqs-plan-cta {
+    background: #0a0a0a;
+    color: #fff;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-footnote {
+    margin: 16px 0 0;
+    color: #999a93;
+    font-size: 10px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-popular .mqs-plan-cta:hover {
+    background: #242424;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-footer-plan {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal { padding: 20px 20px 32px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-title { font-size: 30px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor { padding: 12px 15px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-total { align-items: flex-end; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan { min-height: 0; }
+}
+
+.mqs-domain-section-title span {
+    color: #667b24;
+    font-weight: 700;
+}
+
+.mqs-order-style {
+    grid-template-columns: 1fr auto;
+}
+
+/* Step 3 exact draft layout */
+#mqs-pricing-drawer:has(.mqs-payment-layout) #mqs-modal {
+    width: min(760px, 100vw);
+    padding: 22px 46px 18px;
+}
+
+.mqs-payment-header {
+    margin-bottom: 26px;
+}
+
+.mqs-payment-header .mqs-step-title {
+    margin-top: 14px;
+}
+
+.mqs-payment-layout {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+}
+
+.mqs-order-card,
+.mqs-checkout-card {
+    min-height: 596px;
+    padding: 24px;
+    border-radius: 18px;
+}
+
+.mqs-order-card {
+    display: flex;
+    flex-direction: column;
+    background: #0f0f0f;
+    box-shadow: none;
+}
+
+.mqs-order-topline {
+    margin-bottom: 22px;
+}
+
+.mqs-order-kicker {
+    color: rgba(255,255,255,.55);
+    font-size: 11px;
+    letter-spacing: .1em;
+}
+
+.mqs-order-popular {
+    padding: 5px 11px;
+    background: #d9f24e;
+    color: #24310a;
+    font-size: 11px;
+}
+
+.mqs-order-price-line {
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.mqs-order-price {
+    font-size: 42px;
+    letter-spacing: -.035em;
+}
+
+.mqs-order-period {
+    margin: 0;
+    color: rgba(255,255,255,.52);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.mqs-order-commitment,
+.mqs-order-saving {
+    display: none;
+}
+
+.mqs-order-domain {
+    gap: 12px;
+    padding: 14px;
+    border: 0;
+    border-radius: 12px;
+    background: #171717;
+}
+
+.mqs-order-domain-icon {
+    width: 34px;
+    height: 34px;
+    background: #d9f24e;
+    color: #24310a;
+    font-size: 11px;
+}
+
+.mqs-order-domain small {
+    color: rgba(255,255,255,.48);
+    font-size: 11px;
+}
+
+.mqs-order-domain strong {
+    font-size: 15px;
+}
+
+.mqs-order-included {
+    color: #d9f24e;
+    font-size: 13px;
+}
+
+.mqs-order-includes {
+    margin: 18px 0;
+}
+
+.mqs-order-includes li {
+    margin: 10px 0;
+    color: rgba(255,255,255,.84);
+    font-size: 14px;
+}
+
+.mqs-order-includes li span {
+    color: #d9f24e;
+}
+
+.mqs-order-installation {
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    border: 0;
+    border-radius: 12px;
+    background: #171717;
+}
+
+.mqs-order-installation > span strong {
+    font-size: 14px;
+}
+
+.mqs-order-installation small {
+    color: rgba(255,255,255,.45);
+    font-size: 12px;
+}
+
+.mqs-order-installation-price strong {
+    color: #d9f24e;
+    font-size: 20px;
+}
+
+.mqs-order-total-wrap {
+    margin-top: auto;
+    padding-top: 16px;
+}
+
+.mqs-order-total-wrap .mqs-order-total {
+    margin: 0;
+    font-size: 14px;
+}
+
+.mqs-order-total-wrap .mqs-order-total + .mqs-order-total {
+    margin-top: 12px;
+}
+
+.mqs-order-total span {
+    color: rgba(255,255,255,.62);
+}
+
+.mqs-order-total strong {
+    font-size: 14px;
+}
+
+.mqs-order-total-wrap small {
+    margin-top: 14px;
+    color: rgba(255,255,255,.42);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.mqs-checkout-card {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #e6e6e0;
+    box-shadow: none;
+}
+
+.mqs-checkout-heading {
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.mqs-checkout-lock {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: #f0f5d6;
+    color: #596d16;
+    font-size: 17px;
+}
+
+.mqs-checkout-heading strong {
+    color: #0a0a0a;
+    font-size: 16px;
+}
+
+.mqs-checkout-heading small {
+    color: #8a8a84;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.mqs-email-block {
+    margin-bottom: 22px;
+}
+
+.mqs-email-block .mqs-custom-label {
+    margin-bottom: 8px;
+    color: #3a3a34;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.mqs-email-input {
+    min-height: 54px;
+    padding: 15px 16px;
+    border-color: #d8d8d2;
+    border-radius: 12px;
+    font-size: 15px;
+}
+
+.mqs-email-help {
+    margin-top: 8px;
+    color: #9a9a94;
+    font-size: 12px;
+}
+
+.mqs-cgv-block {
+    margin: 0 0 30px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.mqs-cgv-label {
+    gap: 10px;
+}
+
+.mqs-cgv-checkbox {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    accent-color: #46660a;
+}
+
+.mqs-cgv-text {
+    color: #4a4a44;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.mqs-cgv-link {
+    color: #46660a;
+}
+
+.mqs-first-month-note {
+    margin: 12px 0 0;
+    color: rgba(255, 255, 255, .58);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.mqs-first-month-note strong {
+    color: rgba(255, 255, 255, .82);
+}
+
+.mqs-first-month-note a {
+    display: inline-block;
+    margin-left: 3px;
+    color: #d4ff3a;
+    font-weight: 700;
+    text-underline-offset: 2px;
+}
+
+.mqs-checkout-faq {
+    margin: -12px 0 24px;
+    border-bottom: 1px solid #e1e1db;
+}
+
+.mqs-checkout-faq details {
+    border-top: 1px solid #e1e1db;
+}
+
+.mqs-checkout-faq summary {
+    padding: 14px 0;
+    color: #25251f;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mqs-checkout-faq details div {
+    padding: 0 0 14px;
+    color: #64645d;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.mqs-checkout-faq p {
+    margin: 0 0 9px;
+}
+
+.mqs-checkout-faq a {
+    color: #46660a;
+}
+
+.mqs-checkout-faq-all {
+    display: inline-block;
+    padding: 14px 0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.mqs-payment-cta {
+    min-height: 74px;
+    margin-top: 0;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: #0f0f0f;
+    color: #fff;
+    box-shadow: none;
+    font-size: 15px;
+    line-height: 1.35;
+    text-align: left;
+}
+
+.mqs-payment-cta:hover:not(:disabled) {
+    background: #0f0f0f;
+    box-shadow: none;
+}
+
+.mqs-payment-cta:disabled {
+    background: #0f0f0f;
+    color: #fff;
+    opacity: 1;
+}
+
+.mqs-payment-fineprint {
+    margin-top: 14px;
+    color: #9a9a94;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.mqs-payment-back {
+    display: block;
+    width: auto;
+    margin: 22px auto 0;
+    color: #6a6a64;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+@media (max-width: 700px) {
+    #mqs-pricing-drawer:has(.mqs-payment-layout) #mqs-modal { padding: 20px; }
+    .mqs-payment-layout { grid-template-columns: 1fr; }
+    .mqs-order-card, .mqs-checkout-card { min-height: auto; }
+}
+
+@media (max-width: 980px) and (min-width: 701px) {
+    .mqs-plan {
+        padding: 18px;
+    }
+    .mqs-plan-price {
+        font-size: 2rem;
+    }
+    .mqs-plan-title {
+        max-width: none;
+    }
+}
+
+@media (max-width: 980px) {
+    #mqs-pricing-drawer {
+        align-items: flex-end;
+    }
+    #mqs-pricing-drawer #mqs-modal {
+        width: 100%;
+        height: min(88dvh, 920px);
+        margin: 0;
+        border-radius: 24px 24px 0 0;
+        transform: translateY(100%);
+        box-shadow: 0 -24px 70px -28px rgba(0, 0, 0, 0.5);
+    }
+    #mqs-pricing-drawer.mqs-modal-open #mqs-modal {
+        transform: translateY(0);
+    }
+    #mqs-pricing-drawer #mqs-modal::before {
+        content: '';
+        display: block;
+        width: 42px;
+        height: 4px;
+        margin: -20px auto 16px;
+        border-radius: 999px;
+        background: #c7c7c3;
+    }
+    #mqs-pricing-drawer #mqs-modal-close {
+        margin: -17px -10px 0 0;
+    }
+}
+
+@media (max-width: 420px) {
+    .mqs-value-grid {
+        grid-template-columns: 1fr;
+    }
+    .mqs-installation-highlight {
+        width: 100%;
+    }
+    .mqs-value-anchor {
+        padding: 20px 18px;
+    }
+    .mqs-value-anchor-discount {
+        top: 18px;
+        right: 16px;
+    }
+    .mqs-value-anchor > h3 {
+        margin-right: 0;
+        padding-top: 24px;
+    }
+}
+
+/* Studio Eclat Checkout draft parity */
+#mqs-pricing-drawer #mqs-modal {
+    width: min(760px, 100vw);
+    height: 100dvh;
+    margin: 0;
+    padding: 22px 44px 44px;
+    border: 0;
+    border-radius: 0;
+    background: #f4f4f2;
+}
+
+#mqs-pricing-drawer #mqs-modal-close {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    margin: 0;
+    width: 40px;
+    height: 40px;
+    background: #e4e4df;
+}
+
+.mqs-funnel-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    margin: 0 auto 22px;
+    padding: 5px;
+    background: #ecece8;
+}
+
+.mqs-funnel-tabs button {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.mqs-step-header { margin-bottom: 30px; }
+.mqs-step-eyebrow { color: #9a9a94; font-size: 12px; font-weight: 700; letter-spacing: .14em; }
+.mqs-step-title { margin-top: 10px; font-size: 40px; line-height: 1.06; }
+.mqs-step-sub { margin-top: 12px; color: #7a7a74; font-size: 16px; }
+.mqs-domain-offer-note { margin: 8px 0 0; color: #46660a; font-size: 14px; font-weight: 700; }
+.mqs-domain-offer-note s { color: #9a9a94; font-weight: 600; }
+
+.mqs-domain-section { margin-bottom: 30px; }
+.mqs-domain-section-title { margin-bottom: 14px; font-size: 15px; font-weight: 800; }
+.mqs-domain-section-help { margin-top: -10px; color: #8a8a84; font-size: 14px; }
+.mqs-domain-list { --mqs-domain-row-h: 66px; --mqs-domain-list-gap: 12px; max-height: calc(var(--mqs-domain-row-h) * 4 + var(--mqs-domain-list-gap) * 3); }
+.mqs-domain-row { padding: 20px 22px; border-radius: 14px; }
+.mqs-domain-row.mqs-domain-selected { padding: 19px 21px; }
+.mqs-domain-name { font-size: 17px; font-weight: 600; }
+.mqs-badge { font-size: 13px; }
+.mqs-badge-offert { background: #e6f4ac; color: #46660a; }
+.mqs-custom-block { border-radius: 14px; }
+.mqs-custom-toggle { padding: 20px; font-size: 16px; font-weight: 600; }
+.mqs-custom-toggle-icon { width: 34px; height: 34px; }
+.mqs-footer-stepb {
+    position: sticky;
+    bottom: -44px;
+    z-index: 7;
+    margin: 24px -44px -44px;
+    padding: 16px 44px;
+    border-top: 1px solid #e4e4df;
+    background: #f4f4f2;
+}
+
+.mqs-value-anchor {
+    margin: 0 0 12px;
+    padding: 13px 22px 11px;
+    border: 1.5px solid #cbe15f;
+    border-radius: 18px;
+    background: #e9f6b3;
+    color: #1c2708;
+}
+.mqs-value-anchor-discount { display: none; }
+.mqs-value-anchor > h3 { margin: 3px 0 8px; font-size: 20px; }
+.mqs-value-anchor-line { padding: 3px 0; color: #3a4a1c; font-size: 14px; }
+.mqs-value-anchor-line strong { color: #7a8a5a; font-weight: 500; text-decoration: line-through; }
+.mqs-value-anchor-total { align-items: center; min-height: 0; margin-top: 5px; padding: 10px 0 0; border-color: rgba(70,102,10,.25); font-size: 15px; font-weight: 800; }
+.mqs-launch-price strong { font-size: 34px; color: #1c2708; }
+.mqs-launch-price s { color: #7a8a5a; font-size: 18px; font-weight: 700; }
+.mqs-launch-price { flex-shrink: 0; white-space: nowrap; }
+
+.mqs-plans-heading { margin-bottom: 7px; }
+.mqs-plans-heading h3 { font-size: 22px; }
+.mqs-plans-heading p { color: #7a7a74; font-size: 14px; }
+.mqs-plans-heading p strong { color: #4a4a44; font-weight: 500; }
+.mqs-plans { gap: 18px; padding-top: 0; }
+.mqs-plan {
+    padding: 24px 20px 20px;
+    border-radius: 16px;
+    grid-template-rows: 34px 50px 38px 68px 58px 44px;
+}
+.mqs-plan.mqs-plan-popular { background: #f7f9e9; border: 2px solid #0a0a0a; box-shadow: none; }
+.mqs-plan-title { max-width: 62%; font-size: 16px; line-height: 1.2; font-weight: 800; }
+.mqs-plan-eyebrow { padding: 5px 8px; font-size: 8px; letter-spacing: .035em; }
+.mqs-plan-price { font-size: 34px !important; }
+.mqs-plan-discount { background: #0a0a0a; color: #d9f24e; }
+.mqs-plan-reference { font-size: 12px; }
+.mqs-plan-saving { width: fit-content; padding: 7px 9px; border: 1px solid #dcebae; border-radius: 9px; background: #f2f8df; font-size: 11px; }
+.mqs-plan-description { color: #6a6a64; font-size: 12px; }
+.mqs-plan-cta { min-height: 44px; padding: 11px 8px; border-radius: 10px; font-size: 12px; }
+
+.mqs-payment-layout { margin-top: 26px; grid-template-columns: 1.05fr 1fr; gap: 16px; }
+.mqs-order-card, .mqs-checkout-card { padding: 24px; border-radius: 18px; }
+.mqs-order-card { background: #0f0f0f; }
+.mqs-order-price { font-size: 42px; }
+.mqs-payment-cta { background: #d9f24e; }
+
+@media (max-width: 980px) {
+    #mqs-pricing-drawer #mqs-modal {
+        width: 100%; height: 100dvh; margin: 0; border-radius: 0;
+        transform: translateX(100%);
+    }
+    #mqs-pricing-drawer.mqs-modal-open #mqs-modal { transform: translateX(0); }
+    #mqs-pricing-drawer #mqs-modal::before { display: none; }
+}
+
+@media (max-width: 700px) {
+    #mqs-pricing-drawer #mqs-modal { padding: 20px 20px 32px; }
+    .mqs-funnel-tabs button { padding: 8px 10px; font-size: 11px; }
+    .mqs-step-title { font-size: 30px; }
+    .mqs-step-sub { font-size: 14px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-sub { white-space: normal; }
+    .mqs-plans, .mqs-payment-layout { grid-template-columns: 1fr; }
+    .mqs-footer-stepb { bottom: -32px; margin: 22px -20px -32px; padding: 14px 20px; }
+    .mqs-value-anchor-total { gap: 12px; }
+    .mqs-launch-price { gap: 8px; }
+    .mqs-launch-price strong { font-size: 36px; }
+    .mqs-launch-price s { font-size: 18px; }
 }

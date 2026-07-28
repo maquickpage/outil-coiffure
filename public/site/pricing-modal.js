@@ -10,52 +10,60 @@
   'use strict';
 
   // === Configuration des plans (synchronisee avec Stripe price metadata) ===
+  // Ordre (brief page-tarifs §5.1) : 12 mois « Le plus choisi » en tête/centre,
+  // 24 mois recadré sur l'économie (—66 % vs sans engagement, « Engagement 24 mois »
+  // gardé lisible en ligne secondaire — jamais masqué), sans engagement en dernier.
+  // Droit commercial commun aux 3 formules : demande possible dans les 30 jours,
+  // première mensualité non remboursée, aucun prélèvement ni engagement ensuite.
   const PLANS = [
     {
       key: 'TWO_YEAR',
-      eyebrow: 'Engagement 2 ans',
+      title: '24 mois',
+      eyebrow: 'Prix le plus bas',
       monthlyPriceTtc: 9.90,
-      description: 'Le meilleur tarif sur 24 mois.',
-      cta: 'Choisir',
+      discount: '−66 %',
+      discountReference: 'par rapport au sans engagement à 29 €/mois',
+      description: 'Le meilleur tarif si vous savez déjà que vous restez.',
+      monthlySaving: '19,10 € par mois',
+      saving: '458,40 € sur 24 mois',
+      note: 'Engagement 24 mois',
+      cta: 'Voir le récapitulatif',
       isPopular: false,
-      features: [
-        'Site 100 % personnalisable',
-        'Domaine .fr ou .com offert',
-        'Hébergement haute performance',
-      ],
     },
     {
       key: 'ONE_YEAR',
+      title: '12 mois',
       eyebrow: 'Le plus choisi',
       monthlyPriceTtc: 17.90,
-      description: 'Engagement 12 mois, le bon compromis.',
-      cta: 'Choisir',
+      discount: '−38 %',
+      discountReference: 'par rapport au sans engagement à 29 €/mois',
+      description: 'Le bon compromis entre remise et souplesse.',
+      monthlySaving: '11,10 € par mois',
+      saving: '133,20 € sur 12 mois',
+      note: 'Engagement 12 mois',
+      cta: 'Voir le récapitulatif',
       isPopular: true,
-      features: [
-        'Site 100 % personnalisable',
-        'Domaine .fr ou .com offert',
-        'Hébergement haute performance',
-      ],
     },
     {
       key: 'FLEX',
-      eyebrow: 'Sans engagement',
+      title: 'Sans engagement',
+      eyebrow: 'Liberté totale',
       monthlyPriceTtc: 29.00,
-      description: 'Résiliable à tout moment.',
-      cta: 'Choisir',
+      discount: '',
+      discountReference: 'Tarif de référence',
+      description: 'Pour garder une liberté totale, mois par mois.',
+      monthlySaving: 'Résiliable à tout moment',
+      saving: 'Aucune durée minimum',
+      note: 'Sans engagement',
+      cta: 'Voir le récapitulatif',
       isPopular: false,
-      features: [
-        'Site 100 % personnalisable',
-        'Domaine .fr ou .com offert',
-        'Hébergement haute performance',
-      ],
     },
   ];
 
   // === Version des CGV en cours ===
   // Bumper cette version à chaque modification substantielle des CGV pour forcer
   // une nouvelle acceptation explicite (et tracer l'historique en base).
-  const CGV_VERSION = '1.0';
+  const CGV_VERSION = '1.1';
 
   // === Mapping plan → fichier CGV ===
   const CGV_FILES = {
@@ -63,6 +71,10 @@
     ONE_YEAR: '/legal/cgv-1y.html',
     FLEX: '/legal/cgv-flex.html',
   };
+
+  const TEMPLATE_LABELS = Object.fromEntries(
+    (window.__MQS_TEMPLATES__ || []).map(template => [template.id, `${template.name} — ${template.subtitle}`])
+  );
 
   // === Etat de la modal ===
   const state = {
@@ -79,6 +91,7 @@
     email: '',
     cgvAccepted: false,       // case CGV cochée
     submitting: false,
+    checkoutError: null,
     salonSlug: null,
   };
 
@@ -104,8 +117,20 @@
     return null;
   }
 
+  function isCheckoutDemoMode() {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    return isLocal && new URLSearchParams(window.location.search).get('checkoutDemo') === '1';
+  }
+
   function planByKey(key) {
     return PLANS.find(p => p.key === key);
+  }
+
+  function currentTemplate() {
+    const requested = new URLSearchParams(window.location.search).get('template');
+    const fromView = window.__SALON_VIEW__ && window.__SALON_VIEW__.template;
+    const validTemplates = new Set(['classic', 'contrast', 'drama']);
+    return validTemplates.has(requested) ? requested : (validTemplates.has(fromView) ? fromView : 'classic');
   }
 
   // ===========================================================================
@@ -129,6 +154,7 @@
       <button id="mqs-modal-close" type="button" aria-label="Fermer">
         <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
+      ${renderFunnelTabs()}
       ${state.step === 'A' ? renderStepA() : ''}
       ${state.step === 'B' ? renderStepB() : ''}
       ${state.step === 'C' ? renderStepC() : ''}
@@ -143,105 +169,133 @@
     }
   }
 
-  // ---------- STEP A : choix du plan ----------
+  function renderFunnelTabs() {
+    return `
+      <nav class="mqs-funnel-tabs" aria-label="Progression">
+        <button type="button" class="${state.step === 'A' ? 'is-active' : ''}" data-funnel-step="A">1 · Domaine</button>
+        <button type="button" class="${state.step === 'B' ? 'is-active' : ''}" data-funnel-step="B" ${state.selectedHostname ? '' : 'disabled'}>2 · Formules</button>
+        <button type="button" class="${state.step === 'C' ? 'is-active' : ''}" data-funnel-step="C" ${state.selectedPlan ? '' : 'disabled'}>3 · Récapitulatif</button>
+      </nav>
+    `;
+  }
+
+  // ---------- STEP A : choix du domaine (1er — brief page-tarifs : domaine AVANT prix) ----------
+  // Ordre décidé : on laisse d'abord le coiffeur s'approprier son adresse web
+  // (engagement faible, forte projection) puis on montre le prix à l'étape 2.
   function renderStepA() {
-    const plansHtml = PLANS.map(p => renderPlanCardA(p)).join('');
-    return `
-      <div class="mqs-step-header">
-        <span class="mqs-step-eyebrow">Étape 1 / 3</span>
-        <h2 class="mqs-step-title">Choisissez votre formule</h2>
-        <p class="mqs-step-sub">
-          Tous les plans incluent le site, le domaine, l'hébergement
-          et le support — sans frais de mise en place.
-        </p>
-      </div>
-      <div class="mqs-plans">${plansHtml}</div>
-      <div class="mqs-modal-footer">
-        <p class="mqs-trust">
-          <strong>Sans frais de mise en place</strong> · Site en ligne sous 5 minutes ·
-          Hébergé en Europe
-        </p>
-      </div>
-    `;
-  }
-
-  function renderPlanCardA(plan) {
-    const featuresHtml = plan.features.map(f => `
-      <li>
-        <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>${escapeHtml(f)}</span>
-      </li>
-    `).join('');
-    const classes = ['mqs-plan'];
-    if (plan.isPopular) classes.push('mqs-plan-popular');
-    return `
-      <div class="${classes.join(' ')}" data-plan="${plan.key}">
-        <span class="mqs-plan-eyebrow">${escapeHtml(plan.eyebrow)}</span>
-        <div class="mqs-plan-price-line">
-          <span class="mqs-plan-price">${formatEur(plan.monthlyPriceTtc)}</span>
-          <span class="mqs-plan-period">/mois</span>
-        </div>
-        <p class="mqs-plan-description">${escapeHtml(plan.description)}</p>
-        <button class="mqs-plan-cta" type="button" data-plan-cta="${plan.key}">${escapeHtml(plan.cta)}</button>
-        <ul class="mqs-plan-features">${featuresHtml}</ul>
-      </div>
-    `;
-  }
-
-  // ---------- STEP B : choix du domaine ----------
-  function renderStepB() {
-    const plan = planByKey(state.selectedPlan);
-    if (!plan) return '<p>Erreur : plan non sélectionné.</p>';
-
     // Toutes les suggestions sont rendues — l'affichage est limité à 4 rows
-    // visibles via CSS (max-height + overflow-y auto), pour que la modale ne
-    // grandisse pas verticalement et reste tenable sans scroll global.
+    // visibles via CSS (max-height + overflow-y auto).
     let suggestionsHtml = '';
-    if (state.loading && state.suggestions.length === 0) {
-      // Phase initiale, on n'a même pas le preview → skeleton (4 rows pour
-      // matcher la fenêtre visible)
+    if (state.loading && state.suggestions.filter(s => s.available === true).length === 0) {
       suggestionsHtml = renderSkeletonRows(4);
-    } else if (state.suggestions.length === 0) {
+    } else if (state.suggestions.filter(s => s.available === true).length === 0) {
       suggestionsHtml = `
         <p class="mqs-empty-state">
-          Aucune suggestion disponible pour le moment. Tape ton propre nom ci-dessous.
+          Aucune suggestion vérifiée pour le moment. Recherchez le nom de votre choix.
         </p>`;
     } else {
-      // On a au moins le preview (noms visibles, available=null → spinner par row)
-      // OU le résultat complet (available=true/false → badge réel)
-      suggestionsHtml = state.suggestions.map(s => renderDomainRow(s, plan)).join('');
+      suggestionsHtml = state.suggestions
+        .filter(s => s.available === true)
+        .map(s => renderDomainRow(s, null))
+        .join('');
     }
 
-    const customRow = renderCustomRow(plan);
+    const customRow = renderCustomRow(null);
     const continueDisabled = state.selectedHostname ? '' : 'disabled';
 
     return `
       <div class="mqs-step-header">
-        <span class="mqs-step-eyebrow">Étape 2 / 3</span>
-        <h2 class="mqs-step-title">Comment vos clients vous trouveront</h2>
+        <span class="mqs-step-eyebrow">Étape 1 / 3</span>
+        <h2 class="mqs-step-title">Choisissez l'adresse de votre site</h2>
         <p class="mqs-step-sub">
-          Choisissez votre adresse web — on s'occupe du reste.
+          Nous avons déjà vérifié ces suggestions pour vous.
         </p>
+        <p class="mqs-domain-offer-note"><s>15 €/an</s> offert avec votre formule.</p>
       </div>
 
-      <div class="mqs-domain-list">
-        ${suggestionsHtml}
-      </div>
+      <section class="mqs-domain-section" aria-labelledby="mqs-suggestions-title">
+        <h3 id="mqs-suggestions-title" class="mqs-domain-section-title">Ces adresses web sont disponibles pour vous <span>— En voir plus</span></h3>
+        <div class="mqs-domain-list">
+          ${suggestionsHtml}
+        </div>
+      </section>
 
-      <div class="mqs-domain-divider">ou</div>
+      <section class="mqs-domain-section mqs-domain-custom-section" aria-labelledby="mqs-custom-title">
+        <h3 id="mqs-custom-title" class="mqs-domain-section-title">Vous avez un autre nom en tête ?</h3>
+        <p class="mqs-domain-section-help">Recherchez votre propre adresse. Nous vérifierons sa disponibilité en direct.</p>
+        ${customRow}
+      </section>
 
-      ${customRow}
-
-      <div class="mqs-modal-footer mqs-footer-stepb">
-        <button class="mqs-btn-back" type="button" id="mqs-back-btn">← Retour</button>
+      <div class="mqs-modal-footer mqs-footer-stepb mqs-footer-solo">
         <button class="mqs-btn-continue" type="button" id="mqs-continue-btn" ${continueDisabled}>
-          Continuer →
+          ${state.selectedHostname ? 'Continuer →' : 'Voir mes options'}
         </button>
       </div>
 
-      <p class="mqs-trust">
-        🔒 Domaine offert · Renouvelable · Hébergé en Europe
-      </p>
+    `;
+  }
+
+  function renderPlanCardA(plan) {
+    const classes = ['mqs-plan'];
+    if (plan.isPopular) classes.push('mqs-plan-popular');
+    const flexStatus = plan.key === 'TWO_YEAR'
+      ? '<p class="mqs-plan-flex-status">Résiliable sans frais pendant 30 jours,<br>puis à l’échéance des 24 mois.</p>'
+      : plan.key === 'ONE_YEAR'
+        ? '<p class="mqs-plan-flex-status">Résiliable sans frais pendant 30 jours,<br>puis à l’échéance des 12 mois.</p>'
+        : '<p class="mqs-plan-flex-status">Résiliable à tout moment.</p>';
+    const offerBadge = plan.key === 'FLEX'
+      ? '<span class="mqs-plan-discount mqs-plan-freedom">Liberté totale</span>'
+      : `<span class="mqs-plan-discount">${escapeHtml(plan.discount)}</span>`;
+    return `
+      <div class="${classes.join(' ')}" data-plan="${plan.key}">
+        <div class="mqs-plan-heading">
+          <strong class="mqs-plan-title${plan.key === 'FLEX' ? ' mqs-plan-title-flex' : ''}">${escapeHtml(plan.title)}</strong>
+          ${plan.key === 'FLEX' ? '' : `<span class="mqs-plan-eyebrow">${escapeHtml(plan.eyebrow)}</span>`}
+        </div>
+        <div class="mqs-plan-price-line">
+          <span class="mqs-plan-price">${formatEur(plan.monthlyPriceTtc)}</span>
+          <span class="mqs-plan-period">TTC / mois</span>
+        </div>
+        <div class="mqs-plan-offer">${offerBadge}</div>
+        ${flexStatus}
+        <p class="mqs-plan-description">${escapeHtml(plan.description)}</p>
+        <button class="mqs-plan-cta" type="button" data-plan-cta="${plan.key}">${escapeHtml(plan.cta)}</button>
+      </div>
+    `;
+  }
+
+  // ---------- STEP B : choix de la formule (2e — après le domaine) ----------
+  function renderStepB() {
+    const plansHtml = PLANS.map(p => renderPlanCardA(p)).join('');
+    const domainNote = state.selectedHostname
+      ? `<p class="mqs-step-domain-note">Votre adresse : <strong>${escapeHtml(state.selectedHostname)}</strong> · offerte</p>`
+      : '';
+    return `
+      <div class="mqs-step-header">
+        <span class="mqs-step-eyebrow">Étape 2 / 3</span>
+        <h2 class="mqs-step-title">Un site en ligne, sans rien gérer vous-même</h2>
+        <p class="mqs-step-sub">
+          Nous gérons le domaine, l'hébergement, la maintenance et vos mises à jour.
+        </p>
+        ${domainNote}
+      </div>
+
+      <section class="mqs-value-anchor" aria-label="Offre de lancement">
+        <span class="mqs-value-anchor-brand">Offre de lancement</span>
+        <h3>Installation &amp; mise en ligne offertes</h3>
+        <div class="mqs-value-anchor-line"><span>Création et configuration du site</span><strong>600 €</strong></div>
+        <div class="mqs-value-anchor-line"><span>Domaine, connexion et mise en ligne</span><strong>15 €</strong></div>
+        <div class="mqs-value-anchor-total"><span>À payer aujourd'hui pour le lancement</span><span class="mqs-launch-price"><s>615 €</s><strong>0 €</strong></span></div>
+      </section>
+
+      <div class="mqs-plans-heading"><h3>Choisissez votre durée</h3><p>Le service est le même dans les trois formules. Seule la durée d’engagement change — et donc votre remise sur le tarif sans engagement (29 €/mois).</p></div>
+
+      <div class="mqs-plans">${plansHtml}</div>
+      <p class="mqs-plans-footnote">Tarifs TTC par mois. Aucun frais de mise en service.</p>
+
+      <div class="mqs-modal-footer mqs-footer-plan">
+        <button class="mqs-btn-back" type="button" id="mqs-back-btn">← Modifier le domaine</button>
+      </div>
     `;
   }
 
@@ -267,7 +321,7 @@
     } else if (taken) {
       badge = `<span class="mqs-badge mqs-badge-pris">Déjà pris</span>`;
     } else {
-      badge = `<span class="mqs-badge mqs-badge-offert">Offert</span>`;
+      badge = `<span class="mqs-badge mqs-badge-offert">Disponible · offert</span>`;
     }
     const classes = ['mqs-domain-row'];
     if (isSelected) classes.push('mqs-domain-selected');
@@ -300,7 +354,7 @@
       } else {
         const isSelected = state.selectedHostname === r.hostname;
         // Tout domaine accepté est offert
-        const badge = `<span class="mqs-badge mqs-badge-offert">Offert</span>`;
+        const badge = `<span class="mqs-badge mqs-badge-offert">Disponible · offert</span>`;
         resultHtml = `
           <div class="mqs-domain-row ${isSelected ? 'mqs-domain-selected' : ''}" data-hostname="${escapeHtml(r.hostname)}" role="button" tabindex="0">
             <span class="mqs-domain-name">${escapeHtml(r.hostname)}</span>
@@ -317,7 +371,7 @@
       <details class="mqs-custom-block" ${isOpen ? 'open' : ''}>
         <summary class="mqs-custom-toggle">
           <span class="mqs-custom-toggle-icon" aria-hidden="true">＋</span>
-          <span class="mqs-custom-toggle-label">Choisir mon nom de domaine moi-même</span>
+          <span class="mqs-custom-toggle-label">Rechercher mon propre domaine</span>
         </summary>
         <div class="mqs-custom-content">
           <div class="mqs-custom-input-row">
@@ -346,8 +400,6 @@
   function renderStepC() {
     const plan = planByKey(state.selectedPlan);
     const hostname = state.selectedHostname;
-    const info = state.selectedHostnameInfo;
-    const supplementLabel = 'Domaine offert';
     const cgvUrl = CGV_FILES[state.selectedPlan] || '/legal/cgv-flex.html';
     const cgvLabel = state.selectedPlan === 'TWO_YEAR'
       ? 'Conditions Générales de Vente (engagement 2 ans)'
@@ -357,69 +409,127 @@
 
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email);
     const submitDisabled = (state.submitting || !emailValid || !state.cgvAccepted) ? 'disabled' : '';
+    const commitmentLabel = state.selectedPlan === 'TWO_YEAR'
+      ? 'Engagement 24 mois'
+      : state.selectedPlan === 'ONE_YEAR'
+        ? 'Engagement 12 mois'
+        : 'Sans engagement';
+    const commitmentDuration = state.selectedPlan === 'FLEX'
+      ? 'sans engagement'
+      : state.selectedPlan === 'TWO_YEAR' ? '24 mois' : '12 mois';
+    const template = currentTemplate();
+    const afterFirstMonth = state.selectedPlan === 'FLEX'
+      ? 'Après ces 30 jours, la formule reste résiliable à tout moment, avec effet à la prochaine échéance mensuelle.'
+      : `Après ces 30 jours, l’engagement de ${commitmentDuration} prévu par la formule s’applique.`;
+    const firstMonthCommitment = state.selectedPlan === 'FLEX'
+      ? 'Aucun prélèvement supplémentaire ne sera effectué.'
+      : `L’engagement de ${commitmentDuration} sera entièrement levé et aucun prélèvement supplémentaire ne sera effectué.`;
 
     return `
-      <div class="mqs-step-header">
+      <div class="mqs-step-header mqs-payment-header">
         <span class="mqs-step-eyebrow">Étape 3 / 3</span>
-        <h2 class="mqs-step-title">Dernière étape : votre email</h2>
+        <h2 class="mqs-step-title">Vérifiez avant de continuer</h2>
         <p class="mqs-step-sub">
-          On vous envoie le récapitulatif et l'accès à votre espace après paiement.
+          Vérifiez votre formule, puis continuez vers le paiement sécurisé Stripe.
         </p>
       </div>
 
-      <div class="mqs-summary">
-        <div class="mqs-summary-row">
-          <span class="mqs-summary-label">Formule</span>
-          <span class="mqs-summary-value">${escapeHtml(plan.eyebrow)} · ${formatEur(plan.monthlyPriceTtc)}/mois</span>
-        </div>
-        <div class="mqs-summary-row">
-          <span class="mqs-summary-label">Domaine</span>
-          <span class="mqs-summary-value">${escapeHtml(hostname)}</span>
-        </div>
-        <div class="mqs-summary-row mqs-summary-note">
-          <span class="mqs-summary-label">&nbsp;</span>
-          <span class="mqs-summary-sub">${escapeHtml(supplementLabel)}</span>
-        </div>
+      <div class="mqs-payment-layout">
+        <section class="mqs-order-card" aria-label="Récapitulatif de votre abonnement">
+          <div class="mqs-order-topline">
+            <span class="mqs-order-kicker">Votre formule · ${escapeHtml(plan.title)}</span>
+            ${plan.isPopular ? '<span class="mqs-order-popular">Le plus choisi</span>' : ''}
+          </div>
+          <div class="mqs-order-price-line">
+            <strong class="mqs-order-price">${formatEur(plan.monthlyPriceTtc)}</strong>
+            <span class="mqs-order-period">TTC / mois</span>
+          </div>
+
+          <div class="mqs-order-domain">
+            <span class="mqs-order-domain-icon" aria-hidden="true">www</span>
+            <span>
+              <small>Votre adresse web</small>
+              <strong>${escapeHtml(hostname)}</strong>
+            </span>
+            <span class="mqs-order-included">Offert</span>
+          </div>
+
+          <ul class="mqs-order-includes">
+            <li><span aria-hidden="true">✓</span> Site personnalisé déjà créé</li>
+            <li><span aria-hidden="true">✓</span> Domaine ${escapeHtml(hostname)}</li>
+            <li><span aria-hidden="true">✓</span> 3 designs inclus</li>
+            <li><span aria-hidden="true">✓</span> Hébergement et maintenance</li>
+            <li><span aria-hidden="true">✓</span> Mises à jour</li>
+          </ul>
+          <div class="mqs-order-installation">
+            <span>
+              <strong>Installation et mise en ligne</strong>
+              <small><s>Valeur 615 €</s></small>
+            </span>
+            <span class="mqs-order-installation-price"><strong>0 €</strong></span>
+          </div>
+          <div class="mqs-order-total-wrap">
+            <p class="mqs-order-total"><span>À régler sur Stripe aujourd'hui</span><strong>${formatEur(plan.monthlyPriceTtc)}</strong></p>
+            <p class="mqs-order-total"><span>Puis</span><strong>${formatEur(plan.monthlyPriceTtc)}/mois</strong></p>
+            ${state.selectedPlan === 'FLEX' ? '<p class="mqs-order-total"><span>Résiliation</span><strong>À tout moment</strong></p>' : ''}
+            <small>Aucun frais d'installation ajouté au paiement · résiliable selon CGV.</small>
+          </div>
+
+          <p class="mqs-first-month-note">
+            <strong>Résiliable pendant le premier mois.</strong>
+            ${escapeHtml(firstMonthCommitment)}
+            <a href="/faq#resiliation" target="_blank" rel="noopener">Voir la FAQ MaQuickPage</a>
+          </p>
+        </section>
+
+        <section class="mqs-checkout-card" aria-label="Coordonnées et paiement">
+          <div class="mqs-checkout-heading">
+            <span class="mqs-checkout-lock" aria-hidden="true">
+              🔒
+            </span>
+            <span><strong>Continuer vers Stripe</strong><small>Le clic ne débite pas immédiatement<br>votre carte.</small></span>
+          </div>
+
+          <div class="mqs-email-block">
+            <label class="mqs-custom-label" for="mqs-email-input">Email professionnel</label>
+            <input
+              type="email"
+              id="mqs-email-input"
+              class="mqs-custom-input mqs-email-input"
+              placeholder="contact@studio-eclat-lyon.fr"
+              value="${escapeHtml(state.email)}"
+              autocomplete="email"
+              required
+            />
+            <p class="mqs-email-help">Le reçu et les accès à votre site seront envoyés à cette adresse.</p>
+          </div>
+
+          <div class="mqs-cgv-block">
+            <label class="mqs-cgv-label" for="mqs-cgv-checkbox">
+              <input
+                type="checkbox"
+                id="mqs-cgv-checkbox"
+                class="mqs-cgv-checkbox"
+                ${state.cgvAccepted ? 'checked' : ''}
+              />
+              <span class="mqs-cgv-text">
+                J'ai lu et j'accepte les
+                <a href="${cgvUrl}" target="_blank" rel="noopener" class="mqs-cgv-link">Conditions Générales de Vente</a>
+                (${state.selectedPlan === 'FLEX' ? 'sans engagement' : `engagement ${commitmentDuration}`}).
+              </span>
+            </label>
+          </div>
+
+          <button class="mqs-payment-cta" type="button" id="mqs-submit-btn" ${submitDisabled}>
+            <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe · ${formatEur(plan.monthlyPriceTtc)} aujourd'hui`}</span>
+            ${state.submitting ? '' : '<span aria-hidden="true">→</span>'}
+          </button>
+          ${state.checkoutError ? `<p class="mqs-checkout-error" role="alert">${escapeHtml(state.checkoutError)}</p>` : ''}
+          <p class="mqs-payment-fineprint">Vous pourrez vérifier une dernière fois le montant avant de confirmer. Paiement sécurisé et chiffré par Stripe.</p>
+        </section>
       </div>
 
-      <div class="mqs-email-block">
-        <label class="mqs-custom-label" for="mqs-email-input">Votre email</label>
-        <input
-          type="email"
-          id="mqs-email-input"
-          class="mqs-custom-input mqs-email-input"
-          placeholder="vous@example.com"
-          value="${escapeHtml(state.email)}"
-          autocomplete="email"
-          required
-        />
-      </div>
-
-      <div class="mqs-cgv-block">
-        <label class="mqs-cgv-label" for="mqs-cgv-checkbox">
-          <input
-            type="checkbox"
-            id="mqs-cgv-checkbox"
-            class="mqs-cgv-checkbox"
-            ${state.cgvAccepted ? 'checked' : ''}
-          />
-          <span class="mqs-cgv-text">
-            J'ai lu et j'accepte les
-            <a href="${cgvUrl}" target="_blank" rel="noopener" class="mqs-cgv-link">${escapeHtml(cgvLabel)}</a>.
-          </span>
-        </label>
-      </div>
-
-      <div class="mqs-modal-footer mqs-footer-stepc">
-        <button class="mqs-btn-back" type="button" id="mqs-back-btn">← Retour</button>
-        <button class="mqs-btn-continue" type="button" id="mqs-submit-btn" ${submitDisabled}>
-          ${state.submitting ? '... Redirection vers le paiement' : 'Procéder au paiement →'}
-        </button>
-      </div>
-
-      <p class="mqs-trust">
-        🔒 Paiement sécurisé Stripe · TVA incluse · Conformité RGPD
-      </p>
+      <button class="mqs-btn-back mqs-payment-back" type="button" id="mqs-back-btn">← Modifier ma formule</button>
     `;
   }
 
@@ -431,30 +541,21 @@
     const m = state.modalEl;
     if (!m) return;
     m.querySelector('#mqs-modal-close')?.addEventListener('click', closeModal);
+    m.querySelector('.mqs-drawer-scrim')?.addEventListener('click', closeModal);
+    m.querySelector('[data-funnel-step="A"]')?.addEventListener('click', () => goToStep('A'));
+    m.querySelector('[data-funnel-step="B"]')?.addEventListener('click', () => goToStep('B'));
+    m.querySelector('[data-funnel-step="C"]:not([disabled])')?.addEventListener('click', () => goToStep('C'));
 
+    // STEP A = choix du domaine (1er)
     if (state.step === 'A') {
-      m.querySelectorAll('.mqs-plan-cta').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          selectPlanAndAdvance(btn.dataset.planCta);
-        });
-      });
-      m.querySelectorAll('.mqs-plan').forEach(card => {
-        card.addEventListener('click', (e) => {
-          // Click sur la card (hors bouton) sélectionne uniquement (pas avancer)
-          if (e.target.closest('.mqs-plan-cta')) return;
-          // Pour A on n'a pas de "select-only", on avance directement
-          selectPlanAndAdvance(card.dataset.plan);
-        });
-      });
-    }
-
-    if (state.step === 'B') {
-      m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('A'));
       m.querySelector('#mqs-continue-btn')?.addEventListener('click', () => {
         if (state.selectedHostname) {
-          try { window.mqsTrack && window.mqsTrack('etape_email', { hostname: state.selectedHostname }); } catch (e) {}
-          goToStep('C');
+          // Domaine choisi → on montre les tarifs (étape 2). « etape_prix » = a vu
+          // les prix (métrique clé du brief : Saw pricing). « etape_domaine » gardé
+          // pour la continuité de l'entonnoir admin (stage 4).
+          try { window.mqsTrack && window.mqsTrack('etape_domaine', { hostname: state.selectedHostname }); } catch (e) {}
+          try { window.mqsTrack && window.mqsTrack('etape_prix', { hostname: state.selectedHostname }); } catch (e) {}
+          goToStep('B');
         }
       });
       m.querySelectorAll('.mqs-domain-row[data-hostname]').forEach(row => {
@@ -495,9 +596,25 @@
       });
     }
 
+    // STEP B = choix de la formule (2e)
+    if (state.step === 'B') {
+      m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('A'));
+      m.querySelectorAll('.mqs-plan-cta').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectPlanAndGoEmail(btn.dataset.planCta);
+        });
+      });
+      m.querySelectorAll('.mqs-plan').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.mqs-plan-cta')) return;
+          selectPlanAndGoEmail(card.dataset.plan);
+        });
+      });
+    }
+
     if (state.step === 'C') {
       m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('B'));
-
       // Helper : recompute enable/disable du bouton "Procéder au paiement"
       // (utilisé à la fois par l'event email et par l'event CGV checkbox).
       const refreshSubmitState = () => {
@@ -541,26 +658,24 @@
   // ACTIONS
   // ===========================================================================
 
-  async function selectPlanAndAdvance(planKey) {
+  // Le coiffeur a choisi sa formule (étape 2) → écran email/paiement (étape 3).
+  function selectPlanAndGoEmail(planKey) {
     const plan = planByKey(planKey);
     if (!plan) return;
-    // Tracking (best-effort) : a choisi un plan → arrive sur l'écran domaines.
-    try { window.mqsTrack && window.mqsTrack('etape_domaine', { plan: planKey }); } catch (e) {}
+    // Changer de plan invalide l'acceptation CGV précédente (contrat distinct par plan).
+    if (state.selectedPlan !== planKey) state.cgvAccepted = false;
     state.selectedPlan = planKey;
-    state.step = 'B';
-    state.suggestions = [];
-    state.selectedHostname = null;
-    state.selectedHostnameInfo = null;
-    state.customResult = null;
-    state.customError = null;
-    state.customQuery = '';
-    state.loading = true;
-    state.suggestions = [];
-    // Si l'utilisateur revient en arrière et change de plan, l'acceptation des CGV
-    // précédentes ne s'applique plus (chaque plan a un contrat distinct).
-    state.cgvAccepted = false;
+    state.step = 'C';
+    // Tracking (best-effort) : a choisi un plan → arrive sur l'écran email/paiement.
+    try { window.mqsTrack && window.mqsTrack('etape_email', { plan: planKey, hostname: state.selectedHostname }); } catch (e) {}
     renderModal();
+  }
 
+  // Charge les suggestions de domaine dès l'ouverture (le domaine est la 1re étape).
+  // Le plan n'affecte PAS le résultat domaine (toujours offert — cf src/routes/checkout.js),
+  // on passe donc un plan par défaut pour l'appel API.
+  async function fetchDomainSuggestions() {
+    const DEFAULT_PLAN = 'ONE_YEAR';
     if (!state.salonSlug) state.salonSlug = getSlugFromUrl();
     if (!state.salonSlug) {
       state.loading = false;
@@ -570,26 +685,43 @@
     }
 
     // Étape 1 : preview INSTANTANÉ (juste les noms, pas de check OVH)
-    //          → permet d'afficher les domaines avec un spinner par ligne
     //          + pré-remplir l'email du salon (scrappé du CSV) si dispo
     try {
       const preview = await fetch(`/api/domain/suggestions-preview/${encodeURIComponent(state.salonSlug)}`);
       if (preview.ok) {
         const data = await preview.json();
-        state.suggestions = data.suggestions || [];
-        // Pré-remplit l'email seulement si l'utilisateur n'a pas déjà tapé qqch.
-        // (évite d'écraser une saisie en cours s'il revient en arrière depuis Step C).
+        const previewSuggestions = (data.suggestions || []).map(s => isCheckoutDemoMode()
+          ? { ...s, available: true, isIncluded: true, priceEurTtc: 0, supplementEurTtc: 0 }
+          : s);
+        // L'ouverture depuis la bubble transmet déjà les résultats OVH vérifiés.
+        // Ne pas les remplacer par le preview instantané, dont les statuts peuvent
+        // être encore indéterminés, avant l'arrivée du résultat OVH complet.
+        if (!state.suggestions.some(s => s.available === true)) {
+          state.suggestions = previewSuggestions;
+        }
         if (!state.email && data.salonEmail) {
           state.email = data.salonEmail;
         }
-        // available reste null → frontend affichera spinner
+        if (isCheckoutDemoMode() && state.suggestions[0]) {
+          state.selectedHostname = state.suggestions[0].hostname;
+          state.selectedHostnameInfo = state.suggestions[0];
+          state.loading = false;
+        }
         renderModal();
+      } else if (isCheckoutDemoMode()) {
+        seedCheckoutDemoSuggestions();
       }
-    } catch {} // best-effort, on tombe sur le call suivant si raté
+    } catch {
+      if (isCheckoutDemoMode()) seedCheckoutDemoSuggestions();
+    }
+
+    // Démo UI locale : les candidats pré-générés suffisent pour parcourir le
+    // funnel. Aucun appel OVH ni achat de domaine n'est effectué.
+    if (isCheckoutDemoMode() && state.suggestions.length > 0) return;
 
     // Étape 2 : full (avec check OVH, ~5-10s)
     try {
-      const res = await fetch(`/api/domain/suggestions/${encodeURIComponent(state.salonSlug)}?plan=${encodeURIComponent(planKey)}`);
+      const res = await fetch(`/api/domain/suggestions/${encodeURIComponent(state.salonSlug)}?plan=${DEFAULT_PLAN}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         state.loading = false;
@@ -601,10 +733,11 @@
       state.suggestions = data.suggestions || [];
       state.loading = false;
 
-      // Pré-sélection du 1er .fr disponible (= pattern UX best-practice)
+      // Pré-sélection du 1er .fr disponible (= pattern UX best-practice).
+      // Ne pas écraser un choix déjà fait si l'utilisateur a interagi.
       const firstFrAvail = state.suggestions.find(s => s.tld === '.fr' && s.available);
       const firstAvail = firstFrAvail || state.suggestions.find(s => s.available);
-      if (firstAvail) {
+      if (firstAvail && !state.selectedHostname) {
         state.selectedHostname = firstAvail.hostname;
         state.selectedHostnameInfo = firstAvail;
       }
@@ -614,6 +747,21 @@
       state.customError = 'Erreur réseau, réessayez dans 1 minute.';
       renderModal();
     }
+  }
+
+  function seedCheckoutDemoSuggestions() {
+    const safeSlug = String(state.salonSlug || 'mon-salon')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'mon-salon';
+    state.suggestions = [
+      { hostname: `${safeSlug}.fr`, tld: '.fr', available: true, isIncluded: true, priceEurTtc: 0 },
+      { hostname: `${safeSlug}-coiffure.fr`, tld: '.fr', available: true, isIncluded: true, priceEurTtc: 0 },
+    ];
+    state.selectedHostname = state.suggestions[0].hostname;
+    state.selectedHostnameInfo = state.suggestions[0];
+    state.loading = false;
+    renderModal();
   }
 
   function selectDomain(hostname) {
@@ -672,7 +820,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug: state.salonSlug,
-          plan: state.selectedPlan,
+          // Domaine choisi AVANT le plan → plan par défaut (n'affecte pas le résultat).
+          plan: state.selectedPlan || 'ONE_YEAR',
           hostname,
         }),
       });
@@ -702,6 +851,7 @@
     // Tracking (best-effort) : a cliqué "Procéder au paiement".
     try { window.mqsTrack && window.mqsTrack('paiement_initie', { plan: state.selectedPlan, hostname: state.selectedHostname }); } catch (e) {}
     state.submitting = true;
+    state.checkoutError = null;
     renderModal();
 
     try {
@@ -713,14 +863,16 @@
           plan: state.selectedPlan,
           hostname: state.selectedHostname,
           email: state.email,
+          template: currentTemplate(),
           cgv_accepted: true,
           cgv_version: CGV_VERSION,
+          checkout_demo: isCheckoutDemoMode(),
         }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
         state.submitting = false;
-        state.customError = data.error || 'Erreur création de session de paiement';
+        state.checkoutError = data.error || 'La connexion à Stripe a échoué. Aucun paiement n\'a été effectué. Réessayez dans quelques instants.';
         renderModal();
         return;
       }
@@ -728,7 +880,7 @@
       window.location.href = data.url;
     } catch (err) {
       state.submitting = false;
-      state.customError = 'Erreur réseau lors du paiement.';
+      state.checkoutError = 'La connexion à Stripe a échoué. Aucun paiement n\'a été effectué. Réessayez dans quelques instants.';
       renderModal();
     }
   }
@@ -736,34 +888,54 @@
   function goToStep(stepKey) {
     state.step = stepKey;
     renderModal();
+    const modal = state.modalEl?.querySelector('#mqs-modal');
+    if (modal) modal.scrollTop = 0;
   }
 
   // ===========================================================================
   // OPEN/CLOSE
   // ===========================================================================
 
-  function openModal() {
-    if (state.modalEl) return;
+  function openModal(source, context) {
+    if (state.modalEl) {
+      state.modalEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     // Reset state à chaque ouverture
     state.step = 'A';
     state.selectedPlan = null;
     state.selectedHostname = null;
     state.selectedHostnameInfo = null;
-    state.suggestions = [];
+    const seededSuggestions = Array.isArray(context?.verifiedSuggestions)
+      ? context.verifiedSuggestions.filter(item => item?.available === true)
+      : [];
+    state.suggestions = seededSuggestions;
     state.customResult = null;
     state.customError = null;
     state.customQuery = '';
-    state.loading = false;
+    state.loading = seededSuggestions.length === 0;
     state.email = '';
     state.cgvAccepted = false;
     state.submitting = false;
+    state.checkoutError = null;
     state.salonSlug = getSlugFromUrl();
+    if (seededSuggestions[0]) {
+      state.selectedHostname = seededSuggestions[0].hostname;
+      state.selectedHostnameInfo = seededSuggestions[0];
+    }
+    state.openSource = source || 'unknown';
+    state.presentation = window.location.pathname.indexOf('/preview/') === 0 ? 'drawer' : 'modal';
 
     const div = document.createElement('div');
-    div.id = 'mqs-modal-backdrop';
+    div.id = state.presentation === 'drawer' ? 'mqs-pricing-drawer' : 'mqs-modal-backdrop';
     div.setAttribute('role', 'dialog');
+    div.setAttribute('aria-label', 'Choisir un domaine, une formule et mettre le site en ligne');
     div.setAttribute('aria-modal', 'true');
-    div.innerHTML = `<div id="mqs-modal" tabindex="-1"></div>`;
+    if (state.presentation === 'drawer') {
+      div.innerHTML = `<button class="mqs-drawer-scrim" type="button" aria-label="Fermer les formules"></button><div id="mqs-modal" tabindex="-1"></div>`;
+    } else {
+      div.innerHTML = `<div id="mqs-modal" tabindex="-1"></div>`;
+    }
     document.body.appendChild(div);
     state.modalEl = div;
     document.body.style.overflow = 'hidden';
@@ -772,14 +944,20 @@
     renderModal();
 
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => state.modalEl.classList.add('mqs-modal-open'));
+      requestAnimationFrame(() => {
+        state.modalEl.classList.add('mqs-modal-open');
+        state.modalEl.querySelector('#mqs-modal')?.focus({ preventScroll: true });
+      });
     });
 
     // Notifie le banner (top ribbon + bottom bar) de se cacher pendant la modal
     window.dispatchEvent(new CustomEvent('mqs-pricing-modal-open'));
 
-    // Tracking (best-effort) : a ouvert la modale = a vu l'écran des tarifs (étape A).
-    try { window.mqsTrack && window.mqsTrack('pricing_ouvert'); } catch (e) {}
+    // Tracking (best-effort) : a ouvert le flow tarifs (étape 1 = domaine).
+    try { window.mqsTrack && window.mqsTrack('pricing_ouvert', { source: state.openSource }); } catch (e) {}
+
+    // Charge les domaines suggérés pour l'étape 1 (domaine d'abord).
+    fetchDomainSuggestions();
   }
 
   function closeModal() {
@@ -792,6 +970,7 @@
         state.modalEl.parentNode.removeChild(state.modalEl);
       }
       state.modalEl = null;
+      state.presentation = null;
     }, 300);
     // Notifie le banner qu'il peut ré-apparaître
     window.dispatchEvent(new CustomEvent('mqs-pricing-modal-close'));

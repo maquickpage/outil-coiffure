@@ -13,6 +13,7 @@ import express from 'express';
 import Stripe from 'stripe';
 import db from '../db.js';
 import { startProvisioning, syncSalonToFalkenstein } from '../provisioning-worker.js';
+import { isTemplateId } from '../templates.js';
 
 const router = express.Router();
 
@@ -79,8 +80,10 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
     }
   } catch (err) {
     console.error('[stripe-webhook] Handler error:', err);
-    // On a déjà inséré l'event en DB → on retourne 200 quand même pour éviter
-    // les retries Stripe (le job est dans la queue, on traitera à part).
+    // Ne jamais acquitter un event dont le traitement a échoué : Stripe doit
+    // pouvoir le renvoyer. La ligne est supprimée pour libérer l'idempotency key.
+    db.prepare('DELETE FROM stripe_events WHERE id = ?').run(event.id);
+    return res.status(500).json({ received: false, retry: true });
   }
 
   res.json({ received: true });
@@ -90,23 +93,44 @@ async function onCheckoutCompleted(session) {
   // session.metadata = { slug, hostname, plan, supplementEurTtc }
   const slug = session.metadata?.slug;
   if (!slug) {
-    console.error('[stripe-webhook] checkout.session.completed sans slug en metadata', session.id);
-    return;
+    throw new Error(`checkout.session.completed sans slug en metadata (${session.id})`);
   }
+  const hostname = session.metadata?.hostname;
+  const planKey = session.metadata?.plan;
+  if (!hostname || !planKey) {
+    throw new Error(`checkout.session.completed metadata incomplète (${session.id})`);
+  }
+  const template = session.metadata?.template;
   // Update DB : marquer le salon comme "payment_received"
-  db.prepare(`
-    UPDATE salons
-    SET stripe_customer_id = ?, stripe_subscription_id = ?,
-        subscription_status = 'provisioning',
-        signed_up_at = datetime('now'), updated_at = datetime('now')
-    WHERE slug = ?
-  `).run(session.customer, session.subscription, slug);
+  let updateResult;
+  if (isTemplateId(template)) {
+    updateResult = db.prepare(`
+      UPDATE salons
+      SET stripe_customer_id = ?, stripe_subscription_id = ?,
+          subscription_status = 'provisioning', template = ?,
+          signed_up_at = datetime('now'), updated_at = datetime('now')
+      WHERE slug = ?
+    `).run(session.customer, session.subscription, template, slug);
+  } else {
+    // Les sessions créées avant l'ajout du choix de design n'ont pas cette
+    // metadata : préserver le template déjà enregistré au lieu de forcer Classic.
+    updateResult = db.prepare(`
+      UPDATE salons
+      SET stripe_customer_id = ?, stripe_subscription_id = ?,
+          subscription_status = 'provisioning',
+          signed_up_at = datetime('now'), updated_at = datetime('now')
+      WHERE slug = ?
+    `).run(session.customer, session.subscription, slug);
+  }
+  if (updateResult.changes !== 1) {
+    throw new Error(`salon introuvable pour checkout.session.completed (${slug})`);
+  }
 
   // Lance l'orchestrator (worker async, ne bloque pas la réponse webhook)
   startProvisioning({
     slug,
-    hostname: session.metadata.hostname,
-    planKey: session.metadata.plan,
+    hostname,
+    planKey,
     customerEmail: session.customer_email || session.customer_details?.email,
     stripeCustomerId: session.customer,
     stripeSubscriptionId: session.subscription,
@@ -137,12 +161,14 @@ async function onSubscriptionUpdate(sub) {
 
   if (isActive) {
     // Réactivation : on clear la suspension
+    // Préserver "live" : c'est un état de provisioning, pas un statut Stripe.
+    const nextStatus = current?.subscription_status === 'live' ? 'live' : internalStatus;
     db.prepare(`
       UPDATE salons SET subscription_status = ?, stripe_subscription_id = ?,
           suspended_at = NULL, suspended_reason = NULL,
           updated_at = datetime('now')
       WHERE slug = ?
-    `).run(internalStatus, sub.id, slug);
+    `).run(nextStatus, sub.id, slug);
     if (!wasActive) {
       console.log(`[stripe-webhook] ${slug} REACTIVATED (status=${stripeStatus})`);
     }
@@ -190,8 +216,10 @@ async function onSubscriptionDeleted(sub) {
 }
 
 async function onPaymentFailed(invoice) {
-  // invoice.subscription est le subscription_id; on remonte au salon par cette clé
-  const subId = invoice.subscription;
+  // Stripe API récente : l'abonnement peut être exposé sous parent.subscription_details.
+  const subId = invoice.subscription
+    || invoice.parent?.subscription_details?.subscription
+    || invoice.subscription_details?.subscription;
   if (!subId) return;
   const row = db.prepare('SELECT slug FROM salons WHERE stripe_subscription_id = ?').get(subId);
   if (!row) {
