@@ -129,7 +129,8 @@
   function currentTemplate() {
     const requested = new URLSearchParams(window.location.search).get('template');
     const fromView = window.__SALON_VIEW__ && window.__SALON_VIEW__.template;
-    return TEMPLATE_LABELS[requested] ? requested : (TEMPLATE_LABELS[fromView] ? fromView : 'classic');
+    const validTemplates = new Set(['classic', 'contrast', 'drama']);
+    return validTemplates.has(requested) ? requested : (validTemplates.has(fromView) ? fromView : 'classic');
   }
 
   // ===========================================================================
@@ -865,12 +866,13 @@
           template: currentTemplate(),
           cgv_accepted: true,
           cgv_version: CGV_VERSION,
+          checkout_demo: isCheckoutDemoMode(),
         }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
         state.submitting = false;
-        state.checkoutError = 'La connexion à Stripe a échoué. Aucun paiement n\'a été effectué. Réessayez dans quelques instants.';
+        state.checkoutError = data.error || 'La connexion à Stripe a échoué. Aucun paiement n\'a été effectué. Réessayez dans quelques instants.';
         renderModal();
         return;
       }

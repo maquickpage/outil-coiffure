@@ -57,7 +57,7 @@ const CHROME_HEAD = [
 const CHROME_BODY = [
   '<script src="/_assets/track.js?v=1"></script>',
   '<script src="/_assets/template-config.js?v=1"></script>',
-  '<script src="/_assets/pricing-modal.js?v=50"></script>',
+  '<script src="/_assets/pricing-modal.js?v=51"></script>',
   '<script src="/_assets/banner.js?v=36"></script>',
   '<script src="/_assets/waiting-screen.js?v=3"></script>',
   '<script src="/_assets/style-switcher.js?v=4"></script>',

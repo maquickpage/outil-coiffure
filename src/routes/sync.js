@@ -46,7 +46,7 @@ router.post('/sync/:slug', express.json({ limit: '2mb' }), requireSyncAuth, (req
     'note_avis', 'nb_avis', 'heures_ouverture',
     'meta_description', 'meta_image', 'titre_site', 'site_internet_original',
     'lien_facebook', 'lien_instagram', 'lien_tiktok', 'lien_youtube', 'lien_google_maps',
-    'overrides_json', 'overrides_updated_at', 'data_json',
+    'overrides_json', 'overrides_updated_at', 'data_json', 'template',
     'screenshot_path', 'screenshot_generated_at',
     'csv_source', 'group_id',
     'edit_token',

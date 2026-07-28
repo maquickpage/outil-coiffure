@@ -24,6 +24,7 @@ import Stripe from 'stripe';
 import { isTemplateId, normalizeTemplateId } from '../templates.js';
 
 const router = express.Router();
+const CURRENT_CGV_VERSION = '1.1';
 
 // === Plans Stripe : doit matcher stripe_config.md ===
 // Domaine TOUJOURS offert pour le client, peu importe le plan.
@@ -296,13 +297,11 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
   if (cgv_accepted !== true) {
     return res.status(400).json({ error: 'Vous devez accepter les CGV pour continuer.' });
   }
-  if (!cgv_version || typeof cgv_version !== 'string') {
-    return res.status(400).json({ error: 'Version des CGV manquante.' });
+  if (cgv_version !== CURRENT_CGV_VERSION) {
+    return res.status(400).json({ error: 'Les CGV ont été mises à jour. Rechargez la page avant de continuer.' });
   }
   const plan = PLANS[String(planKey).toUpperCase()];
   if (!plan) return res.status(400).json({ error: 'plan invalide' });
-  if (!plan.priceId) return res.status(500).json({ error: 'STRIPE_PRICE_* env vars non configurés' });
-  if (!process.env.STRIPE_SECRET_KEY) return res.status(500).json({ error: 'STRIPE_SECRET_KEY non configuré' });
 
   // Vérifie que le salon existe + récupère le plan tarifaire pour stocker le contexte
   const salon = db.prepare('SELECT id, slug, nom, nom_clean, ville, template FROM salons WHERE slug = ?').get(slug);
@@ -311,6 +310,17 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
   const template = isTemplateId(requestedTemplate)
     ? requestedTemplate
     : normalizeTemplateId(salon.template);
+
+  // checkoutDemo est un bac à sable visuel, jamais une porte vers Stripe/OVH.
+  if (req.body?.checkout_demo === true) {
+    return res.status(409).json({
+      error: 'Mode démonstration : aucun paiement ne peut être lancé.',
+      code: 'CHECKOUT_DEMO_ONLY',
+    });
+  }
+
+  if (!plan.priceId) return res.status(500).json({ error: 'STRIPE_PRICE_* env vars non configurés' });
+  if (!process.env.STRIPE_SECRET_KEY) return res.status(500).json({ error: 'STRIPE_SECRET_KEY non configuré' });
 
   // === TEST BYPASS PAYMENT (uniquement pour les slugs whitelisted) =============
   // En mode bypass : skip Stripe, skip OVH check, trigger provisioning direct.
@@ -357,7 +367,7 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
           updated_at = datetime('now')
       WHERE slug = ?
     `).run(fakeSessionId, email, planKey, hostname, plan.commitmentMonths,
-           'cus_TEST_BYPASS', 'sub_TEST_BYPASS', cgv_version, clientIp, slug);
+           'cus_TEST_BYPASS', 'sub_TEST_BYPASS', CURRENT_CGV_VERSION, clientIp, slug);
     db.prepare(`UPDATE salons SET template = ? WHERE slug = ?`).run(template, slug);
 
     // Lance provisioning en async
@@ -434,7 +444,7 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
         cgv_accepted_at = datetime('now'), cgv_version = ?, cgv_accepted_ip = ?,
         updated_at = datetime('now')
     WHERE slug = ?
-  `).run(session.id, email, planKey, hostname, plan.commitmentMonths, cgv_version, clientIp, slug);
+  `).run(session.id, email, planKey, hostname, plan.commitmentMonths, CURRENT_CGV_VERSION, clientIp, slug);
 
   res.json({ url: session.url, sessionId: session.id });
 });
