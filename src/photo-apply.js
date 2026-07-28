@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import db from './db.js';
 import { uploadObject } from './object-storage.js';
 import { photoLgPath } from './picker-core.js';
-import { captureSalon } from './screenshot-worker.js';
+import { recaptureAsync } from './screenshot-worker.js';
 import { DEFAULT_GALLERY_IMAGES } from './defaults.js';
 
 const GALLERY_MAX = 12;
@@ -37,11 +37,6 @@ function saveOverrides(salonId, overrides) {
         screenshot_path = NULL, screenshot_generated_at = NULL
     WHERE id = ?
   `).run(JSON.stringify(overrides), salonId);
-}
-
-function recaptureAsync(slug) {
-  // Fire-and-forget : la recapture Puppeteer prend ~5-15s, on ne bloque pas la réponse HTTP.
-  captureSalon(slug).catch((e) => console.warn(`[photo-apply] recapture ${slug} fail: ${e.message}`));
 }
 
 /**

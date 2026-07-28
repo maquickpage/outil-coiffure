@@ -47,6 +47,20 @@ const LAUNCH_OPTS = {
   // protocolTimeout = delai max pour une commande CDP. Default 180s = trop long.
   // 25s permet le fail-fast quand le renderer bloque.
   protocolTimeout: 25000,
+  // En container (Coolify/Docker), il n'y a PAS de bus D-Bus systeme. Chromium
+  // tente quand meme de se connecter a /run/dbus/system_bus_socket au demarrage
+  // et, quand le socket n'existe pas, le process peut echouer avec :
+  //   "Failed to connect to socket /run/dbus/system_bus_socket".
+  // Pointer DBUS_SESSION_BUS_ADDRESS sur /dev/null dit a Chromium de ne pas
+  // chercher de bus. On repart de process.env pour garder PATH, HOME, etc.
+  env: {
+    ...process.env,
+    // Le message d'erreur cite le bus SYSTEME (/run/dbus/system_bus_socket) ET
+    // Chromium tente aussi un bus SESSION. On neutralise les DEUX : aucun daemon
+    // dbus ne tourne dans le container, donc on dit a Chromium de ne rien chercher.
+    DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS || '/dev/null',
+    DBUS_SYSTEM_BUS_ADDRESS: process.env.DBUS_SYSTEM_BUS_ADDRESS || '/dev/null',
+  },
   args: [
     '--no-sandbox',
     '--disable-setuid-sandbox',
@@ -54,7 +68,14 @@ const LAUNCH_OPTS = {
     '--disable-accelerated-2d-canvas',
     '--no-first-run',
     '--no-zygote',
-    '--disable-gpu'
+    '--disable-gpu',
+    // Coupe les sous-systemes qui dependent de D-Bus / du profil utilisateur
+    // et ne servent a rien pour une capture headless en container.
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--disable-sync',
+    '--disable-default-apps',
+    '--mute-audio',
   ]
 };
 if (process.env.PUPPETEER_EXECUTABLE_PATH) {
@@ -256,6 +277,35 @@ async function captureSalonOnBrowser(browser, slug, workerLabel = '') {
 export async function captureSalon(slug) {
   const browser = await getSharedBrowser();
   return captureSalonOnBrowser(browser, slug);
+}
+
+// =============================================================================
+// RECAPTURE AUTOMATIQUE (fire-and-forget, anti-rebond)
+//
+// Appelee par TOUS les points qui modifient le contenu d'un salon (editeur
+// coiffeur, photo-picker, edition admin du nom/presentation...). Objectif :
+// des qu'un salon change (image du hero, textes, galerie...), un nouveau
+// screenshot se regenere tout seul, sans batch manuel.
+//
+// Anti-rebond par slug : quand un coiffeur enchaine plusieurs sauvegardes en
+// quelques secondes, on ne lance qu'UNE capture (la derniere), au lieu d'empiler
+// autant d'instances Chromium que de sauvegardes. Le timer se reset a chaque
+// appel ; la capture part RECAPTURE_DEBOUNCE_MS apres la DERNIERE modif.
+// =============================================================================
+const RECAPTURE_DEBOUNCE_MS = Math.max(0, parseInt(process.env.SCREENSHOT_RECAPTURE_DEBOUNCE_MS || '3000', 10));
+const _recaptureTimers = new Map();
+
+export function recaptureAsync(slug) {
+  if (!slug) return;
+  const existing = _recaptureTimers.get(slug);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    _recaptureTimers.delete(slug);
+    captureSalon(slug).catch((e) => console.warn(`[recapture] ${slug} fail: ${e.message}`));
+  }, RECAPTURE_DEBOUNCE_MS);
+  // Ne pas empecher le process de s'eteindre juste pour un screenshot en attente.
+  if (typeof timer.unref === 'function') timer.unref();
+  _recaptureTimers.set(slug, timer);
 }
 
 export async function captureBatch(slugs, onProgress) {
