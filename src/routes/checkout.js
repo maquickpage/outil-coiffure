@@ -21,6 +21,7 @@ import db from '../db.js';
 import { checkDomainsParallel, checkDomainAvailability } from '../ovh-client.js';
 import { getProvisioningStatus } from '../provisioning-worker.js';
 import Stripe from 'stripe';
+import { isTemplateId, normalizeTemplateId } from '../templates.js';
 
 const router = express.Router();
 
@@ -304,8 +305,12 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
   if (!process.env.STRIPE_SECRET_KEY) return res.status(500).json({ error: 'STRIPE_SECRET_KEY non configuré' });
 
   // Vérifie que le salon existe + récupère le plan tarifaire pour stocker le contexte
-  const salon = db.prepare('SELECT id, slug, nom, nom_clean, ville FROM salons WHERE slug = ?').get(slug);
+  const salon = db.prepare('SELECT id, slug, nom, nom_clean, ville, template FROM salons WHERE slug = ?').get(slug);
   if (!salon) return res.status(404).json({ error: 'Salon introuvable' });
+  const requestedTemplate = req.body?.template;
+  const template = isTemplateId(requestedTemplate)
+    ? requestedTemplate
+    : normalizeTemplateId(salon.template);
 
   // === TEST BYPASS PAYMENT (uniquement pour les slugs whitelisted) =============
   // En mode bypass : skip Stripe, skip OVH check, trigger provisioning direct.
@@ -353,6 +358,7 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
       WHERE slug = ?
     `).run(fakeSessionId, email, planKey, hostname, plan.commitmentMonths,
            'cus_TEST_BYPASS', 'sub_TEST_BYPASS', cgv_version, clientIp, slug);
+    db.prepare(`UPDATE salons SET template = ? WHERE slug = ?`).run(template, slug);
 
     // Lance provisioning en async
     const { startProvisioning } = await import('../provisioning-worker.js');
@@ -366,7 +372,7 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
     });
 
     const baseUrl = process.env.PUBLIC_BASE_URL || 'https://maquickpage.fr';
-    const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id=${fakeSessionId}&bypass=1`;
+    const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id=${fakeSessionId}&bypass=1&template=${encodeURIComponent(template)}`;
     return res.json({ url: successUrl, sessionId: fakeSessionId, bypass: true });
   }
 
@@ -377,8 +383,8 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
   const lineItems = [{ price: plan.priceId, quantity: 1 }];
 
   const baseUrl = process.env.PUBLIC_BASE_URL || 'https://maquickpage.fr';
-  const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${baseUrl}/preview/${slug}?signup=cancelled`;
+  const successUrl = `${baseUrl}/preview/${slug}?signup=success&session_id={CHECKOUT_SESSION_ID}&template=${encodeURIComponent(template)}`;
+  const cancelUrl = `${baseUrl}/preview/${slug}?signup=cancelled&template=${encodeURIComponent(template)}`;
 
   let session;
   try {
@@ -392,13 +398,23 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
           hostname,
           plan: planKey,
           commitment_months: String(plan.commitmentMonths),
+          first_month_cancellation_days: '30',
+          first_month_refundable: 'false',
+          template,
         },
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
       locale: 'fr',
       payment_method_types: ['card'],
-      metadata: { slug, hostname, plan: planKey },
+      metadata: {
+        slug,
+        hostname,
+        plan: planKey,
+        template,
+        first_month_cancellation_days: '30',
+        first_month_refundable: 'false',
+      },
     });
   } catch (err) {
     console.error('[/api/checkout/create-session] Stripe error:', err.message);

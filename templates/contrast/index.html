@@ -19,7 +19,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- title + meta description adjacents : le SSR (src/ssr.js) remplace ce
+         bloc d'une seule regex — ne pas insérer d'élément entre les deux. -->
     <title>Salon de Coiffure</title>
+    <meta name="description" content="Salon de coiffure">
     <!-- Polices : PROPRE À CHAQUE TEMPLATE. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,7 +100,19 @@
             <span class="section-label">Ce que nous proposons</span>
             <h2 class="band-title section-title">Nos Services</h2>
         </div>
-        <div class="services-grid" id="services-grid"></div>
+        <!-- Carrousel actif uniquement en mobile (liste trop longue en 1 col) -->
+        <div class="services-wrapper" id="services-wrapper">
+            <button class="carousel-arrow carousel-prev" id="services-prev" aria-label="Précédent" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="services-clip">
+                <div class="services-grid" id="services-grid"></div>
+            </div>
+            <button class="carousel-arrow carousel-next" id="services-next" aria-label="Suivant" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+        </div>
+        <div class="carousel-dots" id="services-dots"></div>
     </section>
 
     <!-- ============ GALERIE : grille de réalisations (grid / masonry) ============ -->

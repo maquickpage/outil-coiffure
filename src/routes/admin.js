@@ -129,7 +129,7 @@ router.get('/api/preview-visits.csv', (req, res) => {
 // authentifiée). Sépare les visiteurs par (ip|ua) et exclut de l'entonnoir
 // prospect : les bots (UA) ET les IP internes (toi/QA, table suivi_excluded_ips).
 const SUIVI_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
-const SUIVI_STAGE = { preview_ouvert: 1, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
+const SUIVI_STAGE = { preview_ouvert: 1, template_essaye: 2, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
 const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
 const INTERNAL_ACTIVITY_EVENTS = new Set(['demo_email_envoyee', 'demo_sms_copiee']);
 

@@ -98,6 +98,10 @@ function buildTestimonials(testimonials) {
   const row = $('testimonials-row');
   if (!row) return;
   const items = (testimonials.items || []).slice(0, 3);
+  // Robustesse : aucun avis → section masquée (pas de titre orphelin).
+  const section = document.getElementById('avis');
+  if (items.length === 0) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
   const stars = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'.repeat(5);
   row.innerHTML = items.map(t => `
     <div class="testimonial-card">
@@ -205,9 +209,13 @@ let galleryAllImages = [];
 function buildGallery(gallery) {
   const grid = $('gallery-grid');
   const loadMore = $('gallery-load-more');
+  const section = document.getElementById('galerie');
   if (!grid) return;
 
   galleryAllImages = (gallery.images || []).slice();
+  // Robustesse : aucune photo → section masquée (pas de titre orphelin).
+  if (galleryAllImages.length === 0) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
   galleryShownCount = Math.min(6, galleryAllImages.length);
 
   const isMasonry = gallery.layout === 'masonry';
@@ -255,29 +263,125 @@ function openLightbox(images, index) {
   lb.classList.add('active');
 }
 
-let servicesIndex = 0;
-function buildServices(services) {
-  const grid = $('services-grid');
-  if (!grid) return;
-  const items = (services.items || []).slice(0, 20);
-  const isCarousel = items.length > 4;
-  const wrapper = $('services-wrapper');
-  wrapper.classList.toggle('is-carousel', isCarousel);
+/* SERVICES.
+   Desktop/tablette : comportement historique — grille, et carrousel de cartes
+   (4/2 visibles) dès que plus de 4 prestations.
+   MOBILE (≤768px) : carrousel PAR CATÉGORIE — 1 slide par catégorie
+   (Femmes / Hommes / Autres), chaque slide contient la liste des prestations
+   de la catégorie. Une seule catégorie → retombe sur le carrousel 1 carte/vue. */
+const CATEGORY_ORDER = ['femme', 'homme', 'autres'];
+const CATEGORY_LABELS = { femme: 'Femmes', homme: 'Hommes', autres: 'Autres' };
+let servicesIndex = 0;      // index du carrousel desktop (cartes)
+let servicesCatPage = 0;    // index du carrousel mobile (catégories)
+let servicesAllItems = [];
+let servicesLayoutMode = null; // 'flat' | 'cat'
+let servicesResizeBound = false;
 
-  grid.innerHTML = items.map((s, i) => `
+function serviceCategory(s) {
+  return CATEGORY_ORDER.includes(s.category) ? s.category : 'autres';
+}
+function categoryPages(items) {
+  return CATEGORY_ORDER
+    .map(cat => ({ cat, label: CATEGORY_LABELS[cat], items: items.filter(s => serviceCategory(s) === cat) }))
+    .filter(p => p.items.length > 0);
+}
+function serviceCardHtml(s, i) {
+  return `
     <div class="service-card" data-index="${i}">
       <h3>${escapeHtml(s.name)}</h3>
       <p>${escapeHtml(s.description || '')}</p>
       <span class="service-price">${escapeHtml(s.price || '')}</span>
-    </div>
-  `).join('');
+    </div>`;
+}
 
+function buildServices(services) {
+  const grid = $('services-grid');
+  if (!grid) return;
+  servicesAllItems = (services.items || []).slice(0, 20);
+  const section = document.getElementById('services');
+  if (servicesAllItems.length === 0) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
+
+  servicesLayoutMode = null;
+  renderServicesLayout();
+  if (!servicesResizeBound) {
+    servicesResizeBound = true;
+    let t = null;
+    window.addEventListener('resize', () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(renderServicesLayout, 120);
+    });
+  }
+}
+
+function renderServicesLayout() {
+  const grid = $('services-grid');
+  const wrapper = $('services-wrapper');
+  const prev = $('services-prev');
+  const next = $('services-next');
+  const dots = $('services-dots');
+  if (!grid || !wrapper) return;
+
+  const mobile = window.matchMedia('(max-width: 768px)').matches;
+  const pages = categoryPages(servicesAllItems);
+
+  // ---- MOBILE : carrousel par catégorie -------------------------------
+  if (mobile && pages.length > 1) {
+    wrapper.classList.remove('is-carousel');
+    wrapper.classList.add('is-cat-carousel');
+    if (servicesLayoutMode !== 'cat') {
+      grid.innerHTML = pages.map(p => `
+        <div class="services-page">
+          <p class="services-cat-label">${p.label}</p>
+          ${p.items.map((s, i) => serviceCardHtml(s, i)).join('')}
+        </div>`).join('');
+      servicesLayoutMode = 'cat';
+    }
+    if (servicesCatPage > pages.length - 1) servicesCatPage = pages.length - 1;
+
+    const update = () => {
+      const page = grid.querySelector('.services-page');
+      const step = page ? page.offsetWidth + 24 : 0;
+      grid.style.transform = `translateX(-${servicesCatPage * step}px)`;
+      prev.hidden = false;
+      next.hidden = false;
+      prev.disabled = servicesCatPage === 0;
+      next.disabled = servicesCatPage >= pages.length - 1;
+      dots.innerHTML = pages.map((p, i) =>
+        `<button class="carousel-dot ${i === servicesCatPage ? 'active' : ''}" data-i="${i}" aria-label="${p.label}"></button>`
+      ).join('');
+      dots.querySelectorAll('button').forEach(b => {
+        b.onclick = () => { servicesCatPage = parseInt(b.dataset.i, 10); update(); };
+      });
+    };
+    prev.onclick = () => { if (servicesCatPage > 0) { servicesCatPage--; update(); } };
+    next.onclick = () => { if (servicesCatPage < pages.length - 1) { servicesCatPage++; update(); } };
+    let startX = 0;
+    grid.ontouchstart = e => { startX = e.touches[0].clientX; };
+    grid.ontouchend = e => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) < 40) return;
+      if (dx < 0) next.onclick(); else prev.onclick();
+    };
+    update();
+    return;
+  }
+
+  // ---- Desktop / une seule catégorie : comportement historique --------
+  wrapper.classList.remove('is-cat-carousel');
+  const isCarousel = servicesAllItems.length > 4;
+  wrapper.classList.toggle('is-carousel', isCarousel);
+  if (servicesLayoutMode !== 'flat') {
+    grid.innerHTML = servicesAllItems.map((s, i) => serviceCardHtml(s, i)).join('');
+    servicesLayoutMode = 'flat';
+  }
   if (isCarousel) {
-    setupServicesCarousel(items.length);
+    setupServicesCarousel(servicesAllItems.length);
   } else {
-    $('services-prev').hidden = true;
-    $('services-next').hidden = true;
-    $('services-dots').innerHTML = '';
+    grid.style.transform = '';
+    prev.hidden = true;
+    next.hidden = true;
+    dots.innerHTML = '';
   }
 }
 
@@ -303,7 +407,8 @@ function setupServicesCarousel(total) {
   }
 
   function updateView() {
-    const perView = getPerView();
+    // Ne rien faire si on est passé en mode catégorie entre-temps (resize)
+    if (servicesLayoutMode !== 'flat') return;
     const maxIndex = getMaxIndex();
     if (servicesIndex > maxIndex) servicesIndex = maxIndex;
     const cardWidth = grid.querySelector('.service-card')?.offsetWidth || 0;
@@ -324,17 +429,16 @@ function setupServicesCarousel(total) {
   prev.onclick = () => { servicesIndex = Math.max(0, servicesIndex - 1); updateView(); };
   next.onclick = () => { servicesIndex = Math.min(getMaxIndex(), servicesIndex + 1); updateView(); };
 
-  // Swipe touch
+  // Swipe touch (assignations idempotentes — pas d'accumulation de listeners)
   let startX = 0;
-  grid.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-  grid.addEventListener('touchend', e => {
+  grid.ontouchstart = e => { startX = e.touches[0].clientX; };
+  grid.ontouchend = e => {
     const dx = e.changedTouches[0].clientX - startX;
     if (Math.abs(dx) < 40) return;
     if (dx < 0) next.onclick();
     else prev.onclick();
-  }, { passive: true });
+  };
 
-  window.addEventListener('resize', updateView);
   setTimeout(updateView, 50);
 }
 
@@ -430,10 +534,13 @@ function renderSalon(view) {
   if (c.intro.showRating && view.note_avis >= 4) {
     setText('stat-rating', `${view.note_avis}/5`);
     ratingBlock.querySelector('.stat-label').textContent = 'Note Google';
-  } else {
+  } else if (c.intro.ratingFallback) {
     // Fallback commercial : on remplace le bloc note par un bloc texte vendeur
     ratingBlock.classList.add('stat-fallback');
-    ratingBlock.innerHTML = `<span class="stat-fallback-text">${escapeHtml(c.intro.ratingFallback || '')}</span>`;
+    ratingBlock.innerHTML = `<span class="stat-fallback-text">${escapeHtml(c.intro.ratingFallback)}</span>`;
+  } else {
+    // Ni note ni texte de fallback → pas de boîte vide
+    ratingBlock.style.display = 'none';
   }
 
   // Bloc Satisfaction (toggle + valeurs editables)
@@ -513,10 +620,14 @@ function renderSalon(view) {
 
   setHtml('contact-hours', formatHours(c.contact.hours));
 
-  // RESEAUX SOCIAUX
+  // RESEAUX SOCIAUX (aucun réseau → conteneurs masqués, pas de marge fantôme)
   const socials = buildSocialIcons(c.socials);
   setHtml('social-icons', socials);
   setHtml('footer-social', socials);
+  const socialIconsEl = $('social-icons');
+  if (socialIconsEl) socialIconsEl.style.display = socials ? '' : 'none';
+  const footerSocialEl = $('footer-social');
+  if (footerSocialEl) footerSocialEl.style.display = socials ? '' : 'none';
 
   // MAP : trois cas de figure
   //   1. mode='zone' + hideMap=true → carte masquée complètement (opt-in)

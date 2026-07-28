@@ -879,16 +879,19 @@ body {
         gap: 60px;
     }
     
+    /* auto-fit : il n'y a que 2 blocs stats (voire 1 si la note est masquée) —
+       une grille figée à 3 colonnes laissait une colonne vide déséquilibrée. */
     .intro-stats {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
     
     .contact-wrapper {
         grid-template-columns: 1fr;
     }
     
+    /* La carte reste APRÈS le bloc « Venez nous rendre visite » (infos de
+       contact) en mobile/tablette — demande explicite (tracker 07/10). */
     .contact-map {
-        order: -1;
         min-height: 350px;
     }
     
@@ -1090,6 +1093,33 @@ body {
     .services-wrapper.is-carousel .service-card {
         flex: 0 0 100%;
         max-width: 100%;
+    }
+}
+
+/* Carrousel PAR CATÉGORIE (mobile) : 1 slide par catégorie, liste de cartes
+   dedans. Activé par hydrate.js (classe .is-cat-carousel) uniquement ≤768px. */
+@media (max-width: 768px) {
+    .services-wrapper.is-cat-carousel .services-grid {
+        display: flex;
+        gap: 24px;
+        max-width: none;
+        margin: 0;
+        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+    }
+    .services-wrapper.is-cat-carousel .services-page {
+        flex: 0 0 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    .services-cat-label {
+        font-family: var(--font-heading);
+        font-size: 1.6rem;
+        text-align: center;
+        color: var(--color-primary);
+        letter-spacing: 1px;
+        margin-bottom: -4px;
     }
 }
 

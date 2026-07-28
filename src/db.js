@@ -118,6 +118,11 @@ export function initSchema() {
   if (!cols.includes('suspended_at')) db.exec("ALTER TABLE salons ADD COLUMN suspended_at TEXT");
   if (!cols.includes('suspended_reason')) db.exec("ALTER TABLE salons ADD COLUMN suspended_reason TEXT");
 
+  // === Template du site salon (design kit templates/) ===
+  // 'classic' (défaut = site historique public/site) | 'contrast' | 'drama'.
+  // Choisi via l'éditeur admin (/admin/{slug}) ; lu par ssr.js au rendu.
+  if (!cols.includes('template')) db.exec("ALTER TABLE salons ADD COLUMN template TEXT DEFAULT 'classic'");
+
   // === Récupération d'accès admin (magic link via /recover) ===
   // Le coiffeur entre son email sur maquickpage.fr/recover, on génère un token
   // single-use valable 10 min, et on lui envoie un email avec le lien.

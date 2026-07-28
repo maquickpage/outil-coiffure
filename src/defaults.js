@@ -30,17 +30,22 @@ export const DEFAULT_GALLERY_IMAGES = [
 
 export const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1920&q=80';
 
+// Catégories de services : 'femme' | 'homme' | 'autres'.
+// Affichées sur mobile en carrousel (1 slide par catégorie, liste dedans) ;
+// éditables service par service dans l'admin coiffeur.
+export const SERVICE_CATEGORIES = ['femme', 'homme', 'autres'];
+
 export const DEFAULT_SERVICES = [
-  { id: 's1', name: 'Coupe Femme', description: 'Coupe personnalisee femme : shampoing, coupe, finition.', price: '35€' },
-  { id: 's2', name: 'Coupe Homme', description: 'Coupe homme classique ou tendance, finition incluse.', price: '22€' },
-  { id: 's3', name: 'Coupe Enfant', description: 'Coupe enfant (jusqu\'a 12 ans).', price: '18€' },
-  { id: 's4', name: 'Shampoing & Brushing', description: 'Lavage, soin et mise en forme.', price: '25€' },
-  { id: 's5', name: 'Brushing seul', description: 'Mise en forme cheveux propres.', price: '20€' },
-  { id: 's6', name: 'Coloration', description: 'Coloration couvrante, ton sur ton ou couleur d\'envie.', price: '55€' },
-  { id: 's7', name: 'Meches / Balayage', description: 'Eclaircissement sur mesure pour donner du relief.', price: '75€' },
-  { id: 's8', name: 'Soin profond', description: 'Soin reparateur et hydratant en profondeur.', price: '30€' },
-  { id: 's9', name: 'Coiffure Mariage', description: 'Coiffure d\'exception pour le jour J (essai inclus).', price: '90€' },
-  { id: 's10', name: 'Lissage', description: 'Lissage professionnel pour cheveux soyeux et disciplines.', price: '80€' }
+  { id: 's1', name: 'Coupe Femme', description: 'Coupe personnalisee femme : shampoing, coupe, finition.', price: '35€', category: 'femme' },
+  { id: 's2', name: 'Coupe Homme', description: 'Coupe homme classique ou tendance, finition incluse.', price: '22€', category: 'homme' },
+  { id: 's3', name: 'Coupe Enfant', description: 'Coupe enfant (jusqu\'a 12 ans).', price: '18€', category: 'autres' },
+  { id: 's4', name: 'Shampoing & Brushing', description: 'Lavage, soin et mise en forme.', price: '25€', category: 'femme' },
+  { id: 's5', name: 'Brushing seul', description: 'Mise en forme cheveux propres.', price: '20€', category: 'femme' },
+  { id: 's6', name: 'Coloration', description: 'Coloration couvrante, ton sur ton ou couleur d\'envie.', price: '55€', category: 'femme' },
+  { id: 's7', name: 'Meches / Balayage', description: 'Eclaircissement sur mesure pour donner du relief.', price: '75€', category: 'femme' },
+  { id: 's8', name: 'Soin profond', description: 'Soin reparateur et hydratant en profondeur.', price: '30€', category: 'autres' },
+  { id: 's9', name: 'Coiffure Mariage', description: 'Coiffure d\'exception pour le jour J (essai inclus).', price: '90€', category: 'autres' },
+  { id: 's10', name: 'Lissage', description: 'Lissage professionnel pour cheveux soyeux et disciplines.', price: '80€', category: 'femme' }
 ];
 
 export const DEFAULT_TESTIMONIALS = [
@@ -138,6 +143,10 @@ export function buildDefaults(csvData) {
     intro: {
       title: ville ? `Bienvenue à ${ville}` : 'Bienvenue',
       description: csvData.meta_description || `Notre equipe vous accueille ${ville ? `a ${ville} ` : ''}pour vous offrir des prestations de coiffure soignees dans une ambiance chaleureuse. Nous mettons notre savoir-faire au service de votre style.`,
+      // Photo d'illustration de la section intro (template Contrast).
+      // Vide → le template choisit automatiquement une photo de la galerie
+      // différente du hero.
+      image: '',
       showRating,
       ratingFallback: 'Une qualite de service reconnue par nos clients fideles, jour apres jour.',
       showSatisfaction: true,
@@ -169,6 +178,11 @@ export function buildDefaults(csvData) {
       latitude: csvData.latitude,
       longitude: csvData.longitude,
       bookingUrl: detectBookingUrl(csvData.site_internet_original) || ''
+    },
+    design: {
+      // Contrast/Drama passent les photos en noir & blanc (filtre « cinéma »).
+      // false → photos affichées en couleur d'origine. Sans effet sur Classic.
+      monochromePhotos: true
     },
     socials: {
       facebook: { url: csvData.lien_facebook || '', enabled: !!csvData.lien_facebook },
@@ -241,6 +255,7 @@ export function buildSalonView(salonRow) {
     slug: salonRow.slug,
     nom: displayName,
     nom_original: salonRow.nom,
+    template: salonRow.template || 'classic',
     ville: salonRow.ville,
     note_avis: salonRow.note_avis,
     nb_avis: salonRow.nb_avis,

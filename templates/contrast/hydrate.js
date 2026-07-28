@@ -187,24 +187,125 @@ function openLightbox(images, index) {
   lb.classList.add('active');
 }
 
-// Services : grille de prestations aérée (nom + description + prix, filets fins).
-// Pas de carrousel — disposition « listing » façon Curly. Robuste : liste vide
-// → section masquée.
-function buildServices(services) {
-  const grid = $('services-grid');
-  const section = document.getElementById('services');
-  if (!grid) return;
-  const items = ((services && services.items) || []).slice(0, 12);
-  if (items.length === 0) { if (section) section.style.display = 'none'; return; }
-  if (section) section.style.display = '';
+// Services : grille de prestations aérée (nom + description + prix, filets fins)
+// sur desktop/tablette. Sur MOBILE → carrousel PAR CATÉGORIE : 1 slide par
+// catégorie (Femmes / Hommes / Autres), chaque slide contient la liste des
+// prestations de la catégorie. Robuste : liste vide → section masquée ;
+// une seule catégorie → liste simple sans chrome de carrousel.
+const CATEGORY_ORDER = ['femme', 'homme', 'autres'];
+const CATEGORY_LABELS = { femme: 'Femmes', homme: 'Hommes', autres: 'Autres' };
+let servicesItems = [];
+let servicesPage = 0;
+let servicesMode = null; // 'grid' | 'carousel' — évite les re-rendus inutiles
 
-  grid.innerHTML = items.map(s => `
+function serviceCategory(s) {
+  return CATEGORY_ORDER.includes(s.category) ? s.category : 'autres';
+}
+// [{ cat, label, items }] — uniquement les catégories non vides, ordre fixe.
+function categoryPages(items) {
+  return CATEGORY_ORDER
+    .map(cat => ({ cat, label: CATEGORY_LABELS[cat], items: items.filter(s => serviceCategory(s) === cat) }))
+    .filter(p => p.items.length > 0);
+}
+
+function serviceColHtml(s) {
+  return `
     <div class="service-col">
       <h3>${escapeHtml(s.name)}</h3>
       <p>${escapeHtml(s.description || '')}</p>
       ${s.price ? `<span class="service-price">${escapeHtml(s.price)}</span>` : ''}
-    </div>
-  `).join('');
+    </div>`;
+}
+
+function buildServices(services) {
+  const grid = $('services-grid');
+  const section = document.getElementById('services');
+  if (!grid) return;
+  servicesItems = ((services && services.items) || []).slice(0, 20);
+  if (servicesItems.length === 0) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
+
+  servicesMode = null;
+  renderServices();
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderServices, 120);
+  });
+}
+
+function renderServices() {
+  const grid = $('services-grid');
+  const wrapper = $('services-wrapper');
+  const prev = $('services-prev');
+  const next = $('services-next');
+  const dots = $('services-dots');
+  if (!grid) return;
+
+  const mobile = window.matchMedia('(max-width: 768px)').matches;
+  let pages = categoryPages(servicesItems);
+  // Une seule catégorie mais liste longue → carrousel quand même, par pages
+  // de 3 sans en-tête de catégorie (sinon la liste redevient interminable).
+  if (pages.length === 1 && servicesItems.length > 3) {
+    pages = [];
+    for (let i = 0; i < servicesItems.length; i += 3) {
+      pages.push({ label: '', items: servicesItems.slice(i, i + 3) });
+    }
+  }
+  const useCarousel = mobile && pages.length > 1;
+
+  if (wrapper) wrapper.classList.toggle('is-carousel', useCarousel);
+
+  if (!useCarousel) {
+    if (servicesMode !== 'grid') {
+      grid.innerHTML = servicesItems.map(serviceColHtml).join('');
+      servicesMode = 'grid';
+    }
+    grid.style.transform = '';
+    if (prev) prev.hidden = true;
+    if (next) next.hidden = true;
+    if (dots) dots.innerHTML = '';
+    return;
+  }
+
+  if (servicesMode !== 'carousel') {
+    grid.innerHTML = pages.map(p => `
+      <div class="services-page">
+        ${p.label ? `<p class="services-cat-label">${p.label}</p>` : ''}
+        ${p.items.map(serviceColHtml).join('')}
+      </div>`).join('');
+    servicesMode = 'carousel';
+  }
+  if (servicesPage > pages.length - 1) servicesPage = pages.length - 1;
+
+  const update = () => {
+    const page = grid.querySelector('.services-page');
+    const gap = 24;
+    const step = page ? page.offsetWidth + gap : 0;
+    grid.style.transform = `translateX(-${servicesPage * step}px)`;
+    prev.hidden = false;
+    next.hidden = false;
+    prev.disabled = servicesPage === 0;
+    next.disabled = servicesPage >= pages.length - 1;
+    dots.innerHTML = pages.map((p, i) =>
+      `<button class="carousel-dot ${i === servicesPage ? 'active' : ''}" data-i="${i}" aria-label="${p.label || `Page ${i + 1}`}"></button>`
+    ).join('');
+    dots.querySelectorAll('button').forEach(b => {
+      b.onclick = () => { servicesPage = parseInt(b.dataset.i, 10); update(); };
+    });
+  };
+  prev.onclick = () => { if (servicesPage > 0) { servicesPage--; update(); } };
+  next.onclick = () => { if (servicesPage < pages.length - 1) { servicesPage++; update(); } };
+
+  let startX = 0;
+  grid.ontouchstart = e => { startX = e.touches[0].clientX; };
+  grid.ontouchend = e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) next.onclick(); else prev.onclick();
+  };
+
+  update();
 }
 
 function applyHeroImage(src) {
@@ -273,6 +374,10 @@ function renderSalon(view) {
   const shortName = buildShortName(c.hero.title || view.nom);
   const ville = view.ville || '';
 
+  // Option éditeur « photos en couleur » : désactive les filtres N&B (CSS
+  // body.photos-color). Défaut = monochrome (signature du template).
+  document.body.classList.toggle('photos-color', !!(c.design && c.design.monochromePhotos === false));
+
   document.title = `${c.hero.title || view.nom}${ville ? ` — ${ville}` : ''}`;
   const metaDesc = document.querySelector('meta[name="description"]');
   if (metaDesc && c.intro?.description) metaDesc.content = c.intro.description.slice(0, 160);
@@ -294,10 +399,17 @@ function renderSalon(view) {
   // → .hero-content { container-type: size } + cqh units sur titre/marges).
   // Aucune mesure JS nécessaire.
 
-  // INTRO — bande split : image plein bord (hero, sinon 1re photo galerie).
+  // INTRO — bande split : image plein bord.
+  // 1. intro.image choisie dans l'éditeur (onglet Texte d'intro) si définie ;
+  // 2. sinon une photo de la galerie DIFFÉRENTE du hero (évite le « double
+  //    hero », surtout en mobile/tablette où l'image passe en pleine largeur) ;
+  // 3. sinon le hero en dernier recours.
   const introVisual = $('intro-visual');
   if (introVisual) {
-    const introImg = c.hero.backgroundImage || (c.gallery && c.gallery.images && c.gallery.images[0]);
+    const galleryImgs = (c.gallery && c.gallery.images) || [];
+    const introImg = c.intro.image
+      || galleryImgs.find(u => u && u !== c.hero.backgroundImage)
+      || c.hero.backgroundImage;
     if (introImg) introVisual.style.backgroundImage = `url('${introImg}')`;
   }
   setText('intro-title', c.intro.title);
@@ -306,10 +418,13 @@ function renderSalon(view) {
   if (c.intro.showRating && view.note_avis >= 4) {
     setText('stat-rating', `${view.note_avis}/5`);
     ratingBlock.querySelector('.stat-label').textContent = 'Note Google';
-  } else {
+  } else if (c.intro.ratingFallback) {
     // Fallback commercial : on remplace le bloc note par un bloc texte vendeur
     ratingBlock.classList.add('stat-fallback');
-    ratingBlock.innerHTML = `<span class="stat-fallback-text">${escapeHtml(c.intro.ratingFallback || '')}</span>`;
+    ratingBlock.innerHTML = `<span class="stat-fallback-text">${escapeHtml(c.intro.ratingFallback)}</span>`;
+  } else {
+    // Ni note ni texte de fallback → pas de boîte vide
+    ratingBlock.style.display = 'none';
   }
 
   // Bloc Satisfaction (toggle + valeurs editables)
@@ -389,10 +504,14 @@ function renderSalon(view) {
 
   setHtml('contact-hours', formatHours(c.contact.hours));
 
-  // RESEAUX SOCIAUX
+  // RESEAUX SOCIAUX (aucun réseau → conteneurs masqués, pas de marge fantôme)
   const socials = buildSocialIcons(c.socials);
   setHtml('social-icons', socials);
   setHtml('footer-social', socials);
+  const socialIconsEl = $('social-icons');
+  if (socialIconsEl) socialIconsEl.style.display = socials ? '' : 'none';
+  const footerSocialEl = $('footer-social');
+  if (footerSocialEl) footerSocialEl.style.display = socials ? '' : 'none';
 
   // MAP : trois cas de figure
   //   1. mode='zone' + hideMap=true → carte masquée complètement (opt-in)

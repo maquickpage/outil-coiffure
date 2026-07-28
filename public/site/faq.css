@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
+
+:root {
+  --ink: #171814;
+  --muted: #6b6d63;
+  --paper: #f4f1e9;
+  --cream: #e8dfcb;
+  --line: rgba(23, 24, 20, .16);
+  --accent: #496217;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif; }
+a { color: inherit; text-underline-offset: 3px; }
+
+.faq-nav {
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(24px, calc((100vw - 1180px) / 2));
+  border-bottom: 1px solid var(--line);
+}
+.faq-brand { font-size: 20px; font-weight: 700; text-decoration: none; }
+.faq-back { font-size: 13px; font-weight: 600; }
+
+main { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }
+.faq-hero { padding: 90px 0 76px; }
+.faq-hero > span, .faq-contact > span { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.faq-hero h1 { max-width: 760px; margin: 16px 0; font-family: 'Playfair Display', serif; font-size: clamp(54px, 8vw, 106px); font-weight: 600; line-height: .94; letter-spacing: -.045em; }
+.faq-hero > p { max-width: 550px; color: var(--muted); font-size: 18px; }
+.faq-hero nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 34px; }
+.faq-hero nav a { padding: 9px 13px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.faq-hero nav a:hover { background: var(--ink); color: white; }
+
+.faq-section { display: grid; grid-template-columns: 300px 1fr; gap: 70px; padding: 72px 0; border-top: 1px solid var(--line); }
+.faq-section-title { display: flex; align-items: baseline; gap: 15px; }
+.faq-section-title span { color: var(--accent); font-size: 11px; font-weight: 700; }
+.faq-section-title h2 { margin: 0; font-family: 'Playfair Display', serif; font-size: 31px; line-height: 1.1; }
+.faq-list details { border-top: 1px solid var(--line); }
+.faq-list details:last-child { border-bottom: 1px solid var(--line); }
+.faq-list summary { position: relative; padding: 23px 42px 23px 0; font-size: 17px; font-weight: 600; list-style: none; cursor: pointer; }
+.faq-list summary::-webkit-details-marker { display: none; }
+.faq-list summary::after { content: '+'; position: absolute; right: 5px; top: 20px; font-size: 24px; font-weight: 400; }
+.faq-list details[open] summary::after { content: '−'; }
+.faq-list p { max-width: 720px; margin: -4px 42px 24px 0; color: var(--muted); font-size: 15px; line-height: 1.7; }
+.faq-highlight { margin: 0 -32px; padding-right: 32px; padding-left: 32px; border-radius: 20px; background: var(--cream); }
+.faq-legal-note { grid-column: 2; margin: -46px 0 0; color: var(--muted); font-size: 12px; }
+
+.faq-contact { margin: 70px 0; padding: 68px; border-radius: 20px; background: var(--ink); color: white; }
+.faq-contact h2 { max-width: 700px; margin: 12px 0 30px; font-family: 'Playfair Display', serif; font-size: clamp(38px, 6vw, 72px); line-height: 1; }
+.faq-contact a { color: #d8e7ad; font-size: 17px; font-weight: 600; }
+
+body > footer { display: flex; justify-content: space-between; width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 30px 0 46px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+body > footer nav { display: flex; gap: 20px; }
+
+@media (max-width: 760px) {
+  main { width: min(100% - 32px, 1180px); }
+  .faq-nav { height: 64px; padding: 0 16px; }
+  .faq-hero { padding: 58px 0 48px; }
+  .faq-hero h1 { font-size: 56px; }
+  .faq-section { grid-template-columns: 1fr; gap: 28px; padding: 48px 0; }
+  .faq-section-title h2 { font-size: 27px; }
+  .faq-list summary { font-size: 15px; }
+  .faq-highlight { margin: 0 -8px; padding-right: 16px; padding-left: 16px; }
+  .faq-legal-note { grid-column: 1; margin: -12px 0 0; }
+  .faq-contact { margin: 42px 0; padding: 42px 24px; }
+  body > footer { width: calc(100% - 32px); flex-direction: column; gap: 16px; }
+}

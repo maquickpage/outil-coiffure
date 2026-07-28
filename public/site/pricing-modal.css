@@ -1441,6 +1441,50 @@
     background: rgba(255, 255, 255, 0.06);
 }
 
+.mqs-order-style {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border: 1px solid #e7e2d9;
+  border-radius: 10px;
+  background: #fbfaf7;
+}
+
+.mqs-order-style > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+
+.mqs-order-style small {
+  color: #777;
+  font-size: 10px;
+}
+
+.mqs-order-style strong {
+  color: #181818;
+  font-size: 13px;
+}
+
+.mqs-order-style a {
+  color: #555;
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.mqs-order-style-swatch {
+  width: 38px;
+  height: 30px;
+  border-radius: 6px;
+  background: #e8ddcb;
+}
+
+.mqs-order-style-contrast { background: linear-gradient(112deg, #111 0 58%, #ee6e60 58%); }
+.mqs-order-style-drama { background: linear-gradient(135deg, #080808, #5b4929); }
+
 .mqs-order-domain-icon {
     display: grid;
     place-items: center;
@@ -1495,6 +1539,17 @@
 .mqs-order-includes li span {
     color: #d4ff3a;
     font-weight: 800;
+}
+
+.mqs-order-includes li > span:last-child {
+    color: rgba(255, 255, 255, 0.76);
+    font-weight: 400;
+}
+
+.mqs-order-includes li a {
+    color: #d4ff3a;
+    font-weight: 700;
+    text-underline-offset: 2px;
 }
 
 .mqs-order-installation {
@@ -1885,31 +1940,36 @@
 /* Step 2 exact draft layout */
 #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal {
     width: min(760px, 100vw);
-    padding: 16px 36px 20px;
+    padding: 22px 44px 44px;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-funnel-tabs {
-    margin-bottom: 24px;
+    margin-bottom: 22px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-header {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
+    text-align: center;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-title {
-    max-width: 660px;
-    margin: 14px auto 0;
+    max-width: none;
+    margin: 10px 0 0;
     font-size: 40px;
-    line-height: 1.04;
+    line-height: 1.06;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-sub {
-    margin-top: 10px;
-    font-size: 16px;
+    max-width: none;
+    margin: 9px auto 0;
+    font-size: 15px;
+    white-space: nowrap;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-domain-note {
-    margin-top: 5px;
+    margin: 5px auto 0;
     color: #6f6f69;
     font-size: 14px;
 }
@@ -1919,8 +1979,8 @@
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor {
-    margin-bottom: 24px;
-    padding: 20px 28px 18px;
+    margin-bottom: 12px;
+    padding: 13px 22px 11px;
     border: 1.5px solid #b8dc2b;
     border-radius: 18px;
     background: #ebf9a9;
@@ -1928,20 +1988,20 @@
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-brand {
     color: #536b18;
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: .1em;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor > h3 {
-    margin: 6px 0 12px;
-    font-size: 23px;
+    margin: 3px 0 8px;
+    font-size: 20px;
     line-height: 1.1;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-line {
-    padding: 4px 0;
+    padding: 3px 0;
     color: #53612e;
-    font-size: 15px;
+    font-size: 14px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-line strong {
@@ -1949,70 +2009,83 @@
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-total {
-    margin-top: 8px;
-    padding-top: 14px;
+    margin-top: 5px;
+    min-height: 0;
+    padding: 10px 0 0;
     border-color: rgba(83,107,24,.2);
-    font-size: 16px;
+    font-size: 15px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-launch-price {
-    gap: 12px;
+    gap: 10px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-launch-price s {
     color: #778359;
-    font-size: 20px;
+    font-size: 18px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-launch-price strong {
     color: #1c2708;
-    font-size: 42px;
+    font-size: 34px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-heading {
-    margin-bottom: 12px;
+    margin-bottom: 18px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-heading h3 {
-    margin-bottom: 6px;
-    font-size: 23px;
+    margin-bottom: 8px;
+    font-size: 25px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-heading p {
-    font-size: 14px;
-    line-height: 1.45;
+    max-width: 650px;
+    font-size: 13px;
+    line-height: 1.55;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans {
-    gap: 14px;
+    gap: 18px;
+    padding-top: 0;
     margin-bottom: 0;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan {
-    display: flex;
-    flex-direction: column;
-    min-height: 310px;
-    padding: 18px 20px 16px;
+    display: grid;
+    grid-template-rows: 34px 50px 38px 68px 58px 44px;
+    min-height: 0;
+    padding: 24px 20px 20px;
     border: 1px solid #dddeda;
-    border-radius: 16px;
+    border-radius: 15px;
     background: #fff;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan.mqs-plan-popular {
-    border: 2px solid #b7e400;
+    margin-top: 0;
+    border: 2px solid #b7d73e;
     background: #f5ffd2;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-heading {
-    min-height: 44px;
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
     margin: 0;
     align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-title {
-    max-width: 52%;
-    font-size: 18px;
-    line-height: 1.25;
+    max-width: 62%;
+    font-size: 16px;
+    line-height: 1.2;
+    letter-spacing: -.02em;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-title-flex {
+    font-size: 15px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-eyebrow {
@@ -2020,8 +2093,9 @@
     padding: 5px 8px;
     background: #e9e9e4;
     color: #85857d;
-    font-size: 9px;
-    letter-spacing: .04em;
+    font-size: 8px;
+    line-height: 1.2;
+    letter-spacing: .035em;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-popular .mqs-plan-eyebrow {
@@ -2031,28 +2105,29 @@
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-price-line {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: baseline;
     justify-content: flex-start;
-    gap: 0;
-    margin-top: 10px;
+    gap: 8px;
+    margin: 0;
     margin-bottom: 0;
     line-height: 1;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-price {
-    font-size: 36px !important;
+    font-size: 34px !important;
     line-height: 1;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-discount {
-    margin-top: 8px;
-    padding: 7px 13px;
+    display: inline-block;
+    margin: 0;
+    padding: 5px 10px;
     border-radius: 999px;
     background: #d9f24e;
     color: #263500;
-    box-shadow: 0 4px 10px rgba(105,130,0,.16);
-    font-size: 15px;
+    box-shadow: none;
+    font-size: 12px;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-discount-placeholder {
@@ -2060,38 +2135,50 @@
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-period {
-    margin: 5px 0 0;
+    margin: 0;
     color: #9a9a94;
-    font-size: 12px;
+    font-size: 11px;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-offer {
+    align-self: start;
+}
+
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-freedom {
+    background: #f0f0ed;
+    color: #666760;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-flex-status {
-    margin: 12px 0 0;
+    align-self: start;
+    width: 100%;
+    margin: 0;
+    padding-top: 14px;
+    border-top: 1px solid #e4e4df;
     color: #506d18;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-description {
-    margin: 10px 0 12px;
-    color: #77776f;
-    font-size: 13px;
+    font-size: 11px;
+    font-weight: 500;
     line-height: 1.45;
 }
 
-#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan:not(:has(.mqs-plan-discount)):not(:has(.mqs-plan-flex-status)) .mqs-plan-description {
-    margin-top: 53px;
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-description {
+    align-self: start;
+    margin: 0;
+    color: #77776f;
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-cta {
     min-height: 42px;
-    margin-top: auto;
+    align-self: end;
+    margin: 0;
     padding: 10px 14px;
-    border: 0;
+    border: 1px solid #d7d7d2;
     border-radius: 11px;
-    background: #0a0a0a;
-    color: #fff;
-    font-size: 14px;
+    background: #fff;
+    color: #111;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -2105,6 +2192,12 @@
     color: #fff;
 }
 
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plans-footnote {
+    margin: 16px 0 0;
+    color: #999a93;
+    font-size: 10px;
+}
+
 #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan-popular .mqs-plan-cta:hover {
     background: #242424;
 }
@@ -2114,11 +2207,20 @@
 }
 
 @media (max-width: 700px) {
-    #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal { padding: 20px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal { padding: 20px 20px 32px; }
     #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-title { font-size: 30px; }
-    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor { padding: 20px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor { padding: 12px 15px; }
     #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor-total { align-items: flex-end; }
-    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan { min-height: 286px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan { min-height: 0; }
+}
+
+.mqs-domain-section-title span {
+    color: #667b24;
+    font-weight: 700;
+}
+
+.mqs-order-style {
+    grid-template-columns: 1fr auto;
 }
 
 /* Step 3 exact draft layout */
@@ -2376,6 +2478,64 @@
     color: #46660a;
 }
 
+.mqs-first-month-note {
+    margin: 12px 0 0;
+    color: rgba(255, 255, 255, .58);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.mqs-first-month-note strong {
+    color: rgba(255, 255, 255, .82);
+}
+
+.mqs-first-month-note a {
+    display: inline-block;
+    margin-left: 3px;
+    color: #d4ff3a;
+    font-weight: 700;
+    text-underline-offset: 2px;
+}
+
+.mqs-checkout-faq {
+    margin: -12px 0 24px;
+    border-bottom: 1px solid #e1e1db;
+}
+
+.mqs-checkout-faq details {
+    border-top: 1px solid #e1e1db;
+}
+
+.mqs-checkout-faq summary {
+    padding: 14px 0;
+    color: #25251f;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mqs-checkout-faq details div {
+    padding: 0 0 14px;
+    color: #64645d;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.mqs-checkout-faq p {
+    margin: 0 0 9px;
+}
+
+.mqs-checkout-faq a {
+    color: #46660a;
+}
+
+.mqs-checkout-faq-all {
+    display: inline-block;
+    padding: 14px 0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .mqs-payment-cta {
     min-height: 74px;
     margin-top: 0;
@@ -2549,40 +2709,40 @@
 }
 
 .mqs-value-anchor {
-    margin: 0 0 30px;
-    padding: 26px;
+    margin: 0 0 12px;
+    padding: 13px 22px 11px;
     border: 1.5px solid #cbe15f;
     border-radius: 18px;
     background: #e9f6b3;
     color: #1c2708;
 }
 .mqs-value-anchor-discount { display: none; }
-.mqs-value-anchor > h3 { margin: 4px 0 18px; font-size: 22px; }
-.mqs-value-anchor-line { color: #3a4a1c; font-size: 15px; }
+.mqs-value-anchor > h3 { margin: 3px 0 8px; font-size: 20px; }
+.mqs-value-anchor-line { padding: 3px 0; color: #3a4a1c; font-size: 14px; }
 .mqs-value-anchor-line strong { color: #7a8a5a; font-weight: 500; text-decoration: line-through; }
-.mqs-value-anchor-total { align-items: center; margin-top: 12px; padding-top: 18px; border-color: rgba(70,102,10,.25); font-size: 16px; font-weight: 800; }
-.mqs-launch-price strong { font-size: 40px; color: #1c2708; }
-.mqs-launch-price s { color: #7a8a5a; font-size: 20px; font-weight: 700; }
+.mqs-value-anchor-total { align-items: center; min-height: 0; margin-top: 5px; padding: 10px 0 0; border-color: rgba(70,102,10,.25); font-size: 15px; font-weight: 800; }
+.mqs-launch-price strong { font-size: 34px; color: #1c2708; }
+.mqs-launch-price s { color: #7a8a5a; font-size: 18px; font-weight: 700; }
 .mqs-launch-price { flex-shrink: 0; white-space: nowrap; }
 
-.mqs-plans-heading { margin-bottom: 18px; }
+.mqs-plans-heading { margin-bottom: 7px; }
 .mqs-plans-heading h3 { font-size: 22px; }
 .mqs-plans-heading p { color: #7a7a74; font-size: 14px; }
 .mqs-plans-heading p strong { color: #4a4a44; font-weight: 500; }
-.mqs-plans { gap: 14px; }
+.mqs-plans { gap: 18px; padding-top: 0; }
 .mqs-plan {
-    padding: 18px;
+    padding: 24px 20px 20px;
     border-radius: 16px;
-    grid-template-rows: 46px 58px 28px 48px minmax(54px, auto) 44px;
+    grid-template-rows: 34px 50px 38px 68px 58px 44px;
 }
 .mqs-plan.mqs-plan-popular { background: #f7f9e9; border: 2px solid #0a0a0a; box-shadow: none; }
-.mqs-plan-title { max-width: 58%; font-size: 17px; font-weight: 800; }
-.mqs-plan-eyebrow { padding: 4px 7px; font-size: 9px; letter-spacing: .06em; }
+.mqs-plan-title { max-width: 62%; font-size: 16px; line-height: 1.2; font-weight: 800; }
+.mqs-plan-eyebrow { padding: 5px 8px; font-size: 8px; letter-spacing: .035em; }
 .mqs-plan-price { font-size: 34px !important; }
 .mqs-plan-discount { background: #0a0a0a; color: #d9f24e; }
 .mqs-plan-reference { font-size: 12px; }
 .mqs-plan-saving { width: fit-content; padding: 7px 9px; border: 1px solid #dcebae; border-radius: 9px; background: #f2f8df; font-size: 11px; }
-.mqs-plan-description { color: #6a6a64; font-size: 13px; }
+.mqs-plan-description { color: #6a6a64; font-size: 12px; }
 .mqs-plan-cta { min-height: 44px; padding: 11px 8px; border-radius: 10px; font-size: 12px; }
 
 .mqs-payment-layout { margin-top: 26px; grid-template-columns: 1.05fr 1fr; gap: 16px; }
@@ -2605,6 +2765,7 @@
     .mqs-funnel-tabs button { padding: 8px 10px; font-size: 11px; }
     .mqs-step-title { font-size: 30px; }
     .mqs-step-sub { font-size: 14px; }
+    #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-sub { white-space: normal; }
     .mqs-plans, .mqs-payment-layout { grid-template-columns: 1fr; }
     .mqs-footer-stepb { bottom: -32px; margin: 22px -20px -32px; padding: 14px 20px; }
     .mqs-value-anchor-total { gap: 12px; }

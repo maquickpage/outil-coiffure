@@ -140,7 +140,7 @@
     const desktopRemaining = Math.max(0, count - 2);
     const mobileRemaining = Math.max(0, count - 1);
     const desktopTitle = count
-      ? 'Votre adresse web est déjà réservée — <span>choisissez laquelle</span>'
+      ? 'Ces adresses web sont disponibles pour vous — <span>En voir plus</span>'
       : 'Trouvez l’adresse idéale pour votre salon';
     const mobileTitle = desktopTitle;
     const desktopDetail = count
@@ -149,7 +149,7 @@
     const mobileDetail = count
       ? `<strong class="mqs-domain-preview"><span aria-hidden="true">✓</span> ${firstHostname}</strong>${mobileRemaining ? `<span>+${mobileRemaining} autres</span>` : ''}`
       : '<span>Consultez nos suggestions ou recherchez directement le nom de votre choix.</span>';
-    const cta = count ? 'Choisir mon adresse' : 'Explorer les domaines';
+    const cta = count ? 'Voir mon adresse' : 'Explorer les domaines';
     const mobileCta = cta;
     const b = document.createElement('div');
     b.id = 'mqs-bar-wrap';

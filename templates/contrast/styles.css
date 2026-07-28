@@ -25,6 +25,9 @@
 
     --pad-x: clamp(24px, 6vw, 100px);
     --band-y: clamp(84px, 12vh, 150px);
+    /* Largeur de contenu COMMUNE à toutes les bandes (= celle de la galerie).
+       Toute section (services, avis, contact, carte, footer) s'aligne dessus. */
+    --content-max: 1600px;
     --transition: all 0.3s ease;
 }
 
@@ -45,6 +48,14 @@ body {
 .mobile-menu, .lightbox, .loading-overlay {
     --accent: var(--white);
 }
+
+/* Option « photos en couleur » (éditeur → Design du site → design.monochromePhotos
+   = false → hydrate.js pose .photos-color sur <body>) : on retire les filtres
+   N&B des photos. Le hero garde un léger assombrissement pour la lisibilité
+   du texte blanc (l'overlay seul ne suffit pas sur une photo très claire). */
+body.photos-color .hero::before { filter: contrast(1.05) brightness(0.8); }
+body.photos-color .split-visual { filter: none; }
+body.photos-color .gallery-item img { filter: none; }
 
 /* ---------- Typo commune des bandes ---------- */
 .section-label {
@@ -80,7 +91,9 @@ body {
     margin: 0 auto clamp(48px, 6vw, 80px);
     padding: 0 var(--pad-x);
 }
-.band-head.band-head-left { text-align: left; margin-left: 0; margin-right: auto; }
+/* Contact : même en-tête centré que toutes les autres bandes (cohérence). */
+.band-head.band-head-left { text-align: center; }
+.band-head .band-text { margin-left: auto; margin-right: auto; }
 .band-dark .band-title,
 .band-dark .section-title { color: var(--white); }
 
@@ -299,6 +312,9 @@ body {
     background: var(--ink) center/cover no-repeat;
     background-attachment: fixed;
     min-height: 60vh;
+    /* Monochrome strict : la photo d'intro (issue de la galerie) passe en N&B
+       comme le hero — cohérence éditoriale du template. */
+    filter: grayscale(100%) contrast(1.05);
 }
 .split-panel {
     display: flex;
@@ -357,7 +373,7 @@ body {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: clamp(28px, 3vw, 52px) clamp(28px, 4vw, 64px);
-    max-width: 1320px;
+    max-width: var(--content-max);
     margin: 0 auto;
     padding: 0 var(--pad-x);
 }
@@ -382,11 +398,70 @@ body {
     letter-spacing: 1px; color: var(--accent);
 }
 
+/* --- Carrousel services (MOBILE uniquement) : la liste complète est trop
+   longue en 1 colonne → pages de 3 prestations, swipe + flèches + points.
+   Sur desktop/tablette le carrousel est désactivé (grille normale, chrome
+   masqué par hydrate.js via [hidden]). ---------------------------------- */
+.services-wrapper { position: relative; }
+.services-clip { overflow: visible; }
+.carousel-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 40px; height: 40px;
+    background: var(--ink); color: var(--white);
+    border: none; cursor: pointer; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    transition: var(--transition); padding: 0;
+}
+.carousel-arrow svg { width: 16px; height: 16px; }
+.carousel-arrow:disabled { opacity: 0.25; cursor: default; }
+.carousel-arrow[hidden] { display: none; }
+.carousel-prev { left: 4px; }
+.carousel-next { right: 4px; }
+.carousel-dots { display: flex; justify-content: center; gap: 8px; margin-top: 28px; }
+.carousel-dots:empty { display: none; }
+.carousel-dot {
+    width: 9px; height: 9px; border-radius: 0;
+    background: var(--line); border: none; padding: 0; cursor: pointer;
+    transition: var(--transition);
+}
+.carousel-dot.active { background: var(--ink); width: 24px; }
+@media (max-width: 768px) {
+    .services-wrapper.is-carousel .services-clip {
+        overflow: hidden;
+        margin: 0 var(--pad-x);
+    }
+    .services-wrapper.is-carousel .services-grid {
+        display: flex;
+        grid-template-columns: none;
+        gap: 24px;
+        max-width: none;
+        padding: 0;
+        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+    }
+    .services-page {
+        flex: 0 0 100%;
+        display: flex; flex-direction: column;
+        gap: 24px;
+    }
+    /* En-tête de slide = nom de la catégorie (Femmes / Hommes / Autres) */
+    .services-cat-label {
+        font-family: var(--font-head);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        text-align: center;
+        color: var(--ink);
+        margin-bottom: -6px;
+    }
+}
+
 /* ========================================================================
    GALERIE — grille de réalisations (grid + masonry), N&B façon Curly
    ======================================================================== */
 .gallery-grid {
-    max-width: 1600px;
+    max-width: var(--content-max);
     margin: 0 auto;
     padding: 0 var(--pad-x);
     display: grid;
@@ -482,7 +557,7 @@ body {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: clamp(32px, 4vw, 64px);
-    max-width: 1240px;
+    max-width: var(--content-max);
     margin: 0 auto;
     padding: 0 var(--pad-x);
 }
@@ -511,12 +586,14 @@ body {
 /* ========================================================================
    CONTACT — colonnes d'infos + carte plein cadre
    ======================================================================== */
-.band-contact { background: var(--white); padding: var(--band-y) 0 0; }
+/* Padding bas porté par la BANDE (pas par la carte) : si le coiffeur masque
+   la carte (mode domicile + hideMap), la section garde sa respiration. */
+.band-contact { background: var(--white); padding: var(--band-y) 0; }
 .contact-columns {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: clamp(28px, 3vw, 52px);
-    max-width: 1320px;
+    max-width: var(--content-max);
     margin: 0 auto;
     padding: 0 var(--pad-x);
 }
@@ -542,7 +619,7 @@ body {
 .opening-hours-table .hours.closed { color: var(--gray); font-style: italic; }
 .social-icons {
     display: flex; gap: 12px;
-    max-width: 1320px; margin: 40px auto 0;
+    max-width: var(--content-max); margin: 40px auto 0;
     padding: 0 var(--pad-x);
 }
 .social-icons a {
@@ -554,11 +631,15 @@ body {
 .social-icons a:hover { transform: translateY(-3px); background: var(--white); color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
 .social-icons svg { width: 18px; height: 18px; }
 .contact-map {
-    margin-top: var(--band-y);
-    width: 100%; height: 460px;
-    background: var(--cream);
+    /* Alignée sur la même gouttière que le reste de la section (plus de
+       pleine largeur) + marge plafonnée. */
+    margin: clamp(40px, 5vw, 72px) auto 0;
+    max-width: var(--content-max);
+    padding: 0 var(--pad-x);
+    height: auto;
+    background: transparent;
 }
-.contact-map iframe { display: block; width: 100%; height: 100%; }
+.contact-map iframe { display: block; width: 100%; height: 460px; background: var(--cream); }
 
 /* ========================================================================
    FOOTER
@@ -568,7 +649,7 @@ body {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
     gap: 56px;
-    max-width: 1320px;
+    max-width: var(--content-max);
     margin: 0 auto clamp(44px, 5vw, 64px);
     padding: 0 var(--pad-x);
 }
@@ -611,7 +692,7 @@ body {
     border-top: 1px solid var(--line-light);
     padding: 30px var(--pad-x) 0;
     text-align: center;
-    max-width: 1320px; margin: 0 auto;
+    max-width: var(--content-max); margin: 0 auto;
 }
 .footer-bottom p { font-size: 0.78rem; font-weight: 300; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
 
@@ -664,11 +745,17 @@ body {
 @media (max-width: 1024px) {
     .nav-links, .nav-cta { display: none; }
     .mobile-menu-btn { display: flex; }
+    /* Anti « double hero » : sur tablette/mobile, background-attachment: fixed
+       fait apparaître la même photo figée à travers le hero ET l'image d'intro
+       pendant le scroll (et bugue sur iOS). On repasse en scroll. */
+    .hero::before { background-attachment: scroll; }
     .services-grid { grid-template-columns: repeat(2, 1fr); }
     .contact-columns { grid-template-columns: repeat(2, 1fr); }
     .testimonials-row { grid-template-columns: repeat(2, 1fr); }
     .band-split { grid-template-columns: 1fr; min-height: 0; }
-    .split-visual { min-height: 52vh; background-attachment: scroll; order: -1; }
+    /* Image d'intro réduite (40vh au lieu de 52vh) pour ne pas lire comme un
+       second hero plein écran juste sous le premier. */
+    .split-visual { min-height: 40vh; background-attachment: scroll; order: -1; }
 }
 @media (max-width: 768px) {
     .hero::before { background-attachment: scroll; }

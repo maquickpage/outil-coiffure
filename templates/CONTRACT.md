@@ -50,9 +50,16 @@ view = {
   note_avis (nombre|null), nb_avis, lien_google_maps, meta_description,
   content: {
     hero:    { title, tagline, subtitle, backgroundImage, showRating },
-    intro:   { title, description, showRating, ratingFallback,
+    intro:   { title, description, image, showRating, ratingFallback,
                showSatisfaction, satisfactionValue, satisfactionLabel },
-    services:     { title, items: [ {id, name, description, price} ] },
+               // image = photo d'illustration de l'intro (éditable dans
+               // l'admin). Vide → le template choisit une photo de la
+               // galerie différente du hero (fallback : hero).
+    services:     { title, items: [ {id, name, description, price,
+                    category: "femme"|"homme"|"autres"} ] },
+                    // category est éditable dans l'admin ; sur MOBILE les
+                    // services s'affichent en carrousel : 1 slide par
+                    // catégorie (liste dedans). Champ absent → "autres".
     gallery:      { title, layout: "grid"|"masonry", visibleCount, images: [url] },
     testimonials: { title, items: [ {id, text, author, date} ] },
     contact: {
@@ -63,6 +70,11 @@ view = {
       phone, email,
       hours: { monday..sunday : "9h - 19h" | "closed" },
       latitude, longitude, bookingUrl
+    },
+    design: {
+      monochromePhotos: true|false   // false → le template n'applique PAS son
+                                     // filtre N&B (photos couleur d'origine).
+                                     // Ignoré par les templates sans filtre.
     },
     socials: {
       facebook:  { url, enabled },

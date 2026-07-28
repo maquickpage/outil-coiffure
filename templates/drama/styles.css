@@ -39,6 +39,13 @@ a { color: var(--gold); text-decoration: none; }
 a:hover { color: var(--white); }
 img { display: block; max-width: 100%; }
 
+/* Option « photos en couleur » (éditeur → Design du site → design.monochromePhotos
+   = false → hydrate.js pose .photos-color sur <body>) : on retire les filtres
+   N&B. Le hero garde un léger assombrissement pour la lisibilité du texte. */
+body.photos-color .hero-image { filter: contrast(1.04) brightness(0.78); }
+body.photos-color .gallery-item img { filter: none; }
+body.photos-color .contact-map { filter: none; }
+
 .container { max-width: 1300px; margin: 0 auto; padding: 0 32px; }
 
 /* ---- shared type ---------------------------------------------------------- */
@@ -121,8 +128,26 @@ img { display: block; max-width: 100%; }
     padding: 13px 30px; transition: background .3s ease, color .3s ease;
 }
 .nav-cta:hover { background: var(--gold); color: var(--noir); }
-.mobile-menu-btn { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 6px; }
-.mobile-menu-btn span { display: block; width: 26px; height: 1px; background: var(--white); }
+.mobile-menu-btn { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 6px; position: relative; z-index: 1001; }
+.mobile-menu-btn span { display: block; width: 26px; height: 1px; background: var(--white); transition: transform 0.3s var(--ease), opacity 0.2s ease; transform-origin: center; }
+.mobile-menu-btn.is-open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.mobile-menu-btn.is-open span:nth-child(2) { opacity: 0; }
+.mobile-menu-btn.is-open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+/* Menu mobile plein écran (créé par hydrate.js au premier clic) */
+.mobile-menu {
+    position: fixed; inset: 0; background: var(--noir);
+    z-index: 999; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 28px;
+}
+.mobile-menu.active { display: flex; }
+.mobile-menu a {
+    font-family: var(--font-head);
+    font-size: 1.05rem; font-weight: 500;
+    letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--white); transition: color .25s ease;
+}
+.mobile-menu a:hover { color: var(--gold); }
 
 /* ============================================================================
    HERO — photo N&B pleine largeur, texte centré, watermark script doré géant.
@@ -378,10 +403,37 @@ img { display: block; max-width: 100%; }
 .carousel-arrow[hidden] { display: none; }
 .carousel-prev { left: -18px; }
 .carousel-next { right: -18px; }
+.carousel-arrow:disabled { opacity: 0.25; cursor: default; }
 .carousel-dots { display: flex; justify-content: center; gap: 8px; margin-top: 36px; }
 .carousel-dots:empty { display: none; }
 .carousel-dot { width: 9px; height: 9px; background: var(--line); border: none; padding: 0; cursor: pointer; transition: background .25s ease, width .25s ease; }
 .carousel-dot.active { background: var(--gold); width: 24px; }
+
+/* Carrousel services MOBILE : pages de 4 prestations (hydrate.js active
+   .is-carousel ≤ 768px ; au-delà, la liste normale reprend). */
+@media (max-width: 768px) {
+    .services-wrapper.is-carousel .services-clip { overflow: hidden; }
+    .services-wrapper.is-carousel .services-grid {
+        display: flex;
+        grid-template-columns: none;
+        gap: 24px;
+        transition: transform .45s var(--ease);
+        will-change: transform;
+    }
+    .services-page { flex: 0 0 100%; }
+    /* En-tête de slide = nom de la catégorie (Femmes / Hommes / Autres) */
+    .services-cat-label {
+        font-family: var(--font-script);
+        font-size: 2rem;
+        line-height: 1;
+        text-align: center;
+        color: var(--gold);
+        margin-bottom: 4px;
+    }
+    .carousel-arrow { width: 38px; height: 38px; }
+    .carousel-prev { left: -8px; }
+    .carousel-next { right: -8px; }
+}
 
 /* ============================================================================
    LOADING OVERLAY
@@ -411,7 +463,8 @@ img { display: block; max-width: 100%; }
     .gallery-grid.layout-masonry { column-count: 2; }
     .testimonials-row { grid-template-columns: 1fr; max-width: 620px; margin: 0 auto; }
     .contact-wrapper { grid-template-columns: 1fr; }
-    .contact-map { order: -1; min-height: 320px; }
+    /* Carte APRÈS les infos de contact en mobile/tablette (cohérent classic). */
+    .contact-map { min-height: 320px; }
     .footer-content { grid-template-columns: 1fr 1fr; }
 }
 

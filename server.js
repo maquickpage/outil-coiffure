@@ -11,6 +11,7 @@ import apiRouter from './src/routes/api.js';
 import editRouter from './src/routes/edit.js';
 import { buildSalonView } from './src/defaults.js';
 import { renderSalonHtml, renderRobotsTxt, renderSitemap, isMainDomainHost } from './src/ssr.js';
+import { isTemplateId, TEMPLATES } from './src/templates.js';
 
 // === TENANT_ONLY mode ===
 // Sur Falkenstein (= sites coiffeurs payants) on désactive :
@@ -472,7 +473,17 @@ if (!TENANT_ONLY) {
 }
 
 // Site assets (CSS, JS for the public landing)
+app.get('/_assets/template-config.js', (_req, res) => {
+  res.set('Content-Type', 'application/javascript; charset=utf-8');
+  res.set('Cache-Control', 'public, max-age=300');
+  res.send(`window.__MQS_TEMPLATES__=${JSON.stringify(TEMPLATES).replace(/</g, '\\u003c')};`);
+});
 app.use('/_assets', express.static(SITE_DIR, { maxAge: '1d' }));
+
+// Assets des templates du design kit (styles.css / hydrate.js par template).
+// Le HTML, lui, passe par le SSR (src/ssr.js) qui réécrit les chemins relatifs
+// vers /_templates/{id}/... — cf. colonne salons.template.
+app.use('/_templates', express.static(join(__dirname, 'templates'), { maxAge: '1h' }));
 
 // Public preview : /preview/:slug — SSR pour SEO
 // Sur Helsinki : si salon LIVE → redirect 302 vers le custom hostname (Falkenstein le sert).
@@ -520,6 +531,12 @@ app.get('/preview/:slug', (req, res) => {
   } else {
     noindex = false;
     canonicalUrl = `https://${host}/`;
+  }
+
+  // Essai visuel limité aux démos noindex du domaine MaQuickPage. Le choix ne
+  // devient persistant qu'au checkout (ou via l'éditeur après activation).
+  if (!TENANT_ONLY && onMainDomain && isTemplateId(req.query.template)) {
+    view.template = req.query.template;
   }
 
   const siteUrl = onMainDomain ? `https://${host}/preview/${encodeURIComponent(slug)}` : `https://${host}`;
@@ -598,6 +615,11 @@ if (TENANT_ONLY) {
 //   - host=maquickpage.fr        → landing (home.html)
 //   - host=monsitehq.com (legacy)→ 301 via LEGACY_HOST_REDIRECTS middleware en amont
 //   - local dev / autre host     → landing par défaut
+app.get('/faq', (req, res) => {
+  if (req.routingMode === 'admin') return res.redirect('/admin');
+  res.sendFile(join(SITE_DIR, 'faq.html'));
+});
+
 app.get('/', (req, res) => {
   if (req.routingMode === 'admin') return res.redirect('/admin');
   res.sendFile(join(SITE_DIR, 'home.html'));

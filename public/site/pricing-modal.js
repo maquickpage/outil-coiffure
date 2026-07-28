@@ -13,8 +13,8 @@
   // Ordre (brief page-tarifs §5.1) : 12 mois « Le plus choisi » en tête/centre,
   // 24 mois recadré sur l'économie (—66 % vs sans engagement, « Engagement 24 mois »
   // gardé lisible en ligne secondaire — jamais masqué), sans engagement en dernier.
-  // NB garantie « 30 jours satisfait ou remboursé » NON affichée ici : gated sur
-  // CGV + procédure de remboursement manuelle (brief §5.2 / Risks — Johann + légal).
+  // Droit commercial commun aux 3 formules : demande possible dans les 30 jours,
+  // première mensualité non remboursée, aucun prélèvement ni engagement ensuite.
   const PLANS = [
     {
       key: 'TWO_YEAR',
@@ -23,7 +23,7 @@
       monthlyPriceTtc: 9.90,
       discount: '−66 %',
       discountReference: 'par rapport au sans engagement à 29 €/mois',
-      description: 'Le tarif mensuel le plus bas si vous vous projetez.',
+      description: 'Le meilleur tarif si vous savez déjà que vous restez.',
       monthlySaving: '19,10 € par mois',
       saving: '458,40 € sur 24 mois',
       note: 'Engagement 24 mois',
@@ -37,7 +37,7 @@
       monthlyPriceTtc: 17.90,
       discount: '−38 %',
       discountReference: 'par rapport au sans engagement à 29 €/mois',
-      description: 'Le meilleur équilibre entre remise et flexibilité.',
+      description: 'Le bon compromis entre remise et souplesse.',
       monthlySaving: '11,10 € par mois',
       saving: '133,20 € sur 12 mois',
       note: 'Engagement 12 mois',
@@ -51,7 +51,7 @@
       monthlyPriceTtc: 29.00,
       discount: '',
       discountReference: 'Tarif de référence',
-      description: 'Pour garder une liberté totale, résiliez quand vous voulez.',
+      description: 'Pour garder une liberté totale, mois par mois.',
       monthlySaving: 'Résiliable à tout moment',
       saving: 'Aucune durée minimum',
       note: 'Sans engagement',
@@ -63,7 +63,7 @@
   // === Version des CGV en cours ===
   // Bumper cette version à chaque modification substantielle des CGV pour forcer
   // une nouvelle acceptation explicite (et tracer l'historique en base).
-  const CGV_VERSION = '1.0';
+  const CGV_VERSION = '1.1';
 
   // === Mapping plan → fichier CGV ===
   const CGV_FILES = {
@@ -71,6 +71,10 @@
     ONE_YEAR: '/legal/cgv-1y.html',
     FLEX: '/legal/cgv-flex.html',
   };
+
+  const TEMPLATE_LABELS = Object.fromEntries(
+    (window.__MQS_TEMPLATES__ || []).map(template => [template.id, `${template.name} — ${template.subtitle}`])
+  );
 
   // === Etat de la modal ===
   const state = {
@@ -120,6 +124,12 @@
 
   function planByKey(key) {
     return PLANS.find(p => p.key === key);
+  }
+
+  function currentTemplate() {
+    const requested = new URLSearchParams(window.location.search).get('template');
+    const fromView = window.__SALON_VIEW__ && window.__SALON_VIEW__.template;
+    return TEMPLATE_LABELS[requested] ? requested : (TEMPLATE_LABELS[fromView] ? fromView : 'classic');
   }
 
   // ===========================================================================
@@ -175,7 +185,7 @@
     // Toutes les suggestions sont rendues — l'affichage est limité à 4 rows
     // visibles via CSS (max-height + overflow-y auto).
     let suggestionsHtml = '';
-    if (state.loading && state.suggestions.length === 0) {
+    if (state.loading && state.suggestions.filter(s => s.available === true).length === 0) {
       suggestionsHtml = renderSkeletonRows(4);
     } else if (state.suggestions.filter(s => s.available === true).length === 0) {
       suggestionsHtml = `
@@ -199,11 +209,11 @@
         <p class="mqs-step-sub">
           Nous avons déjà vérifié ces suggestions pour vous.
         </p>
-        <p class="mqs-domain-offer-note">Normalement 15 €/an — <s>15 €</s> offert avec votre formule.</p>
+        <p class="mqs-domain-offer-note"><s>15 €/an</s> offert avec votre formule.</p>
       </div>
 
       <section class="mqs-domain-section" aria-labelledby="mqs-suggestions-title">
-        <h3 id="mqs-suggestions-title" class="mqs-domain-section-title">Suggestions déjà disponibles</h3>
+        <h3 id="mqs-suggestions-title" class="mqs-domain-section-title">Ces adresses web sont disponibles pour vous <span>— En voir plus</span></h3>
         <div class="mqs-domain-list">
           ${suggestionsHtml}
         </div>
@@ -227,18 +237,25 @@
   function renderPlanCardA(plan) {
     const classes = ['mqs-plan'];
     if (plan.isPopular) classes.push('mqs-plan-popular');
-    const flexStatus = plan.key === 'FLEX' ? '<p class="mqs-plan-flex-status">Résiliable à tout moment</p>' : '';
+    const flexStatus = plan.key === 'TWO_YEAR'
+      ? '<p class="mqs-plan-flex-status">Résiliable sans frais pendant 30 jours,<br>puis à l’échéance des 24 mois.</p>'
+      : plan.key === 'ONE_YEAR'
+        ? '<p class="mqs-plan-flex-status">Résiliable sans frais pendant 30 jours,<br>puis à l’échéance des 12 mois.</p>'
+        : '<p class="mqs-plan-flex-status">Résiliable à tout moment.</p>';
+    const offerBadge = plan.key === 'FLEX'
+      ? '<span class="mqs-plan-discount mqs-plan-freedom">Liberté totale</span>'
+      : `<span class="mqs-plan-discount">${escapeHtml(plan.discount)}</span>`;
     return `
       <div class="${classes.join(' ')}" data-plan="${plan.key}">
         <div class="mqs-plan-heading">
-          <strong class="mqs-plan-title">${escapeHtml(plan.title)}</strong>
-          <span class="mqs-plan-eyebrow">${escapeHtml(plan.eyebrow)}</span>
+          <strong class="mqs-plan-title${plan.key === 'FLEX' ? ' mqs-plan-title-flex' : ''}">${escapeHtml(plan.title)}</strong>
+          ${plan.key === 'FLEX' ? '' : `<span class="mqs-plan-eyebrow">${escapeHtml(plan.eyebrow)}</span>`}
         </div>
         <div class="mqs-plan-price-line">
           <span class="mqs-plan-price">${formatEur(plan.monthlyPriceTtc)}</span>
-          ${plan.discount ? `<span class="mqs-plan-discount">${escapeHtml(plan.discount)}</span>` : ''}
           <span class="mqs-plan-period">TTC / mois</span>
         </div>
+        <div class="mqs-plan-offer">${offerBadge}</div>
         ${flexStatus}
         <p class="mqs-plan-description">${escapeHtml(plan.description)}</p>
         <button class="mqs-plan-cta" type="button" data-plan-cta="${plan.key}">${escapeHtml(plan.cta)}</button>
@@ -270,9 +287,10 @@
         <div class="mqs-value-anchor-total"><span>À payer aujourd'hui pour le lancement</span><span class="mqs-launch-price"><s>615 €</s><strong>0 €</strong></span></div>
       </section>
 
-      <div class="mqs-plans-heading"><h3>Choisissez votre mensualité</h3><p>Le service est identique dans les 3 formules — la durée détermine votre remise. <strong>Comparé au tarif sans engagement (29 €/mois).</strong></p></div>
+      <div class="mqs-plans-heading"><h3>Choisissez votre durée</h3><p>Le service est le même dans les trois formules. Seule la durée d’engagement change — et donc votre remise sur le tarif sans engagement (29 €/mois).</p></div>
 
       <div class="mqs-plans">${plansHtml}</div>
+      <p class="mqs-plans-footnote">Tarifs TTC par mois. Aucun frais de mise en service.</p>
 
       <div class="mqs-modal-footer mqs-footer-plan">
         <button class="mqs-btn-back" type="button" id="mqs-back-btn">← Modifier le domaine</button>
@@ -302,7 +320,7 @@
     } else if (taken) {
       badge = `<span class="mqs-badge mqs-badge-pris">Déjà pris</span>`;
     } else {
-      badge = `<span class="mqs-badge mqs-badge-offert">Disponible · inclus</span>`;
+      badge = `<span class="mqs-badge mqs-badge-offert">Disponible · offert</span>`;
     }
     const classes = ['mqs-domain-row'];
     if (isSelected) classes.push('mqs-domain-selected');
@@ -335,7 +353,7 @@
       } else {
         const isSelected = state.selectedHostname === r.hostname;
         // Tout domaine accepté est offert
-        const badge = `<span class="mqs-badge mqs-badge-offert">Disponible · inclus</span>`;
+        const badge = `<span class="mqs-badge mqs-badge-offert">Disponible · offert</span>`;
         resultHtml = `
           <div class="mqs-domain-row ${isSelected ? 'mqs-domain-selected' : ''}" data-hostname="${escapeHtml(r.hostname)}" role="button" tabindex="0">
             <span class="mqs-domain-name">${escapeHtml(r.hostname)}</span>
@@ -398,6 +416,13 @@
     const commitmentDuration = state.selectedPlan === 'FLEX'
       ? 'sans engagement'
       : state.selectedPlan === 'TWO_YEAR' ? '24 mois' : '12 mois';
+    const template = currentTemplate();
+    const afterFirstMonth = state.selectedPlan === 'FLEX'
+      ? 'Après ces 30 jours, la formule reste résiliable à tout moment, avec effet à la prochaine échéance mensuelle.'
+      : `Après ces 30 jours, l’engagement de ${commitmentDuration} prévu par la formule s’applique.`;
+    const firstMonthCommitment = state.selectedPlan === 'FLEX'
+      ? 'Aucun prélèvement supplémentaire ne sera effectué.'
+      : `L’engagement de ${commitmentDuration} sera entièrement levé et aucun prélèvement supplémentaire ne sera effectué.`;
 
     return `
       <div class="mqs-step-header mqs-payment-header">
@@ -425,12 +450,13 @@
               <small>Votre adresse web</small>
               <strong>${escapeHtml(hostname)}</strong>
             </span>
-            <span class="mqs-order-included">Inclus</span>
+            <span class="mqs-order-included">Offert</span>
           </div>
 
           <ul class="mqs-order-includes">
             <li><span aria-hidden="true">✓</span> Site personnalisé déjà créé</li>
             <li><span aria-hidden="true">✓</span> Domaine ${escapeHtml(hostname)}</li>
+            <li><span aria-hidden="true">✓</span> 3 designs inclus</li>
             <li><span aria-hidden="true">✓</span> Hébergement et maintenance</li>
             <li><span aria-hidden="true">✓</span> Mises à jour</li>
           </ul>
@@ -444,10 +470,15 @@
           <div class="mqs-order-total-wrap">
             <p class="mqs-order-total"><span>À régler sur Stripe aujourd'hui</span><strong>${formatEur(plan.monthlyPriceTtc)}</strong></p>
             <p class="mqs-order-total"><span>Puis</span><strong>${formatEur(plan.monthlyPriceTtc)}/mois</strong></p>
-            <p class="mqs-order-total"><span>Engagement</span><strong>${state.selectedPlan === 'FLEX' ? 'Aucun' : state.selectedPlan === 'TWO_YEAR' ? '24 mois' : '12 mois'}</strong></p>
             ${state.selectedPlan === 'FLEX' ? '<p class="mqs-order-total"><span>Résiliation</span><strong>À tout moment</strong></p>' : ''}
             <small>Aucun frais d'installation ajouté au paiement · résiliable selon CGV.</small>
           </div>
+
+          <p class="mqs-first-month-note">
+            <strong>Résiliable pendant le premier mois.</strong>
+            ${escapeHtml(firstMonthCommitment)}
+            <a href="/faq#resiliation" target="_blank" rel="noopener">Voir la FAQ MaQuickPage</a>
+          </p>
         </section>
 
         <section class="mqs-checkout-card" aria-label="Coordonnées et paiement">
@@ -583,7 +614,6 @@
 
     if (state.step === 'C') {
       m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('B'));
-
       // Helper : recompute enable/disable du bouton "Procéder au paiement"
       // (utilisé à la fois par l'event email et par l'event CGV checkbox).
       const refreshSubmitState = () => {
@@ -677,8 +707,12 @@
           state.loading = false;
         }
         renderModal();
+      } else if (isCheckoutDemoMode()) {
+        seedCheckoutDemoSuggestions();
       }
-    } catch {} // best-effort
+    } catch {
+      if (isCheckoutDemoMode()) seedCheckoutDemoSuggestions();
+    }
 
     // Démo UI locale : les candidats pré-générés suffisent pour parcourir le
     // funnel. Aucun appel OVH ni achat de domaine n'est effectué.
@@ -712,6 +746,21 @@
       state.customError = 'Erreur réseau, réessayez dans 1 minute.';
       renderModal();
     }
+  }
+
+  function seedCheckoutDemoSuggestions() {
+    const safeSlug = String(state.salonSlug || 'mon-salon')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'mon-salon';
+    state.suggestions = [
+      { hostname: `${safeSlug}.fr`, tld: '.fr', available: true, isIncluded: true, priceEurTtc: 0 },
+      { hostname: `${safeSlug}-coiffure.fr`, tld: '.fr', available: true, isIncluded: true, priceEurTtc: 0 },
+    ];
+    state.selectedHostname = state.suggestions[0].hostname;
+    state.selectedHostnameInfo = state.suggestions[0];
+    state.loading = false;
+    renderModal();
   }
 
   function selectDomain(hostname) {
@@ -813,6 +862,7 @@
           plan: state.selectedPlan,
           hostname: state.selectedHostname,
           email: state.email,
+          template: currentTemplate(),
           cgv_accepted: true,
           cgv_version: CGV_VERSION,
         }),

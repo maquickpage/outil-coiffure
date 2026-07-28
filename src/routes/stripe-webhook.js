@@ -13,6 +13,7 @@ import express from 'express';
 import Stripe from 'stripe';
 import db from '../db.js';
 import { startProvisioning, syncSalonToFalkenstein } from '../provisioning-worker.js';
+import { isTemplateId } from '../templates.js';
 
 const router = express.Router();
 
@@ -93,14 +94,27 @@ async function onCheckoutCompleted(session) {
     console.error('[stripe-webhook] checkout.session.completed sans slug en metadata', session.id);
     return;
   }
+  const template = session.metadata?.template;
   // Update DB : marquer le salon comme "payment_received"
-  db.prepare(`
-    UPDATE salons
-    SET stripe_customer_id = ?, stripe_subscription_id = ?,
-        subscription_status = 'provisioning',
-        signed_up_at = datetime('now'), updated_at = datetime('now')
-    WHERE slug = ?
-  `).run(session.customer, session.subscription, slug);
+  if (isTemplateId(template)) {
+    db.prepare(`
+      UPDATE salons
+      SET stripe_customer_id = ?, stripe_subscription_id = ?,
+          subscription_status = 'provisioning', template = ?,
+          signed_up_at = datetime('now'), updated_at = datetime('now')
+      WHERE slug = ?
+    `).run(session.customer, session.subscription, template, slug);
+  } else {
+    // Les sessions créées avant l'ajout du choix de design n'ont pas cette
+    // metadata : préserver le template déjà enregistré au lieu de forcer Classic.
+    db.prepare(`
+      UPDATE salons
+      SET stripe_customer_id = ?, stripe_subscription_id = ?,
+          subscription_status = 'provisioning',
+          signed_up_at = datetime('now'), updated_at = datetime('now')
+      WHERE slug = ?
+    `).run(session.customer, session.subscription, slug);
+  }
 
   // Lance l'orchestrator (worker async, ne bloque pas la réponse webhook)
   startProvisioning({

@@ -27,13 +27,55 @@
     "services": {
       "title": "Nos Services",
       "items": [
-        { "id": "s1", "name": "Coupe Femme", "description": "Shampoing, coupe personnalisée et finition brushing.", "price": "39€" },
-        { "id": "s2", "name": "Coupe Homme", "description": "Coupe classique ou tendance, finition incluse.", "price": "24€" },
-        { "id": "s3", "name": "Coloration", "description": "Coloration couvrante, ton sur ton ou couleur d'envie.", "price": "59€" },
-        { "id": "s4", "name": "Balayage", "description": "Éclaircissement sur mesure pour donner du relief.", "price": "85€" },
-        { "id": "s5", "name": "Brushing", "description": "Mise en forme et volume sur cheveux propres.", "price": "25€" },
-        { "id": "s6", "name": "Soin profond", "description": "Soin réparateur et hydratant en profondeur.", "price": "32€" },
-        { "id": "s7", "name": "Coiffure Mariage", "description": "Coiffure d'exception pour le jour J (essai inclus).", "price": "95€" }
+        {
+          "id": "s1",
+          "name": "Coupe Femme",
+          "description": "Shampoing, coupe personnalisée et finition brushing.",
+          "price": "39€",
+          "category": "femme"
+        },
+        {
+          "id": "s2",
+          "name": "Coupe Homme",
+          "description": "Coupe classique ou tendance, finition incluse.",
+          "price": "24€",
+          "category": "homme"
+        },
+        {
+          "id": "s3",
+          "name": "Coloration",
+          "description": "Coloration couvrante, ton sur ton ou couleur d'envie.",
+          "price": "59€",
+          "category": "femme"
+        },
+        {
+          "id": "s4",
+          "name": "Balayage",
+          "description": "Éclaircissement sur mesure pour donner du relief.",
+          "price": "85€",
+          "category": "femme"
+        },
+        {
+          "id": "s5",
+          "name": "Brushing",
+          "description": "Mise en forme et volume sur cheveux propres.",
+          "price": "25€",
+          "category": "femme"
+        },
+        {
+          "id": "s6",
+          "name": "Soin profond",
+          "description": "Soin réparateur et hydratant en profondeur.",
+          "price": "32€",
+          "category": "autres"
+        },
+        {
+          "id": "s7",
+          "name": "Coiffure Mariage",
+          "description": "Coiffure d'exception pour le jour J (essai inclus).",
+          "price": "95€",
+          "category": "autres"
+        }
       ]
     },
     "gallery": {
@@ -54,9 +96,24 @@
     "testimonials": {
       "title": "Avis Clients",
       "items": [
-        { "id": "t1", "text": "Une expérience top du début à la fin. L'équipe est aux petits soins, l'écoute est réelle et le résultat sublime ! Je recommande sans hésiter.", "author": "Marie L.", "date": "Il y a 2 semaines" },
-        { "id": "t2", "text": "Je n'avais jamais été aussi satisfaite d'un salon. Coupe parfaite, ambiance chaleureuse et conseils personnalisés. C'est devenu mon adresse !", "author": "Sophie D.", "date": "Il y a 1 mois" },
-        { "id": "t3", "text": "Accueil au top, professionnalisme exemplaire et tarifs honnêtes. Mes cheveux n'ont jamais été aussi beaux. Merci à toute l'équipe !", "author": "Julie M.", "date": "Il y a 3 jours" }
+        {
+          "id": "t1",
+          "text": "Une expérience top du début à la fin. L'équipe est aux petits soins, l'écoute est réelle et le résultat sublime ! Je recommande sans hésiter.",
+          "author": "Marie L.",
+          "date": "Il y a 2 semaines"
+        },
+        {
+          "id": "t2",
+          "text": "Je n'avais jamais été aussi satisfaite d'un salon. Coupe parfaite, ambiance chaleureuse et conseils personnalisés. C'est devenu mon adresse !",
+          "author": "Sophie D.",
+          "date": "Il y a 1 mois"
+        },
+        {
+          "id": "t3",
+          "text": "Accueil au top, professionnalisme exemplaire et tarifs honnêtes. Mes cheveux n'ont jamais été aussi beaux. Merci à toute l'équipe !",
+          "author": "Julie M.",
+          "date": "Il y a 3 jours"
+        }
       ]
     },
     "contact": {
@@ -81,10 +138,22 @@
       "bookingUrl": "https://www.planity.com/studio-eclat-69006-lyon"
     },
     "socials": {
-      "facebook": { "url": "https://facebook.com/studioeclatlyon", "enabled": true },
-      "instagram": { "url": "https://instagram.com/studioeclatlyon", "enabled": true },
-      "tiktok": { "url": "", "enabled": false },
-      "youtube": { "url": "", "enabled": false }
+      "facebook": {
+        "url": "https://facebook.com/studioeclatlyon",
+        "enabled": true
+      },
+      "instagram": {
+        "url": "https://instagram.com/studioeclatlyon",
+        "enabled": true
+      },
+      "tiktok": {
+        "url": "",
+        "enabled": false
+      },
+      "youtube": {
+        "url": "",
+        "enabled": false
+      }
     }
   },
   "has_overrides": true

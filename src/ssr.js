@@ -30,6 +30,7 @@ import {
   generateOgTags,
   escapeHtml,
 } from './seo-helpers.js';
+import { normalizeTemplateId } from './templates.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = join(__dirname, '..', 'public', 'site', 'index.html');
@@ -48,15 +49,18 @@ const ALT_TEMPLATE_IDS = new Set(['contrast', 'drama']);
 // template embarque son propre hydrate.js.
 const CHROME_HEAD = [
   '<link rel="stylesheet" href="/_assets/banner.css?v=19">',
-  '<link rel="stylesheet" href="/_assets/pricing-modal.css?v=31">',
+  '<link rel="stylesheet" href="/_assets/pricing-modal.css?v=45">',
   '<link rel="stylesheet" href="/_assets/waiting-screen.css?v=2">',
   '<link rel="stylesheet" href="/_assets/preview-onboarding.css?v=4">',
+  '<link rel="stylesheet" href="/_assets/style-switcher.css?v=4">',
 ].join('\n    ');
 const CHROME_BODY = [
   '<script src="/_assets/track.js?v=1"></script>',
-  '<script src="/_assets/pricing-modal.js?v=40"></script>',
-  '<script src="/_assets/banner.js?v=33"></script>',
+  '<script src="/_assets/template-config.js?v=1"></script>',
+  '<script src="/_assets/pricing-modal.js?v=50"></script>',
+  '<script src="/_assets/banner.js?v=36"></script>',
   '<script src="/_assets/waiting-screen.js?v=3"></script>',
+  '<script src="/_assets/style-switcher.js?v=4"></script>',
   '<script src="/_assets/preview-onboarding.js?v=7" defer></script>',
 ].join('\n    ');
 
@@ -65,7 +69,8 @@ const CHROME_BODY = [
 const BOOT_VERSION = Date.now().toString(36);
 const templateCache = new Map();
 function loadTemplate(templateId) {
-  const id = ALT_TEMPLATE_IDS.has(templateId) ? templateId : 'classic';
+  const normalizedId = normalizeTemplateId(templateId);
+  const id = ALT_TEMPLATE_IDS.has(normalizedId) ? normalizedId : 'classic';
   if (!templateCache.has(id)) {
     if (id === 'classic') {
       templateCache.set(id, readFileSync(TEMPLATE_PATH, 'utf8'));
