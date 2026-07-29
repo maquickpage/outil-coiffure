@@ -537,18 +537,42 @@ router.get('/api/landing-stats.json', (req, res) => {
 // Derive un nom de source court a partir du nom de fichier
 // "coiffeur-france-auvergne-rhone-alpes-cantal.csv" -> "cantal"
 // "salons.csv" -> "salons"
-function deriveSourceFromFilename(filename) {
+function deriveSourceFromFilename(filename, segments = 1) {
   if (!filename) return 'import';
   const noExt = String(filename).replace(/\.(csv|tsv|txt)$/i, '');
   const parts = noExt.split(/[-_./\\\s]+/).filter(Boolean);
-  return parts[parts.length - 1] || noExt || 'import';
+  if (!parts.length) return noExt || 'import';
+  return parts.slice(Math.max(0, parts.length - segments)).join('-');
+}
+
+// Un nom derive du seul dernier segment collisionne sur les departements
+// composes : seine-maritime et charente-maritime donnent tous deux "maritime",
+// haute-garonne et lot-et-garonne donnent "garonne". Quand ca arrive, les deux
+// regions partagent une meme valeur csv_source et deviennent indistinguables
+// hors du couple (group_id, csv_source) — 5 collisions historiques, 2204 salons.
+// On rallonge donc le nom tant qu'il est deja pris par un AUTRE groupe.
+function uniqueSourceName(filename, groupId) {
+  const taken = name => db.prepare(
+    groupId == null
+      ? 'SELECT 1 FROM salons WHERE csv_source = ? AND group_id IS NOT NULL LIMIT 1'
+      : 'SELECT 1 FROM salons WHERE csv_source = ? AND (group_id IS NULL OR group_id != ?) LIMIT 1'
+  ).get(...(groupId == null ? [name] : [name, groupId]));
+
+  let name = deriveSourceFromFilename(filename, 1);
+  for (let seg = 2; seg <= 4 && taken(name); seg++) {
+    const longer = deriveSourceFromFilename(filename, seg);
+    if (longer === name) break; // plus de segment disponible
+    name = longer;
+  }
+  return name;
 }
 
 router.post('/upload-csv', upload.single('csv'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier' });
 
   const manualName = (req.body.source_name || '').trim();
-  const sourceName = manualName || deriveSourceFromFilename(req.file.originalname);
+  const groupIdForName = req.body.group_id ? parseInt(req.body.group_id, 10) || null : null;
+  const sourceName = manualName || uniqueSourceName(req.file.originalname, groupIdForName);
   const groupId = req.body.group_id ? parseInt(req.body.group_id, 10) || null : null;
   try {
     const result = importCsvFile(req.file.path, sourceName, groupId);
@@ -1102,7 +1126,29 @@ router.get('/export-csv', (req, res) => {
                FROM salons`;
   const params = [];
   const conds = [];
-  if (csvSources.length === 1) {
+  // source_pairs = "<groupId|orphan>::<csv_source>,…". Le nom de source SEUL est
+  // ambigu : il vient du dernier segment du nom de fichier, donc seine-maritime
+  // et charente-maritime donnent tous deux "maritime" (5 collisions, 2204 salons).
+  // Filtrer sur le seul nom melangeait des regions entieres dans l'export.
+  // csv_sources reste accepte pour les anciennes URLs, avec cette imprecision.
+  const pairsRaw = String(req.query.source_pairs || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (pairsRaw.length) {
+    const ors = [];
+    for (const p of pairsRaw) {
+      const i = p.indexOf('::');
+      if (i === -1) continue;
+      const gk = p.slice(0, i);
+      const src = p.slice(i + 2);
+      if (gk === 'orphan') { ors.push('(group_id IS NULL AND csv_source = ?)'); params.push(src); }
+      else {
+        const gid = parseInt(gk, 10);
+        if (!Number.isFinite(gid)) continue;
+        ors.push('(group_id = ? AND csv_source = ?)'); params.push(gid, src);
+      }
+    }
+    // Aucune paire exploitable => ne rien renvoyer plutot que tout renvoyer.
+    conds.push(ors.length ? `(${ors.join(' OR ')})` : '1 = 0');
+  } else if (csvSources.length === 1) {
     conds.push('csv_source = ?'); params.push(csvSources[0]);
   } else if (csvSources.length > 1) {
     const placeholders = csvSources.map(() => '?').join(',');
