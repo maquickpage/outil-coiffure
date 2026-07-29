@@ -1244,6 +1244,60 @@ function doExport() {
   location.href = '/admin/export-csv?' + params.toString();
 }
 
+// === Historique cold-mail : prévisualisation puis import ===
+// La prod tourne dans un conteneur sans accès SSH, donc l'import passe par ces
+// deux boutons. Le bouton « Importer » ne s'affiche qu'après une prévisualisation
+// qui a trouvé au moins un salon : impossible de déclencher une écriture à
+// l'aveugle sans avoir vu le taux de matching.
+function renderContactedStats(s, applied) {
+  const box = $('contacted-result');
+  if (!box) return;
+  const lines = [
+    `${s.seed} ${t('contacted.seed_rows')}`,
+    `${t('contacted.by_slug')} : <strong>${s.matchedBySlug}</strong>`,
+    `${t('contacted.by_email')} : <strong>${s.matchedByEmail}</strong>`,
+    `${t('contacted.missed')} : <strong>${s.missed}</strong>`,
+    `${t('contacted.rate')} : <strong>${s.matchRate}%</strong>`,
+    `${t('contacted.never')} : <strong>${s.neverContacted}</strong> / ${s.totalSalons}`
+  ];
+  if (applied) lines.unshift(`<strong>${s.applied} ${t('contacted.applied')}</strong>`);
+  box.innerHTML = lines.join('<br>');
+  box.hidden = false;
+}
+
+if ($('contacted-preview-btn')) $('contacted-preview-btn').addEventListener('click', async () => {
+  const btn = $('contacted-preview-btn');
+  btn.disabled = true;
+  try {
+    const s = await api('/admin/import-contacted/preview');
+    renderContactedStats(s, false);
+    if ($('contacted-apply-btn')) $('contacted-apply-btn').hidden = s.matched === 0;
+  } catch (e) {
+    $('contacted-result').textContent = e.message || String(e);
+    $('contacted-result').hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+if ($('contacted-apply-btn')) $('contacted-apply-btn').addEventListener('click', async () => {
+  if (!confirm(t('contacted.confirm'))) return;
+  const btn = $('contacted-apply-btn');
+  btn.disabled = true;
+  try {
+    const s = await api('/admin/import-contacted', { method: 'POST' });
+    renderContactedStats(s, true);
+    btn.hidden = true;
+    loadStats();
+    loadSalons();
+  } catch (e) {
+    $('contacted-result').textContent = e.message || String(e);
+    $('contacted-result').hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 if ($('open-export-composer-btn')) $('open-export-composer-btn').addEventListener('click', openExportModal);
 if ($('export-modal-close')) $('export-modal-close').addEventListener('click', () => { $('export-modal').hidden = true; });
 if ($('export-cancel')) $('export-cancel').addEventListener('click', () => { $('export-modal').hidden = true; });

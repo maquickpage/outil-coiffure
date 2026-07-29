@@ -70,6 +70,14 @@
                 <p class="csv-export-help" data-i18n="csv.export_help">Choisissez précisément les groupes et sources à inclure dans votre export. Vous pouvez composer un export partiel (quelques sources d'un groupe) ou complet.</p>
                 <button id="open-export-composer-btn" class="btn-primary" type="button" data-i18n="csv.open_export">Composer mon export</button>
             </div>
+
+            <div class="csv-subsection">
+                <h3 class="csv-subtitle" data-i18n="contacted.title">Historique cold-mail</h3>
+                <p class="csv-export-help" data-i18n="contacted.help">Marque en base les salons déjà contactés par les campagnes Smartlead passées, pour pouvoir les exclure des prochains exports. Prévisualisez d'abord : rien n'est écrit tant que vous n'avez pas confirmé.</p>
+                <button id="contacted-preview-btn" type="button" data-i18n="contacted.preview">Prévisualiser</button>
+                <button id="contacted-apply-btn" class="btn-primary" type="button" hidden data-i18n="contacted.apply">Importer</button>
+                <div id="contacted-result" class="contacted-result" hidden></div>
+            </div>
         </section>
 
         <section class="panel groups-panel">
