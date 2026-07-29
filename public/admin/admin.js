@@ -1091,7 +1091,17 @@ if ($('bulk-delete-selection-btn')) $('bulk-delete-selection-btn').addEventListe
 // COMPOSER D'EXPORT CSV : modale avec tree groupes + sources cochables
 // =====================================================================
 let exportTreeData = null;
-const exportSelection = new Set(); // set de csv_source noms coches
+// Selection d'export : cles "<groupKey>::<csv_source>" et NON le seul nom de
+// source. Les noms de source sont derives du dernier segment du nom de fichier
+// (deriveSourceFromFilename), donc les departements composes collisionnent :
+// seine-maritime et charente-maritime donnent tous deux "maritime", haute-garonne
+// et lot-et-garonne donnent "garonne". 5 noms sont concernes, 2204 salons.
+// Avec la seule cle "maritime" on cochait les deux regions d'un coup et l'export
+// melangeait Normandie et Nouvelle-Aquitaine.
+const exportSelection = new Set();
+
+// groupKey = id du groupe, ou 'orphan' pour les salons sans groupe.
+function sourceKey(groupKey, sourceName) { return `${groupKey}::${sourceName}`; }
 
 async function openExportModal() {
   const modal = $('export-modal');
@@ -1102,9 +1112,9 @@ async function openExportModal() {
     // Par defaut : tout cocher
     exportSelection.clear();
     for (const g of exportTreeData.groups) {
-      for (const s of g.sources) exportSelection.add(s.name);
+      for (const s of g.sources) exportSelection.add(sourceKey(g.id, s.name));
     }
-    for (const s of exportTreeData.orphan.sources) exportSelection.add(s.name);
+    for (const s of exportTreeData.orphan.sources) exportSelection.add(sourceKey('orphan', s.name));
     renderExportTree();
     updateExportSummary();
   } catch (e) {
@@ -1121,11 +1131,11 @@ function renderExportTree() {
 
   for (const g of exportTreeData.groups) {
     if (g.sources.length === 0 && g.salons_count === 0) continue;
-    html.push(buildGroupNode(g.name, g.sources, `g-${g.id}`));
+    html.push(buildGroupNode(g.name, g.sources, `g-${g.id}`, g.id));
   }
 
   if (exportTreeData.orphan.count > 0 && exportTreeData.orphan.sources.length > 0) {
-    html.push(buildGroupNode(t('groups.without_group'), exportTreeData.orphan.sources, 'g-orphan'));
+    html.push(buildGroupNode(t('groups.without_group'), exportTreeData.orphan.sources, 'g-orphan', 'orphan'));
   }
 
   container.innerHTML = html.length ? html.join('') : `<div class="export-empty">${escapeHtml(t('export.empty'))}</div>`;
@@ -1157,7 +1167,7 @@ function renderExportTree() {
   container.querySelectorAll('.export-group-node').forEach(n => updateGroupCheckboxState(n));
 }
 
-function buildGroupNode(groupName, sources, idPrefix) {
+function buildGroupNode(groupName, sources, idPrefix, groupKey) {
   const total = sources.reduce((s, x) => s + x.count, 0);
   return `
     <div class="export-group-node" data-id="${escapeAttr(idPrefix)}">
@@ -1169,7 +1179,7 @@ function buildGroupNode(groupName, sources, idPrefix) {
       <div class="export-source-list">
         ${sources.map(s => `
           <label class="export-source-row">
-            <input type="checkbox" class="export-source-checkbox" value="${escapeAttr(s.name)}">
+            <input type="checkbox" class="export-source-checkbox" value="${escapeAttr(sourceKey(groupKey, s.name))}">
             <span class="export-source-name">${escapeHtml(s.name)}</span>
             <span class="export-source-count">${s.count}</span>
           </label>
@@ -1206,11 +1216,11 @@ function computeSelectionCount() {
   let total = 0;
   for (const g of exportTreeData.groups) {
     for (const s of g.sources) {
-      if (exportSelection.has(s.name)) total += s.count;
+      if (exportSelection.has(sourceKey(g.id, s.name))) total += s.count;
     }
   }
   for (const s of exportTreeData.orphan.sources) {
-    if (exportSelection.has(s.name)) total += s.count;
+    if (exportSelection.has(sourceKey('orphan', s.name))) total += s.count;
   }
   return total;
 }
@@ -1219,8 +1229,8 @@ function selectAllSources(checked) {
   if (!exportTreeData) return;
   exportSelection.clear();
   if (checked) {
-    for (const g of exportTreeData.groups) for (const s of g.sources) exportSelection.add(s.name);
-    for (const s of exportTreeData.orphan.sources) exportSelection.add(s.name);
+    for (const g of exportTreeData.groups) for (const s of g.sources) exportSelection.add(sourceKey(g.id, s.name));
+    for (const s of exportTreeData.orphan.sources) exportSelection.add(sourceKey('orphan', s.name));
   }
   // Update DOM
   document.querySelectorAll('.export-source-checkbox').forEach(cb => { cb.checked = checked; });
@@ -1231,10 +1241,11 @@ function selectAllSources(checked) {
 function doExport() {
   if (exportSelection.size === 0) return;
   const format = (document.querySelector('input[name="export-format"]:checked') || {}).value || 'smartlead';
-  const sources = Array.from(exportSelection).sort();
   const params = new URLSearchParams();
   params.set('format', format);
-  params.set('csv_sources', sources.join(','));
+  // source_pairs = "<groupId|orphan>::<csv_source>" — necessaire parce que le nom
+  // de source seul est ambigu (5 collisions entre regions, cf. exportSelection).
+  params.set('source_pairs', Array.from(exportSelection).sort().join(','));
   const domain = $('export-domain') ? $('export-domain').value : '';
   if (domain) params.set('email_domain', domain);
   const limit = $('export-limit') ? parseInt($('export-limit').value, 10) : NaN;
