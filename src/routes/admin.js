@@ -621,7 +621,19 @@ router.put('/groups/assign-csv-source', express.json(), (req, res) => {
 });
 
 // Construire un WHERE clause + params a partir d'un filtre frontend (group_id, csv_source, search)
-function buildFilterWhere({ group_id, csv_source, search }) {
+// Filtres cold-mail partagés par buildFilterWhere (liste, bulk) et /export-csv.
+// « déjà contacté » = cold_mail_campaign NOT NULL, PAS cold_mail_sent_at : seul
+// l'export Smartlead W7 fournit une date, W3/W6/W6-2 n'ont que la campagne.
+function coldMailConds({ email_domain, contact_status }, conds, params) {
+  if (email_domain) {
+    conds.push('email LIKE ?');
+    params.push(`%@${String(email_domain).replace(/^@/, '').trim()}`);
+  }
+  if (contact_status === 'never') conds.push('cold_mail_campaign IS NULL');
+  else if (contact_status === 'contacted') conds.push('cold_mail_campaign IS NOT NULL');
+}
+
+function buildFilterWhere({ group_id, csv_source, search, email_domain, contact_status }) {
   const conds = [];
   const params = [];
   if (group_id === 'none') conds.push('group_id IS NULL');
@@ -635,6 +647,7 @@ function buildFilterWhere({ group_id, csv_source, search }) {
     const s = `%${search}%`;
     params.push(s, s, s, s);
   }
+  coldMailConds({ email_domain, contact_status }, conds, params);
   return { where: conds.length ? 'WHERE ' + conds.join(' AND ') : '', params };
 }
 
@@ -1077,8 +1090,17 @@ router.get('/export-csv', (req, res) => {
   }
   if (groupId === 'none') conds.push('group_id IS NULL');
   else if (groupId) { conds.push('group_id = ?'); params.push(parseInt(groupId, 10)); }
+  // Filtre domaine e-mail (ex: gmail.com) + exclusion des salons déjà cold-mailés.
+  coldMailConds({
+    email_domain: req.query.email_domain,
+    contact_status: req.query.exclude_contacted === '1' ? 'never' : req.query.contact_status
+  }, conds, params);
   if (conds.length) query += ' WHERE ' + conds.join(' AND ');
   query += ' ORDER BY id ASC';
+  // Limite optionnelle : permet de sortir un batch de N leads sans exporter tout
+  // le groupe. Bornée à 100000 pour éviter un LIMIT absurde côté URL.
+  const limit = parseInt(req.query.limit, 10);
+  if (Number.isFinite(limit) && limit > 0) { query += ' LIMIT ?'; params.push(Math.min(limit, 100000)); }
 
   const rows = db.prepare(query).all(...params);
 

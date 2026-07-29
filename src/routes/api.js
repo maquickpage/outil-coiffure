@@ -41,6 +41,14 @@ router.get('/salons', requireAdminSession, (req, res) => {
     where += ' AND group_id = @group_id';
     params.group_id = parseInt(groupId, 10);
   }
+  // Statut cold-mail : cold_mail_campaign fait foi (cold_mail_sent_at n'est
+  // renseigné que pour les campagnes dont on a l'export Smartlead daté).
+  if (req.query.contact_status === 'never') where += ' AND cold_mail_campaign IS NULL';
+  else if (req.query.contact_status === 'contacted') where += ' AND cold_mail_campaign IS NOT NULL';
+  if (req.query.email_domain) {
+    where += ' AND email LIKE @email_domain';
+    params.email_domain = `%@${String(req.query.email_domain).replace(/^@/, '').trim()}`;
+  }
 
   const total = db.prepare(`SELECT COUNT(*) as n FROM salons WHERE ${where}`).get(params).n;
   const rows = db.prepare(`
@@ -48,7 +56,8 @@ router.get('/salons', requireAdminSession, (req, res) => {
            meta_description, overrides_json, data_json,
            screenshot_path, screenshot_generated_at, csv_source, edit_token,
            overrides_json IS NOT NULL AS has_overrides, overrides_updated_at,
-           nom_clean_at, created_at, domain_suggestions_json, domain_suggestions_at
+           nom_clean_at, created_at, domain_suggestions_json, domain_suggestions_at,
+           cold_mail_campaign, cold_mail_sent_at
     FROM salons
     WHERE ${where}
     ORDER BY id DESC
@@ -124,7 +133,10 @@ router.get('/stats', requireAdminSession, (req, res) => {
   const withoutScreenshot = total - withScreenshot;
   const withCleanName = db.prepare("SELECT COUNT(*) as n FROM salons" + (groupClause ? groupClause + ' AND' : ' WHERE') + " nom_clean_at IS NOT NULL").get(groupParams).n;
   const csvSources = db.prepare('SELECT csv_source, COUNT(*) as n FROM salons' + groupClause + ' GROUP BY csv_source ORDER BY n DESC').all(groupParams);
-  res.json({ total, withScreenshot, withoutScreenshot, withCleanName, csvSources });
+  // Cold-mail : combien de salons ont déjà reçu une campagne Smartlead.
+  const contacted = db.prepare('SELECT COUNT(*) as n FROM salons' + (groupClause ? groupClause + ' AND' : ' WHERE') + ' cold_mail_campaign IS NOT NULL').get(groupParams).n;
+  const neverContacted = total - contacted;
+  res.json({ total, withScreenshot, withoutScreenshot, withCleanName, csvSources, contacted, neverContacted });
 });
 
 export default router;

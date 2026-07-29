@@ -194,6 +194,11 @@ export function initSchema() {
   // Marquage "envoyé en cold-mail" (date du batch Smartlead). Permet de savoir
   // côté DB quels salons sont déjà partis, sans ouvrir Smartlead.
   if (!cols.includes('cold_mail_sent_at')) db.exec("ALTER TABLE salons ADD COLUMN cold_mail_sent_at TEXT");
+  // Campagne Smartlead d'origine (W3 | W6 | W6-2-GrandEst | W7 | relance…).
+  // C'est CETTE colonne qui fait foi pour « déjà contacté » : cold_mail_sent_at
+  // reste NULL pour les campagnes dont on n'a pas la date exacte (seul l'export
+  // W7 en fournit une), donc filtrer sur la date raterait W3/W6/W6-2.
+  if (!cols.includes('cold_mail_campaign')) db.exec("ALTER TABLE salons ADD COLUMN cold_mail_campaign TEXT");
   // Événements de visite : 1 ligne par event (preview_ouvert, editeur_ouvert,
   // editeur_modifie, pricing_ouvert, etape_prix/domaine/email, paiement_initie,
   // scroll_max…). Table ISOLÉE, aucun lien FK dur (slug en texte). Purge 90j
