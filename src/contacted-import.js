@@ -30,13 +30,16 @@ export function runContactedImport({ dryRun = true, seedPath = DEFAULT_SEED } = 
 
   const rows = parse(readFileSync(seedPath), { columns: true, skip_empty_lines: true, relax_quotes: true });
 
-  const bySlug = db.prepare('SELECT slug FROM salons WHERE slug = ?');
-  const byEmail = db.prepare('SELECT slug FROM salons WHERE lower(email) = ? LIMIT 1');
+  // On remonte cold_mail_campaign avec le slug : en simulation, c'est ce qui
+  // permet de compter les salons PAS ENCORE marques et donc de projeter le
+  // « jamais contactes » d'apres import, au lieu d'afficher le chiffre d'avant.
+  const bySlug = db.prepare('SELECT slug, cold_mail_campaign FROM salons WHERE slug = ?');
+  const byEmail = db.prepare('SELECT slug, cold_mail_campaign FROM salons WHERE lower(email) = ? LIMIT 1');
   const update = db.prepare(
     "UPDATE salons SET cold_mail_campaign = ?, cold_mail_sent_at = ?, updated_at = datetime('now') WHERE slug = ?"
   );
 
-  const stats = { seed: rows.length, matchedBySlug: 0, matchedByEmail: 0, missed: 0, withDate: 0 };
+  const stats = { seed: rows.length, matchedBySlug: 0, matchedByEmail: 0, missed: 0, withDate: 0, newlyFlagged: 0 };
   const missedSamples = [];
   const plan = [];
 
@@ -58,6 +61,8 @@ export function runContactedImport({ dryRun = true, seedPath = DEFAULT_SEED } = 
       continue;
     }
     if (sentAt) stats.withDate++;
+    // Salon pas encore marque : c'est lui qui fera bouger le compteur.
+    if (!hit.cold_mail_campaign) stats.newlyFlagged++;
     plan.push([campaign, sentAt, hit.slug]);
   }
 
@@ -77,6 +82,12 @@ export function runContactedImport({ dryRun = true, seedPath = DEFAULT_SEED } = 
   stats.totalSalons = total;
   stats.contacted = contacted;
   stats.neverContacted = total - contacted;
+  // En simulation, contacted/neverContacted decrivent l'etat AVANT import : rien
+  // n'a ete ecrit. On projette donc l'etat d'apres avec les newlyFlagged, sinon
+  // l'ecran annonce un « apres import » qui est en fait le chiffre d'avant.
+  // Hors simulation l'ecriture a eu lieu, la projection vaut l'etat courant.
+  stats.contactedAfter = dryRun ? contacted + stats.newlyFlagged : contacted;
+  stats.neverContactedAfter = total - stats.contactedAfter;
   stats.missedSamples = missedSamples;
 
   return stats;

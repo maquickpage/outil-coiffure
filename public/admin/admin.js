@@ -1268,9 +1268,12 @@ function renderContactedStats(s, applied) {
     `${t('contacted.by_slug')} : <strong>${s.matchedBySlug}</strong>`,
     `${t('contacted.by_email')} : <strong>${s.matchedByEmail}</strong>`,
     `${t('contacted.missed')} : <strong>${s.missed}</strong>`,
-    `${t('contacted.rate')} : <strong>${s.matchRate}%</strong>`,
-    `${t('contacted.never')} : <strong>${s.neverContacted}</strong> / ${s.totalSalons}`
+    `${t('contacted.rate')} : <strong>${s.matchRate}%</strong>`
   ];
+  // En simulation on annonce ce qui VA changer (newlyFlagged) et l'état projeté ;
+  // afficher neverContacted brut ferait passer l'état d'avant pour celui d'après.
+  if (!applied) lines.push(`${t('contacted.will_flag')} : <strong>${s.newlyFlagged}</strong>`);
+  lines.push(`${t('contacted.never')} : <strong>${s.neverContactedAfter}</strong> / ${s.totalSalons}`);
   if (applied) lines.unshift(`<strong>${s.applied} ${t('contacted.applied')}</strong>`);
   box.innerHTML = lines.join('<br>');
   box.hidden = false;
