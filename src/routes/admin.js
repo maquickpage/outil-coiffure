@@ -649,13 +649,28 @@ router.put('/groups/assign-csv-source', express.json(), (req, res) => {
 // Filtres cold-mail partagés par buildFilterWhere (liste, bulk) et /export-csv.
 // « déjà contacté » = cold_mail_campaign NOT NULL, PAS cold_mail_sent_at : seul
 // l'export Smartlead W7 fournit une date, W3/W6/W6-2 n'ont que la campagne.
-function coldMailConds({ email_domain, contact_status }, conds, params) {
+function coldMailConds({ email_domain, contact_status, exclude_contacted }, conds, params) {
   if (email_domain) {
     conds.push('email LIKE ?');
     params.push(`%@${String(email_domain).replace(/^@/, '').trim()}`);
   }
   if (contact_status === 'never') conds.push('cold_mail_campaign IS NULL');
   else if (contact_status === 'contacted') conds.push('cold_mail_campaign IS NOT NULL');
+  // Exclusion d'EXPORT : plus forte que le filtre d'affichage ci-dessus.
+  // Beaucoup de propriétaires partagent un même e-mail entre plusieurs salons
+  // (multi-salons, enseignes) : 224 e-mails du pool « jamais contacté » sont
+  // aussi portés par un salon déjà cold-mailé — vérifié contre les exports
+  // Smartlead (224/224 avec un sent_time réel). Exclure au niveau du SALON
+  // seul réexpédierait donc un mail à 1337 destinataires déjà touchés.
+  // On exclut ici par E-MAIL : un salon sort de l'export si son adresse est
+  // portée par n'importe quel salon déjà contacté. Les salons sans e-mail ne
+  // sont pas exclus par ce critère (rien à dédupliquer).
+  if (exclude_contacted) {
+    conds.push(`cold_mail_campaign IS NULL AND (email IS NULL OR email = '' OR lower(email) NOT IN (
+      SELECT DISTINCT lower(email) FROM salons
+      WHERE cold_mail_campaign IS NOT NULL AND email IS NOT NULL AND email != ''
+    ))`);
+  }
 }
 
 function buildFilterWhere({ group_id, csv_source, search, email_domain, contact_status }) {
@@ -1160,7 +1175,8 @@ router.get('/export-csv', (req, res) => {
   // Filtre domaine e-mail (ex: gmail.com) + exclusion des salons déjà cold-mailés.
   coldMailConds({
     email_domain: req.query.email_domain,
-    contact_status: req.query.exclude_contacted === '1' ? 'never' : req.query.contact_status
+    contact_status: req.query.contact_status,
+    exclude_contacted: req.query.exclude_contacted === '1'
   }, conds, params);
   if (conds.length) query += ' WHERE ' + conds.join(' AND ');
   query += ' ORDER BY id ASC';
