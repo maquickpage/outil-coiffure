@@ -5,6 +5,7 @@ const state = {
   pageSize: 50,
   search: '',
   csvSource: '',
+  contactStatus: '', // '' = tous, 'never' = jamais cold-mailés, 'contacted' = déjà partis
   groupId: '',     // '' = tous les salons, 'none' = sans groupe, '<id>' = groupe specifique
   groups: [],
   orphanCount: 0,
@@ -66,6 +67,7 @@ async function loadStats() {
   $('stat-without-screenshot').textContent = stats.withoutScreenshot;
   $('stat-csv-sources').textContent = stats.csvSources.length;
   if ($('stat-clean-names')) $('stat-clean-names').textContent = stats.withCleanName ?? '—';
+  if ($('stat-never-contacted')) $('stat-never-contacted').textContent = stats.neverContacted ?? '—';
 
   const select = $('csv-source-filter');
   const current = select.value;
@@ -82,6 +84,7 @@ async function loadSalons() {
     csv_source: state.csvSource
   });
   if (state.groupId) params.set('group_id', state.groupId);
+  if (state.contactStatus) params.set('contact_status', state.contactStatus);
   const data = await api('/api/salons?' + params);
   state.total = data.total;
   const tbody = $('salons-tbody');
@@ -258,7 +261,17 @@ function salonRow(r) {
     <td class="url-cell col-url-compact">${urlCell(landingDisplay, fullLanding, landingUrl)}</td>
     <td class="url-cell col-url-compact">${editDisplay ? urlCell(editDisplay, fullEdit, editUrl) : '<span class="no-screenshot">—</span>'}</td>
     <td>${screenshotCell}</td>
+    <td>${coldMailCell(r)}</td>
   </tr>`;
+}
+
+// Statut cold-mail : badge campagne si le salon est déjà parti, sinon "jamais".
+// La date n'est affichée que si on la connaît (seul l'export Smartlead daté en
+// fournit une) — pas de date inventée pour W3/W6/W6-2.
+function coldMailCell(r) {
+  if (!r.cold_mail_campaign) return `<span class="cold-mail-never">— ${escapeHtml(t('cell.cold_never'))}</span>`;
+  const date = r.cold_mail_sent_at ? ' · ' + escapeHtml(String(r.cold_mail_sent_at).slice(0, 7)) : '';
+  return `<span class="cold-mail-badge">${escapeHtml(r.cold_mail_campaign)}${date}</span>`;
 }
 
 function bindRowActions() {
@@ -502,6 +515,12 @@ $('search-input').addEventListener('input', debounce(() => {
 
 $('csv-source-filter').addEventListener('change', () => {
   state.csvSource = $('csv-source-filter').value;
+  state.page = 0;
+  loadSalons();
+});
+
+if ($('contact-status-filter')) $('contact-status-filter').addEventListener('change', () => {
+  state.contactStatus = $('contact-status-filter').value;
   state.page = 0;
   loadSalons();
 });
@@ -1216,6 +1235,11 @@ function doExport() {
   const params = new URLSearchParams();
   params.set('format', format);
   params.set('csv_sources', sources.join(','));
+  const domain = $('export-domain') ? $('export-domain').value : '';
+  if (domain) params.set('email_domain', domain);
+  const limit = $('export-limit') ? parseInt($('export-limit').value, 10) : NaN;
+  if (Number.isFinite(limit) && limit > 0) params.set('limit', String(limit));
+  if ($('export-exclude-contacted') && $('export-exclude-contacted').checked) params.set('exclude_contacted', '1');
   // Naviguer pour declencher le download (l'endpoint est sur /admin avec session cookie)
   location.href = '/admin/export-csv?' + params.toString();
 }

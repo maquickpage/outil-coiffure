@@ -42,6 +42,7 @@
                 <div class="stat-box"><span class="stat-value" id="stat-without-screenshot">—</span><span class="stat-label" data-i18n="stats.without_screenshot">Sans capture</span></div>
                 <div class="stat-box"><span class="stat-value" id="stat-csv-sources">—</span><span class="stat-label" data-i18n="stats.csv_sources">Imports CSV</span></div>
                 <div class="stat-box"><span class="stat-value" id="stat-clean-names">—</span><span class="stat-label" data-i18n="stats.clean_names">Noms nettoyés</span></div>
+                <div class="stat-box"><span class="stat-value" id="stat-never-contacted">—</span><span class="stat-label" data-i18n="stats.never_contacted">Jamais contactés</span></div>
             </div>
         </section>
 
@@ -104,6 +105,11 @@
                     <input type="text" id="search-input" data-i18n-placeholder="table.search_placeholder" placeholder="Rechercher…">
                     <select id="csv-source-filter">
                         <option value="" data-i18n="table.all_sources">Toutes les sources</option>
+                    </select>
+                    <select id="contact-status-filter">
+                        <option value="" data-i18n="table.contact_all">Contact : tous</option>
+                        <option value="never" data-i18n="table.contact_never">Jamais contactés</option>
+                        <option value="contacted" data-i18n="table.contact_done">Déjà contactés</option>
                     </select>
                     <button id="refresh-btn" data-i18n="table.refresh">Actualiser</button>
                 </div>
@@ -191,6 +197,7 @@
                             <th data-col-idx="7" class="col-url-compact" data-i18n="col.url_landing">URL Landing</th>
                             <th data-col-idx="8" class="col-url-compact" data-i18n="col.url_edition">URL Édition</th>
                             <th data-col-idx="9" data-i18n="col.capture">Capture</th>
+                            <th data-col-idx="10" data-i18n="col.cold_mail">Cold mail</th>
                         </tr>
                     </thead>
                     <tbody id="salons-tbody"></tbody>
@@ -242,6 +249,26 @@
                         <span><strong data-i18n="export.format_full">Complet</strong> <span class="format-hint" data-i18n="export.format_full_hint">(toutes les colonnes utiles)</span></span>
                     </label>
                 </div>
+            </div>
+
+            <div class="export-format-row">
+                <label class="export-format-label" data-i18n="export.domain">Domaine e-mail :</label>
+                <select id="export-domain">
+                    <option value="" data-i18n="export.domain_all">Tous les domaines</option>
+                    <option value="gmail.com">gmail.com</option>
+                    <option value="orange.fr">orange.fr</option>
+                    <option value="wanadoo.fr">wanadoo.fr</option>
+                    <option value="free.fr">free.fr</option>
+                    <option value="hotmail.fr">hotmail.fr</option>
+                </select>
+                <label class="export-format-label" data-i18n="export.limit">Limite :</label>
+                <input type="number" id="export-limit" min="1" step="1" placeholder="—">
+            </div>
+            <div class="export-format-row">
+                <label class="format-option">
+                    <input type="checkbox" id="export-exclude-contacted" checked>
+                    <span data-i18n="export.exclude_contacted">Exclure les salons déjà contactés</span>
+                </label>
             </div>
 
             <div class="export-tools">
