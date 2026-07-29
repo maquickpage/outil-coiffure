@@ -17,6 +17,7 @@ import photoPickerRouter from './photo-picker.js';
 import salonNewRouter from './salon-new.js';
 import callingRouter from './calling.js';
 import { clientIp } from './tracking.js';
+import { runContactedImport } from '../contacted-import.js';
 
 const router = express.Router();
 const UPLOAD_DIR = './data/csv-uploads';
@@ -650,6 +651,26 @@ function buildFilterWhere({ group_id, csv_source, search, email_domain, contact_
   coldMailConds({ email_domain, contact_status }, conds, params);
   return { where: conds.length ? 'WHERE ' + conds.join(' AND ') : '', params };
 }
+
+// Rapatriement de l'historique cold-mail (data/contacted-seed.csv → salons).
+// Exposé en HTTP parce que la prod tourne dans un conteneur Coolify sans accès
+// SSH : c'est le seul moyen de déclencher l'import. Protégé par requireAuth
+// (router.use plus haut). GET = simulation seule, POST = écriture réelle.
+router.get('/import-contacted/preview', (req, res) => {
+  try {
+    res.json(runContactedImport({ dryRun: true }));
+  } catch (e) {
+    res.status(e.code === 'SEED_MISSING' ? 404 : 500).json({ error: e.message });
+  }
+});
+
+router.post('/import-contacted', express.json(), (req, res) => {
+  try {
+    res.json(runContactedImport({ dryRun: false }));
+  } catch (e) {
+    res.status(e.code === 'SEED_MISSING' ? 404 : 500).json({ error: e.message });
+  }
+});
 
 // Compter les salons matchant un filtre (utile cote UI pour preview)
 router.post('/salons/bulk-count', express.json(), (req, res) => {
