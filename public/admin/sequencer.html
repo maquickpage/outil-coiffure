@@ -84,19 +84,19 @@
 <script src="/admin/admin-nav.js"></script>
 
 <div class="seq-head">
-  <h1>Séquenceur cold-email</h1>
+  <h1 id="t-title">Séquenceur cold-email</h1>
   <span id="campPill" class="pill">…</span>
   <span class="grow"></span>
   <span class="muted" id="clock"></span>
-  <button class="btn" id="refreshBtn" onclick="load()">↻ Actualiser</button>
+  <button class="btn" id="refreshBtn" onclick="load()">↻ <span id="t-refresh">Actualiser</span></button>
 </div>
 <nav class="seq-tabs">
-  <button class="active" data-tab="overview" onclick="tab(this)">Vue d'ensemble</button>
-  <button data-tab="leads" onclick="tab(this)">Leads</button>
-  <button data-tab="import" onclick="tab(this)">Import CSV</button>
-  <button data-tab="template" onclick="tab(this)">Séquence</button>
-  <button data-tab="mailboxes" onclick="tab(this)">Boîtes</button>
-  <button data-tab="nodes" onclick="tab(this)">Nœuds</button>
+  <button class="active" data-tab="overview" onclick="tab(this)" id="t-tab-overview">Vue d'ensemble</button>
+  <button data-tab="leads" onclick="tab(this)" id="t-tab-leads">Leads</button>
+  <button data-tab="import" onclick="tab(this)" id="t-tab-import">Import CSV</button>
+  <button data-tab="template" onclick="tab(this)" id="t-tab-template">Séquence</button>
+  <button data-tab="mailboxes" onclick="tab(this)" id="t-tab-mailboxes">Boîtes</button>
+  <button data-tab="nodes" onclick="tab(this)" id="t-tab-nodes">Nœuds</button>
 </nav>
 
 <main>
@@ -106,16 +106,16 @@
   <section id="overview">
     <div class="card">
       <div class="row" style="margin-bottom:14px">
-        <button class="btn primary" id="startBtn" onclick="setCampaign('running')">▶ Démarrer (tous les nœuds)</button>
-        <button class="btn" id="pauseBtn" onclick="setCampaign('paused')">⏸ Tout mettre en pause</button>
-        <span class="muted">Le dispatcher de chaque nœud tourne toutes les 10 min. La pause stoppe les envois ; la détection de réponses continue.</span>
+        <button class="btn primary" id="startBtn" onclick="setCampaign('running')"></button>
+        <button class="btn" id="pauseBtn" onclick="setCampaign('paused')"></button>
+        <span class="muted" id="t-dispatcher-hint"></span>
       </div>
       <div class="stats" id="stats"></div>
     </div>
     <div class="card">
-      <h3 style="margin-top:0">Nœuds / boîtes aujourd'hui</h3>
+      <h3 style="margin-top:0" id="t-mb-today"></h3>
       <div class="scroll"><table id="mbMini"><thead><tr>
-        <th>Boîte</th><th>État nœud</th><th>Campagne</th><th>Envoyés / plafond</th><th>Fenêtre</th><th>Jours</th><th></th>
+        <th id="th-mb"></th><th id="th-nodestate"></th><th id="th-campaign"></th><th id="th-sentcap"></th><th id="th-window"></th><th id="th-days"></th><th></th>
       </tr></thead><tbody></tbody></table></div>
     </div>
   </section>
@@ -125,40 +125,38 @@
     <div class="card scroll">
       <div class="row" style="margin-bottom:10px">
         <select id="leadFilter" style="width:auto" onchange="renderLeads()">
-          <option value="">Tous statuts</option>
+          <option value=""></option>
           <option>queued</option><option>active</option><option>replied</option>
           <option>stopped</option><option>unsubscribed</option><option>failed</option><option>completed</option>
         </select>
         <span class="muted" id="leadCount"></span>
       </div>
       <table id="leadTbl"><thead><tr>
-        <th>Salon</th><th>Email</th><th>Boîte (nœud)</th><th>Step</th><th>Statut</th>
-        <th>Dernier envoi</th><th>Prochain envoi</th><th></th>
+        <th id="th-salon"></th><th>Email</th><th id="th-leadmb"></th><th>Step</th><th id="th-status"></th>
+        <th id="th-lastsend"></th><th id="th-nextsend"></th><th></th>
       </tr></thead><tbody></tbody></table>
-      <p class="muted" id="leadEmpty">Aucun lead. Importer un CSV.</p>
+      <p class="muted" id="leadEmpty"></p>
     </div>
     <div class="card">
-      <h3 style="margin-top:0">Suppression (tous les nœuds)</h3>
-      <p class="muted">Un email par ligne. Poussé sur la liste de suppression de chaque nœud actif ; les leads queued/active correspondants sont stoppés.</p>
+      <h3 style="margin-top:0" id="t-supp-title"></h3>
+      <p class="muted" id="t-supp-help"></p>
       <textarea id="suppText" placeholder="email1@exemple.fr&#10;email2@exemple.fr" style="min-height:60px"></textarea>
-      <div class="row" style="margin-top:10px"><button class="btn danger" onclick="pushSuppression()">Pousser la suppression</button></div>
+      <div class="row" style="margin-top:10px"><button class="btn danger" onclick="pushSuppression()" id="t-supp-btn"></button></div>
     </div>
   </section>
 
   <!-- IMPORT -->
   <section id="import" class="hide">
     <div class="card">
-      <h3 style="margin-top:0">Import de leads (CSV)</h3>
-      <p class="muted">Colonnes requises : <b>email</b>, <b>salon_slug</b>. Optionnelles : first_name, salon_name, city,
-        preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide,
-        déjà importé, sur suppression) rejette le fichier <b>entier</b> du nœud concerné, sans écriture.</p>
-      <label>Destination</label>
+      <h3 style="margin-top:0" id="t-import-title"></h3>
+      <p class="muted" id="t-import-help"></p>
+      <label id="t-import-dest"></label>
       <select id="importTarget"></select>
-      <label>Fichier</label>
+      <label id="t-import-file"></label>
       <input type="file" id="csvFile" accept=".csv,text/csv">
-      <textarea id="csvText" placeholder="…ou coller le CSV ici (1re ligne = entêtes)" style="margin-top:10px"></textarea>
+      <textarea id="csvText" style="margin-top:10px"></textarea>
       <div class="row" style="margin-top:10px">
-        <button class="btn primary" id="importBtn" onclick="doImport()">Valider &amp; importer</button>
+        <button class="btn primary" id="importBtn" onclick="doImport()"></button>
       </div>
       <div id="importResult" class="muted" style="margin-top:10px; white-space:pre-wrap"></div>
     </div>
@@ -167,14 +165,11 @@
   <!-- SÉQUENCE -->
   <section id="template" class="hide">
     <div class="card">
-      <h3 style="margin-top:0">Séquence 5 steps</h3>
-      <p class="muted">Variables : {{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}}
-        {{preview_image_url}} {{admin_url}}. Gap = jours avant CE step (step 1 = 0 en général).
-        Thread : reply = même fil Gmail, new = nouveau fil.
-        <span id="stepsSource"></span></p>
+      <h3 style="margin-top:0" id="t-steps-title"></h3>
+      <p class="muted"><span id="t-steps-help"></span> <span id="stepsSource"></span></p>
       <div id="stepsDiffWarn" class="setup-banner hide"></div>
       <div id="steps"></div>
-      <button class="btn primary" id="saveStepsBtn" onclick="saveSteps()">Enregistrer sur TOUS les nœuds actifs</button>
+      <button class="btn primary" id="saveStepsBtn" onclick="saveSteps()"></button>
     </div>
   </section>
 
@@ -186,29 +181,27 @@
   <!-- NŒUDS -->
   <section id="nodes" class="hide">
     <div class="card">
-      <h3 style="margin-top:0">Nœuds Apps Script enregistrés</h3>
-      <p class="muted">1 nœud = 1 projet Apps Script déployé en web app sous une boîte Gmail
-        (accès « Anyone », token via <code>initApiToken()</code>). Le portail ne stocke aucun lead : chaque
-        nœud garde son Control Sheet.</p>
+      <h3 style="margin-top:0" id="t-nodes-title"></h3>
+      <p class="muted" id="t-nodes-help"></p>
       <div class="scroll"><table id="nodeTbl"><thead><tr>
-        <th>Boîte</th><th>Libellé</th><th>URL /exec</th><th>Token</th><th>Actif</th><th>Dernier health</th><th></th>
+        <th id="th-node-mb"></th><th id="th-node-label"></th><th>URL /exec</th><th>Token</th><th id="th-node-enabled"></th><th id="th-node-health"></th><th></th>
       </tr></thead><tbody></tbody></table></div>
     </div>
     <div class="card">
-      <h3 style="margin-top:0" id="nodeFormTitle">Ajouter un nœud</h3>
+      <h3 style="margin-top:0" id="nodeFormTitle"></h3>
       <input type="hidden" id="nf-id">
       <div class="grid2">
-        <div><label>Boîte (adresse email)</label><input id="nf-mailbox" placeholder="solene@getquickpage.fr"></div>
-        <div><label>Libellé</label><input id="nf-label" placeholder="Solene Perrin"></div>
+        <div><label id="t-nf-mailbox"></label><input id="nf-mailbox" placeholder="solene@getquickpage.fr"></div>
+        <div><label id="t-nf-label"></label><input id="nf-label" placeholder="Solene Perrin"></div>
       </div>
-      <label>URL de la web app (…/exec)</label>
+      <label id="t-nf-url"></label>
       <input id="nf-url" placeholder="https://script.google.com/macros/s/…/exec">
-      <label>Token API (laisser vide pour conserver l'existant en modification)</label>
-      <input id="nf-token" placeholder="token loggé par initApiToken()">
-      <label><input type="checkbox" id="nf-enabled" checked style="width:auto"> Actif</label>
+      <label id="t-nf-token"></label>
+      <input id="nf-token" placeholder="initApiToken()">
+      <label><input type="checkbox" id="nf-enabled" checked style="width:auto"> <span id="t-nf-enabled"></span></label>
       <div class="row" style="margin-top:10px">
-        <button class="btn primary" onclick="saveNode()">Enregistrer le nœud</button>
-        <button class="btn" onclick="resetNodeForm()">Annuler</button>
+        <button class="btn primary" onclick="saveNode()" id="t-nf-save"></button>
+        <button class="btn" onclick="resetNodeForm()" id="t-nf-cancel"></button>
       </div>
     </div>
   </section>
@@ -217,12 +210,222 @@
 <div id="toast"></div>
 
 <script>
+// ---------- I18N (self-contained, same mechanism as stats-landing.html) ----------
+var T = {
+  fr: {
+    title: "Séquenceur cold-email", refresh: "Actualiser",
+    tab_overview: "Vue d'ensemble", tab_leads: "Leads", tab_import: "Import CSV",
+    tab_template: "Séquence", tab_mailboxes: "Boîtes", tab_nodes: "Nœuds",
+    pill_nonode: "aucun nœud", pill_down: "nœuds injoignables", pill_mixed: "mixte",
+    start_all: "▶ Démarrer (tous les nœuds)", pause_all: "⏸ Tout mettre en pause",
+    dispatcher_hint: "Le dispatcher de chaque nœud tourne toutes les 10 min. La pause stoppe les envois ; la détection de réponses continue.",
+    mb_today: "Nœuds / boîtes aujourd'hui",
+    th_mb: "Boîte", th_nodestate: "État nœud", th_campaign: "Campagne", th_sentcap: "Envoyés / plafond",
+    th_window: "Fenêtre", th_days: "Jours", th_salon: "Salon", th_leadmb: "Boîte (nœud)", th_status: "Statut",
+    th_lastsend: "Dernier envoi", th_nextsend: "Prochain envoi",
+    badge_ok: "ok", badge_down: "injoignable", badge_on: "actif", badge_off: "inactif",
+    btn_pause: "⏸ pause", btn_start: "▶ start",
+    all_statuses: "Tous statuts", lead_count: "{shown} affiché(s) / {total} au total",
+    lead_empty: "Aucun lead. Importer un CSV.",
+    supp_title: "Suppression (tous les nœuds)",
+    supp_help: "Un email par ligne. Poussé sur la liste de suppression de chaque nœud actif ; les leads queued/active correspondants sont stoppés.",
+    supp_btn: "Pousser la suppression", supp_none: "Aucun email",
+    import_title: "Import de leads (CSV)",
+    import_help: "Colonnes requises : email, salon_slug. Optionnelles : first_name, salon_name, city, preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide, déjà importé, sur suppression) rejette le fichier ENTIER du nœud concerné, sans écriture.",
+    import_dest: "Destination", import_rr: "Répartir sur tous les nœuds actifs (round-robin)",
+    import_only: "{mb} uniquement", import_file: "Fichier",
+    import_paste: "…ou coller le CSV ici (1re ligne = entêtes)",
+    import_btn: "Valider & importer", import_choose: "Choisir un fichier ou coller le CSV",
+    import_done: "Import terminé", import_partial: "Import partiel — voir détail", import_refused: "Import refusé",
+    imported_n: "importé {n}", refused: "REFUSÉ — ",
+    steps_title: "Séquence 5 steps",
+    steps_help: "Variables : {{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}} {{preview_image_url}} {{admin_url}}. Gap = jours avant CE step (step 1 = 0 en général). Thread : reply = même fil Gmail, new = nouveau fil. Steps 4–5 vides = la séquence s'arrête après le step 3.",
+    steps_source: "(chargée depuis {mb})",
+    steps_diff: "⚠ Séquences divergentes — {list} n'ont pas les mêmes steps que {ref}. « Enregistrer sur TOUS » réaligne tout le monde.",
+    lbl_subject: "Objet", lbl_body: "Corps", lbl_gap: "Gap (jours)", lbl_thread: "Thread",
+    opt_new: "nouveau fil", opt_reply: "reply (même fil)",
+    steps_save: "Enregistrer sur TOUS les nœuds actifs", steps_saved: "Séquence enregistrée sur tous les nœuds",
+    no_node_up: "Aucun nœud joignable.",
+    lbl_cap: "Plafond quotidien", lbl_days: "Jours d'envoi (1=Lun..7=Dim)", lbl_wstart: "Début fenêtre (HH:MM)",
+    lbl_wend: "Fin fenêtre (HH:MM)", lbl_paused: "En pause", yes: "oui", no: "non", save: "Enregistrer",
+    mb_saved: "Boîte enregistrée",
+    nodes_title: "Nœuds Apps Script enregistrés",
+    nodes_help: "1 nœud = 1 projet Apps Script déployé en web app sous une boîte Gmail (accès « Anyone », token via initApiToken()). Le portail ne stocke aucun lead : chaque nœud garde son Control Sheet.",
+    th_node_mb: "Boîte", th_node_label: "Libellé", th_node_enabled: "Actif", th_node_health: "Dernier health",
+    node_none: "Aucun nœud. Ajouter le premier ci-dessous (sophie@getquickpage.fr est déjà déployé côté Apps Script).",
+    node_edit: "modifier", node_del: "suppr.", node_health: "health",
+    node_add_title: "Ajouter un nœud", node_edit_title: "Modifier le nœud {mb}",
+    nf_mailbox: "Boîte (adresse email)", nf_label: "Libellé", nf_url: "URL de la web app (…/exec)",
+    nf_token: "Token API (laisser vide pour conserver l'existant en modification)", nf_enabled: "Actif",
+    nf_save: "Enregistrer le nœud", nf_cancel: "Annuler", node_saved: "Nœud enregistré", node_deleted: "Nœud supprimé",
+    node_del_confirm: "Supprimer le nœud {mb} ? (le projet Apps Script et son Control Sheet ne sont pas touchés)",
+    health_ok: "Nœud ok — {mb} · campagne {st}", health_ko: "Health KO : ",
+    setup_pending: "⚠ Setup en attente",
+    setup_missing: "Aucun nœud pour {mb} — déployer le projet Apps Script sous ce compte (clasp), lancer setup() + installTrigger() + initApiToken(), déployer la web app en accès « Anyone », puis l'enregistrer dans l'onglet Nœuds.",
+    setup_down: "Nœud {mb} injoignable : ",
+    campaign_set: "Campagne {st} sur tous les nœuds", node_set: "Nœud → {st}",
+    fail_on: "Échec sur : ", lead_stopped: "Lead stoppé",
+    stop_confirm: "Stopper ce lead ? Il ne recevra plus aucun envoi.",
+    err: "Erreur : ", load_fail: "Chargement échoué : ", failed: "Échec",
+    stat_total: "Total", stat_queued: "En file", stat_active: "Actifs", stat_replied: "Répondu",
+    stat_stopped: "Stoppés", stat_failed: "Échecs", stat_completed: "Terminés",
+    stopped_n: "stoppé(s)"
+  },
+  en: {
+    title: "Cold-email sequencer", refresh: "Refresh",
+    tab_overview: "Overview", tab_leads: "Leads", tab_import: "Import CSV",
+    tab_template: "Sequence", tab_mailboxes: "Mailboxes", tab_nodes: "Nodes",
+    pill_nonode: "no node", pill_down: "nodes unreachable", pill_mixed: "mixed",
+    start_all: "▶ Start (all nodes)", pause_all: "⏸ Pause all",
+    dispatcher_hint: "Each node's dispatcher runs every 10 min. Pausing stops sends; reply detection keeps running.",
+    mb_today: "Nodes / mailboxes today",
+    th_mb: "Mailbox", th_nodestate: "Node state", th_campaign: "Campaign", th_sentcap: "Sent / cap",
+    th_window: "Window", th_days: "Days", th_salon: "Salon", th_leadmb: "Mailbox (node)", th_status: "Status",
+    th_lastsend: "Last sent", th_nextsend: "Next send",
+    badge_ok: "ok", badge_down: "unreachable", badge_on: "on", badge_off: "off",
+    btn_pause: "⏸ pause", btn_start: "▶ start",
+    all_statuses: "All statuses", lead_count: "{shown} shown / {total} total",
+    lead_empty: "No leads. Import a CSV.",
+    supp_title: "Suppression (all nodes)",
+    supp_help: "One email per line. Pushed to every active node's suppression list; matching queued/active leads are stopped.",
+    supp_btn: "Push suppression", supp_none: "No emails",
+    import_title: "Import leads (CSV)",
+    import_help: "Required columns: email, salon_slug. Optional: first_name, salon_name, city, preview_url, preview_image_url, admin_url. Any dirty row (blank/duplicate email, blank salon_slug, already imported, suppressed) rejects that node's WHOLE file with no writes.",
+    import_dest: "Destination", import_rr: "Split across all active nodes (round-robin)",
+    import_only: "{mb} only", import_file: "File",
+    import_paste: "…or paste CSV here (first line = header)",
+    import_btn: "Validate & import", import_choose: "Choose a file or paste CSV",
+    import_done: "Import complete", import_partial: "Partial import — see detail", import_refused: "Import refused",
+    imported_n: "imported {n}", refused: "REFUSED — ",
+    steps_title: "5-step sequence",
+    steps_help: "Variables: {{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}} {{preview_image_url}} {{admin_url}}. Gap = days before THIS step fires (step 1 usually 0). Thread: reply = same Gmail thread, new = fresh thread. Blank steps 4–5 = the sequence ends after step 3.",
+    steps_source: "(loaded from {mb})",
+    steps_diff: "⚠ Diverging sequences — {list} do not match {ref}. “Save to ALL” realigns everyone.",
+    lbl_subject: "Subject", lbl_body: "Body", lbl_gap: "Gap (days)", lbl_thread: "Thread",
+    opt_new: "new thread", opt_reply: "reply (same thread)",
+    steps_save: "Save to ALL active nodes", steps_saved: "Sequence saved on all nodes",
+    no_node_up: "No reachable node.",
+    lbl_cap: "Daily cap", lbl_days: "Send days (1=Mon..7=Sun)", lbl_wstart: "Window start (HH:MM)",
+    lbl_wend: "Window end (HH:MM)", lbl_paused: "Paused", yes: "yes", no: "no", save: "Save",
+    mb_saved: "Mailbox saved",
+    nodes_title: "Registered Apps Script nodes",
+    nodes_help: "1 node = 1 Apps Script project deployed as a web app under one Gmail mailbox (access “Anyone”, token via initApiToken()). The portal stores no leads: each node keeps its own Control Sheet.",
+    th_node_mb: "Mailbox", th_node_label: "Label", th_node_enabled: "Enabled", th_node_health: "Last health",
+    node_none: "No nodes. Add the first one below (sophie@getquickpage.fr is already deployed on the Apps Script side).",
+    node_edit: "edit", node_del: "delete", node_health: "health",
+    node_add_title: "Add a node", node_edit_title: "Edit node {mb}",
+    nf_mailbox: "Mailbox (email address)", nf_label: "Label", nf_url: "Web app URL (…/exec)",
+    nf_token: "API token (leave blank to keep the current one when editing)", nf_enabled: "Enabled",
+    nf_save: "Save node", nf_cancel: "Cancel", node_saved: "Node saved", node_deleted: "Node deleted",
+    node_del_confirm: "Delete node {mb}? (the Apps Script project and its Control Sheet are untouched)",
+    health_ok: "Node ok — {mb} · campaign {st}", health_ko: "Health failed: ",
+    setup_pending: "⚠ Setup pending",
+    setup_missing: "No node for {mb} — deploy the Apps Script project under this account (clasp), run setup() + installTrigger() + initApiToken(), deploy the web app with “Anyone” access, then register it in the Nodes tab.",
+    setup_down: "Node {mb} unreachable: ",
+    campaign_set: "Campaign {st} on all nodes", node_set: "Node → {st}",
+    fail_on: "Failed on: ", lead_stopped: "Lead stopped",
+    stop_confirm: "Stop this lead? It will never be emailed again.",
+    err: "Error: ", load_fail: "Load failed: ", failed: "Failed",
+    stat_total: "Total", stat_queued: "Queued", stat_active: "Active", stat_replied: "Replied",
+    stat_stopped: "Stopped", stat_failed: "Failed", stat_completed: "Completed",
+    stopped_n: "stopped"
+  },
+  zh: {
+    title: "冷邮件序列发送器", refresh: "刷新",
+    tab_overview: "总览", tab_leads: "线索", tab_import: "导入 CSV",
+    tab_template: "序列", tab_mailboxes: "邮箱", tab_nodes: "节点",
+    pill_nonode: "无节点", pill_down: "节点不可达", pill_mixed: "混合",
+    start_all: "▶ 启动（全部节点）", pause_all: "⏸ 全部暂停",
+    dispatcher_hint: "每个节点的调度器每 10 分钟运行一次。暂停会停止发送；回复检测继续运行。",
+    mb_today: "今日节点 / 邮箱",
+    th_mb: "邮箱", th_nodestate: "节点状态", th_campaign: "campaign", th_sentcap: "已发 / 上限",
+    th_window: "时间窗", th_days: "星期", th_salon: "沙龙", th_leadmb: "邮箱（节点）", th_status: "状态",
+    th_lastsend: "上次发送", th_nextsend: "下次发送",
+    badge_ok: "正常", badge_down: "不可达", badge_on: "启用", badge_off: "停用",
+    btn_pause: "⏸ 暂停", btn_start: "▶ 启动",
+    all_statuses: "全部状态", lead_count: "显示 {shown} / 共 {total}",
+    lead_empty: "暂无线索。请导入 CSV。",
+    supp_title: "屏蔽名单（全部节点）",
+    supp_help: "每行一个邮箱。推送到每个启用节点的屏蔽名单；匹配的 queued/active 线索会被停止。",
+    supp_btn: "推送屏蔽名单", supp_none: "没有邮箱",
+    import_title: "导入线索（CSV）",
+    import_help: "必需列：email、salon_slug。可选列：first_name、salon_name、city、preview_url、preview_image_url、admin_url。任何脏行（邮箱为空/重复、salon_slug 为空、已导入、在屏蔽名单）都会导致该节点整个文件被拒绝，不写入任何数据。",
+    import_dest: "目标", import_rr: "在所有启用节点间轮流分配（round-robin）",
+    import_only: "仅 {mb}", import_file: "文件",
+    import_paste: "……或在此粘贴 CSV（第一行为表头）",
+    import_btn: "校验并导入", import_choose: "请选择文件或粘贴 CSV",
+    import_done: "导入完成", import_partial: "部分导入 — 见详情", import_refused: "导入被拒绝",
+    imported_n: "已导入 {n}", refused: "被拒绝 — ",
+    steps_title: "5 步序列",
+    steps_help: "变量：{{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}} {{preview_image_url}} {{admin_url}}。Gap = 距本步的天数（step 1 通常为 0）。Thread：reply = 同一 Gmail 会话，new = 新会话。第 4–5 步留空 = 序列在第 3 步后结束。",
+    steps_source: "（从 {mb} 加载）",
+    steps_diff: "⚠ 序列不一致 — {list} 与 {ref} 的 steps 不同。「保存到全部」会重新对齐所有节点。",
+    lbl_subject: "主题", lbl_body: "正文", lbl_gap: "间隔（天）", lbl_thread: "会话",
+    opt_new: "新会话", opt_reply: "reply（同一会话）",
+    steps_save: "保存到全部启用节点", steps_saved: "序列已保存到全部节点",
+    no_node_up: "没有可达节点。",
+    lbl_cap: "每日上限", lbl_days: "发送日（1=周一..7=周日）", lbl_wstart: "窗口开始（HH:MM）",
+    lbl_wend: "窗口结束（HH:MM）", lbl_paused: "暂停", yes: "是", no: "否", save: "保存",
+    mb_saved: "邮箱已保存",
+    nodes_title: "已注册的 Apps Script 节点",
+    nodes_help: "1 个节点 = 1 个以某 Gmail 邮箱部署为 web app 的 Apps Script 项目（访问权限 “Anyone”，token 由 initApiToken() 生成）。门户不存储任何线索：每个节点保留自己的 Control Sheet。",
+    th_node_mb: "邮箱", th_node_label: "标签", th_node_enabled: "启用", th_node_health: "最近 health",
+    node_none: "暂无节点。在下方添加第一个（sophie@getquickpage.fr 的 Apps Script 已部署）。",
+    node_edit: "编辑", node_del: "删除", node_health: "health",
+    node_add_title: "添加节点", node_edit_title: "编辑节点 {mb}",
+    nf_mailbox: "邮箱（地址）", nf_label: "标签", nf_url: "Web app URL（…/exec）",
+    nf_token: "API token（编辑时留空 = 保留现有）", nf_enabled: "启用",
+    nf_save: "保存节点", nf_cancel: "取消", node_saved: "节点已保存", node_deleted: "节点已删除",
+    node_del_confirm: "删除节点 {mb}？（Apps Script 项目及其 Control Sheet 不受影响）",
+    health_ok: "节点正常 — {mb} · campaign {st}", health_ko: "Health 失败：",
+    setup_pending: "⚠ 待完成的设置",
+    setup_missing: "{mb} 尚无节点 — 用该账号部署 Apps Script 项目（clasp），运行 setup() + installTrigger() + initApiToken()，以 “Anyone” 权限部署 web app，然后在「节点」页登记。",
+    setup_down: "节点 {mb} 不可达：",
+    campaign_set: "全部节点 campaign 已设为 {st}", node_set: "节点 → {st}",
+    fail_on: "失败节点：", lead_stopped: "线索已停止",
+    stop_confirm: "停止该线索？之后不会再向其发送任何邮件。",
+    err: "错误：", load_fail: "加载失败：", failed: "失败",
+    stat_total: "总数", stat_queued: "排队", stat_active: "进行中", stat_replied: "已回复",
+    stat_stopped: "已停止", stat_failed: "失败", stat_completed: "已完成",
+    stopped_n: "已停止"
+  }
+};
+var lang = (function(){ try { var s = localStorage.getItem('outil-coiffure-lang'); return T[s] ? s : 'fr'; } catch(e){ return 'fr'; } })();
+function t(k, p){ var s = (T[lang] && T[lang][k]) || T.fr[k] || k; if (p) for (var x in p) s = s.split('{'+x+'}').join(p[x]); return s; }
+
 // Les 4 boîtes validées Gmail (memory.md bibiproject : senders approuvés placement 2026-07-28).
 // Un nœud manquant pour l'une d'elles = setup en attente, affiché dans la bannière.
 var EXPECTED_MAILBOXES = ['solene@getquickpage.fr', 'cedric@getquickpage.fr',
                           'sophie@getquickpage.fr', 'camille@monsitehq.com'];
 
 var DATA = null, BUSY = false;
+
+// ---------- static labels ----------
+function applyStatic(){
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
+  var map = {
+    't-title':'title', 't-refresh':'refresh',
+    't-tab-overview':'tab_overview', 't-tab-leads':'tab_leads', 't-tab-import':'tab_import',
+    't-tab-template':'tab_template', 't-tab-mailboxes':'tab_mailboxes', 't-tab-nodes':'tab_nodes',
+    'startBtn':'start_all', 'pauseBtn':'pause_all', 't-dispatcher-hint':'dispatcher_hint',
+    't-mb-today':'mb_today', 'th-mb':'th_mb', 'th-nodestate':'th_nodestate', 'th-campaign':'th_campaign',
+    'th-sentcap':'th_sentcap', 'th-window':'th_window', 'th-days':'th_days',
+    'th-salon':'th_salon', 'th-leadmb':'th_leadmb', 'th-status':'th_status',
+    'th-lastsend':'th_lastsend', 'th-nextsend':'th_nextsend', 'leadEmpty':'lead_empty',
+    't-supp-title':'supp_title', 't-supp-help':'supp_help', 't-supp-btn':'supp_btn',
+    't-import-title':'import_title', 't-import-help':'import_help', 't-import-dest':'import_dest',
+    't-import-file':'import_file', 'importBtn':'import_btn',
+    't-steps-title':'steps_title', 't-steps-help':'steps_help', 'saveStepsBtn':'steps_save',
+    't-nodes-title':'nodes_title', 't-nodes-help':'nodes_help',
+    'th-node-mb':'th_node_mb', 'th-node-label':'th_node_label', 'th-node-enabled':'th_node_enabled',
+    'th-node-health':'th_node_health', 'nodeFormTitle':'node_add_title',
+    't-nf-mailbox':'nf_mailbox', 't-nf-label':'nf_label', 't-nf-url':'nf_url', 't-nf-token':'nf_token',
+    't-nf-enabled':'nf_enabled', 't-nf-save':'nf_save', 't-nf-cancel':'nf_cancel'
+  };
+  for (var id in map) { var el = document.getElementById(id); if (el) el.textContent = t(map[id]); }
+  document.getElementById('csvText').placeholder = t('import_paste');
+  document.querySelector('#leadFilter option[value=""]').textContent = t('all_statuses');
+}
 
 function tab(btn){
   document.querySelectorAll('.seq-tabs button').forEach(function(b){ b.classList.remove('active'); });
@@ -232,8 +435,8 @@ function tab(btn){
   });
 }
 function toast(msg, isErr){
-  var t = document.getElementById('toast'); t.textContent = msg; t.className = isErr ? 'err' : '';
-  t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(function(){ t.style.display='none'; }, isErr ? 8000 : 3000);
+  var t2 = document.getElementById('toast'); t2.textContent = msg; t2.className = isErr ? 'err' : '';
+  t2.style.display = 'block'; clearTimeout(t2._h); t2._h = setTimeout(function(){ t2.style.display='none'; }, isErr ? 8000 : 3000);
 }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function setBusy(b){ BUSY=b; document.querySelectorAll('button.btn').forEach(function(x){ x.disabled=b; }); }
@@ -243,7 +446,7 @@ function api(path, opts){
   opts.credentials = 'same-origin';
   if (opts.body) { opts.method = opts.method || 'POST'; opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(opts.body); }
   return fetch('/admin/api/sequencer' + path, opts).then(function(r){
-    if (r.status === 401) { location.href = '/admin/login'; throw new Error('non authentifié'); }
+    if (r.status === 401) { location.href = '/admin/login'; throw new Error('401'); }
     return r.json();
   });
 }
@@ -251,7 +454,7 @@ function api(path, opts){
 function load(){
   setBusy(true);
   api('/overview').then(function(d){ DATA = d; render(); setBusy(false); })
-    .catch(function(e){ toast('Chargement échoué : ' + e.message, true); setBusy(false); });
+    .catch(function(e){ toast(t('load_fail') + e.message, true); setBusy(false); });
 }
 
 function okNodes(){ return (DATA && DATA.nodes || []).filter(function(n){ return n.ok; }); }
@@ -275,9 +478,9 @@ function renderBanner(){
   var down = (DATA.nodes || []).filter(function(n){ return !n.ok; });
   var el = document.getElementById('setupBanner');
   if (!missing.length && !down.length) { el.classList.add('hide'); return; }
-  var html = '<b>⚠ Setup en attente</b><ul>';
-  missing.forEach(function(m){ html += '<li>Aucun nœud pour <b>' + esc(m) + '</b> — déployer le projet Apps Script sous ce compte (clasp), lancer setup() + installTrigger() + initApiToken(), déployer la web app en accès « Anyone », puis l\'enregistrer dans l\'onglet Nœuds.</li>'; });
-  down.forEach(function(n){ html += '<li>Nœud <b>' + esc(n.mailbox) + '</b> injoignable : ' + esc(n.error || 'erreur inconnue') + '</li>'; });
+  var html = '<b>' + t('setup_pending') + '</b><ul>';
+  missing.forEach(function(m){ html += '<li>' + t('setup_missing', { mb: '<b>' + esc(m) + '</b>' }) + '</li>'; });
+  down.forEach(function(n){ html += '<li>' + t('setup_down', { mb: '<b>' + esc(n.mailbox) + '</b>' }) + esc(n.error || '') + '</li>'; });
   html += '</ul>';
   el.innerHTML = html; el.classList.remove('hide');
 }
@@ -288,40 +491,40 @@ function renderOverview(){
   var ok = okNodes();
   var statuses = ok.map(function(n){ return n.campaign_status; });
   var pill = document.getElementById('campPill');
-  if (!nodes.length)          { pill.textContent = 'aucun nœud'; pill.className = 'pill'; }
-  else if (!ok.length)        { pill.textContent = 'nœuds injoignables'; pill.className = 'pill err'; }
+  if (!nodes.length)          { pill.textContent = t('pill_nonode'); pill.className = 'pill'; }
+  else if (!ok.length)        { pill.textContent = t('pill_down'); pill.className = 'pill err'; }
   else if (statuses.every(function(s){ return s === 'running'; })) { pill.textContent = 'running'; pill.className = 'pill running'; }
   else if (statuses.every(function(s){ return s === 'paused'; }))  { pill.textContent = 'paused'; pill.className = 'pill paused'; }
-  else                        { pill.textContent = 'mixte'; pill.className = 'pill mixed'; }
+  else                        { pill.textContent = t('pill_mixed'); pill.className = 'pill mixed'; }
   var firstOk = ok[0];
   document.getElementById('clock').textContent = firstOk ? ('Paris ' + firstOk.now_paris) : '';
 
   var s = DATA.aggregate || {};
-  var order = [['total','Total'],['queued','Queued'],['active','Active'],
+  var order = [['total', t('stat_total')],['queued', t('stat_queued')],['active', t('stat_active')],
     ['step1','Step 1'],['step2','Step 2'],['step3','Step 3'],['step4','Step 4'],['step5','Step 5'],
-    ['replied','Replied'],['stopped','Stopped'],['failed','Failed'],['completed','Completed']];
+    ['replied', t('stat_replied')],['stopped', t('stat_stopped')],['failed', t('stat_failed')],['completed', t('stat_completed')]];
   document.getElementById('stats').innerHTML = order.map(function(o){
-    return '<div class="stat"><b>'+(s[o[0]]||0)+'</b><span>'+o[1]+'</span></div>'; }).join('');
+    return '<div class="stat"><b>'+(s[o[0]]||0)+'</b><span>'+esc(o[1])+'</span></div>'; }).join('');
 
   var rows = [];
   nodes.forEach(function(n){
     if (!n.ok) {
-      rows.push('<tr><td>'+esc(n.mailbox)+'</td><td><span class="badge b-down">injoignable</span></td>'
+      rows.push('<tr><td>'+esc(n.mailbox)+'</td><td><span class="badge b-down">'+t('badge_down')+'</span></td>'
         +'<td colspan="4" class="muted">'+esc(n.error||'')+'</td>'
-        +'<td><button class="btn small" onclick="setCampaignNode('+n.node_id+',\'paused\')" disabled>—</button></td></tr>');
+        +'<td></td></tr>');
       return;
     }
     (n.mailboxes || []).forEach(function(m){
       var over = m.sent_today >= m.daily_cap;
       rows.push('<tr><td>'+esc(m.address)+'</td>'
-        +'<td><span class="badge b-ok">ok</span></td>'
+        +'<td><span class="badge b-ok">'+t('badge_ok')+'</span></td>'
         +'<td><span class="pill '+esc(n.campaign_status)+'">'+esc(n.campaign_status)+'</span></td>'
         +'<td'+(over?' style="color:var(--amber)"':'')+'>'+m.sent_today+' / '+m.daily_cap+'</td>'
         +'<td>'+esc(m.window_start)+'–'+esc(m.window_end)+'</td>'
         +'<td>'+esc(m.send_days)+'</td>'
         +'<td>'+(n.campaign_status==='running'
-            ? '<button class="btn small" onclick="setCampaignNode('+n.node_id+',\'paused\')">⏸ pause</button>'
-            : '<button class="btn small" onclick="setCampaignNode('+n.node_id+',\'running\')">▶ start</button>')+'</td></tr>');
+            ? '<button class="btn small" onclick="setCampaignNode('+n.node_id+',\'paused\')">'+t('btn_pause')+'</button>'
+            : '<button class="btn small" onclick="setCampaignNode('+n.node_id+',\'running\')">'+t('btn_start')+'</button>')+'</td></tr>');
     });
   });
   document.querySelector('#mbMini tbody').innerHTML = rows.join('');
@@ -345,16 +548,16 @@ function renderLeads(){
     });
   });
   document.querySelector('#leadTbl tbody').innerHTML = rows.join('');
-  document.getElementById('leadCount').textContent = rows.length + ' affiché(s) / ' + total + ' au total';
+  document.getElementById('leadCount').textContent = t('lead_count', { shown: rows.length, total: total });
   document.getElementById('leadEmpty').style.display = total ? 'none' : 'block';
 }
 
 // --- import ---
 function renderImportTargets(){
   var sel = document.getElementById('importTarget');
-  var opts = ['<option value="roundrobin">Répartir sur tous les nœuds actifs (round-robin)</option>'];
+  var opts = ['<option value="roundrobin">'+t('import_rr')+'</option>'];
   (DATA.nodes_registered || []).forEach(function(n){
-    if (n.enabled) opts.push('<option value="'+n.id+'">'+esc(n.mailbox)+' uniquement</option>');
+    if (n.enabled) opts.push('<option value="'+n.id+'">'+t('import_only', { mb: esc(n.mailbox) })+'</option>');
   });
   var cur = sel.value; sel.innerHTML = opts.join(''); if (cur) sel.value = cur;
 }
@@ -363,7 +566,7 @@ function doImport(){
   var f = document.getElementById('csvFile').files[0], pasted = document.getElementById('csvText').value.trim();
   if (f) { var rd = new FileReader(); rd.onload = function(){ sendCsv(rd.result); }; rd.readAsText(f); }
   else if (pasted) { sendCsv(pasted); }
-  else { toast('Choisir un fichier ou coller le CSV', true); }
+  else { toast(t('import_choose'), true); }
 }
 function sendCsv(text){
   setBusy(true);
@@ -371,19 +574,20 @@ function sendCsv(text){
   var body = target === 'roundrobin' ? { csv: text, mode: 'roundrobin' } : { csv: text, nodeId: Number(target) };
   api('/import', { body: body }).then(function(r){
     var out = document.getElementById('importResult');
-    if (r.error) { out.textContent = r.error; toast('Import refusé', true); setBusy(false); return; }
+    if (r.error) { out.textContent = r.error; toast(t('import_refused'), true); setBusy(false); return; }
     if (r.results) {
       out.textContent = r.results.map(function(x){
-        return x.mailbox + ' : ' + (x.ok ? ('importé ' + (x.imported||0) + '/' + (x.rows_sent!=null?x.rows_sent:x.imported)) : ('REFUSÉ — ' + x.error));
+        return x.mailbox + ' : ' + (x.ok ? (t('imported_n', { n: (x.imported||0) + '/' + (x.rows_sent!=null?x.rows_sent:(x.imported||0)) })) : (t('refused') + x.error));
       }).join('\n');
-      toast(r.results.every(function(x){ return x.ok; }) ? 'Import terminé' : 'Import partiel — voir détail', !r.results.every(function(x){ return x.ok; }));
+      var allOk = r.results.every(function(x){ return x.ok; });
+      toast(allOk ? t('import_done') : t('import_partial'), !allOk);
     } else {
-      out.textContent = r.ok ? ('Importé ' + r.imported + ' lead(s)') : r.error;
-      toast(r.ok ? ('Importé ' + r.imported + ' lead(s)') : r.error, !r.ok);
+      out.textContent = r.ok ? t('imported_n', { n: r.imported }) : r.error;
+      toast(r.ok ? t('imported_n', { n: r.imported }) : r.error, !r.ok);
     }
     if (!r.error) { document.getElementById('csvText').value=''; document.getElementById('csvFile').value=''; }
     load();
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 
 // --- séquence (steps) ---
@@ -392,23 +596,23 @@ function renderSteps(){
   var src = ok[0];
   var srcEl = document.getElementById('stepsSource');
   var warnEl = document.getElementById('stepsDiffWarn');
-  if (!src) { document.getElementById('steps').innerHTML = '<p class="muted">Aucun nœud joignable.</p>'; srcEl.textContent=''; warnEl.classList.add('hide'); return; }
-  srcEl.textContent = '(chargée depuis ' + src.mailbox + ')';
+  if (!src) { document.getElementById('steps').innerHTML = '<p class="muted">'+t('no_node_up')+'</p>'; srcEl.textContent=''; warnEl.classList.add('hide'); return; }
+  srcEl.textContent = t('steps_source', { mb: src.mailbox });
   var ref = JSON.stringify(src.steps);
   var diff = ok.filter(function(n){ return JSON.stringify(n.steps) !== ref; }).map(function(n){ return n.mailbox; });
   if (diff.length) {
-    warnEl.innerHTML = '<b>⚠ Séquences divergentes</b> — ' + esc(diff.join(', ')) + ' n\'ont pas les mêmes steps que ' + esc(src.mailbox) + '. « Enregistrer sur TOUS » réaligne tout le monde.';
+    warnEl.innerHTML = t('steps_diff', { list: esc(diff.join(', ')), ref: esc(src.mailbox) });
     warnEl.classList.remove('hide');
   } else warnEl.classList.add('hide');
 
   document.getElementById('steps').innerHTML = (src.steps || []).map(function(st, i){
     return '<div class="step-card"><b>Step '+st.step_no+'</b>'
-      +'<label>Objet</label><input data-step="'+i+'" data-f="subject" value="'+esc(st.subject)+'">'
-      +'<label>Corps</label><textarea data-step="'+i+'" data-f="body">'+esc(st.body)+'</textarea>'
-      +'<div class="grid2"><div><label>Gap (jours)</label><input type="number" min="0" data-step="'+i+'" data-f="gap_days" value="'+st.gap_days+'"></div>'
-      +'<div><label>Thread</label><select data-step="'+i+'" data-f="thread_mode">'
-        +'<option value="new"'+(st.thread_mode==='new'?' selected':'')+'>nouveau fil</option>'
-        +'<option value="reply"'+(st.thread_mode!=='new'?' selected':'')+'>reply (même fil)</option>'
+      +'<label>'+t('lbl_subject')+'</label><input data-step="'+i+'" data-f="subject" value="'+esc(st.subject)+'">'
+      +'<label>'+t('lbl_body')+'</label><textarea data-step="'+i+'" data-f="body">'+esc(st.body)+'</textarea>'
+      +'<div class="grid2"><div><label>'+t('lbl_gap')+'</label><input type="number" min="0" data-step="'+i+'" data-f="gap_days" value="'+st.gap_days+'"></div>'
+      +'<div><label>'+t('lbl_thread')+'</label><select data-step="'+i+'" data-f="thread_mode">'
+        +'<option value="new"'+(st.thread_mode==='new'?' selected':'')+'>'+t('opt_new')+'</option>'
+        +'<option value="reply"'+(st.thread_mode!=='new'?' selected':'')+'>'+t('opt_reply')+'</option>'
       +'</select></div></div></div>';
   }).join('');
 }
@@ -422,9 +626,9 @@ function saveSteps(){
   api('/steps', { body: { steps: steps } }).then(function(r){
     if (r.error) { toast(r.error, true); setBusy(false); return; }
     var bad = (r.results||[]).filter(function(x){ return !x.ok; });
-    toast(bad.length ? ('Échec sur : ' + bad.map(function(x){ return x.mailbox; }).join(', ')) : 'Séquence enregistrée sur tous les nœuds', !!bad.length);
+    toast(bad.length ? (t('fail_on') + bad.map(function(x){ return x.mailbox; }).join(', ')) : t('steps_saved'), !!bad.length);
     load();
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 
 // --- boîtes ---
@@ -435,16 +639,16 @@ function renderMailboxes(){
       var key = n.node_id + '_' + i;
       html.push('<div class="card"><h3 style="margin-top:0">'+esc(m.address)+' <span class="muted">'+esc(m.display_name)+'</span></h3>'
         +'<div class="grid2">'
-        +'<div><label>Plafond quotidien</label><input type="number" min="0" data-mb="'+key+'" data-f="daily_cap" value="'+m.daily_cap+'"></div>'
-        +'<div><label>Jours d\'envoi (1=Lun..7=Dim)</label><input data-mb="'+key+'" data-f="send_days" value="'+esc(m.send_days)+'"></div>'
-        +'<div><label>Début fenêtre (HH:MM)</label><input data-mb="'+key+'" data-f="window_start" value="'+esc(m.window_start)+'"></div>'
-        +'<div><label>Fin fenêtre (HH:MM)</label><input data-mb="'+key+'" data-f="window_end" value="'+esc(m.window_end)+'"></div>'
-        +'<div><label>En pause</label><select data-mb="'+key+'" data-f="paused"><option value="false"'+(!m.paused?' selected':'')+'>non</option><option value="true"'+(m.paused?' selected':'')+'>oui</option></select></div>'
-        +'<div style="display:flex;align-items:flex-end"><button class="btn primary" onclick="saveMailbox('+n.node_id+',\''+key+'\',\''+esc(m.address)+'\')">Enregistrer</button></div>'
+        +'<div><label>'+t('lbl_cap')+'</label><input type="number" min="0" data-mb="'+key+'" data-f="daily_cap" value="'+m.daily_cap+'"></div>'
+        +'<div><label>'+t('lbl_days')+'</label><input data-mb="'+key+'" data-f="send_days" value="'+esc(m.send_days)+'"></div>'
+        +'<div><label>'+t('lbl_wstart')+'</label><input data-mb="'+key+'" data-f="window_start" value="'+esc(m.window_start)+'"></div>'
+        +'<div><label>'+t('lbl_wend')+'</label><input data-mb="'+key+'" data-f="window_end" value="'+esc(m.window_end)+'"></div>'
+        +'<div><label>'+t('lbl_paused')+'</label><select data-mb="'+key+'" data-f="paused"><option value="false"'+(!m.paused?' selected':'')+'>'+t('no')+'</option><option value="true"'+(m.paused?' selected':'')+'>'+t('yes')+'</option></select></div>'
+        +'<div style="display:flex;align-items:flex-end"><button class="btn primary" onclick="saveMailbox('+n.node_id+',\''+key+'\',\''+esc(m.address)+'\')">'+t('save')+'</button></div>'
         +'</div></div>');
     });
   });
-  document.getElementById('mbEditors').innerHTML = html.length ? html.join('') : '<div class="card muted">Aucun nœud joignable.</div>';
+  document.getElementById('mbEditors').innerHTML = html.length ? html.join('') : '<div class="card muted">'+t('no_node_up')+'</div>';
 }
 function saveMailbox(nodeId, key, address){
   if (BUSY) return; setBusy(true);
@@ -452,8 +656,8 @@ function saveMailbox(nodeId, key, address){
   var mb = { address: address, daily_cap: g('daily_cap'), send_days: g('send_days'),
              window_start: g('window_start'), window_end: g('window_end'), paused: g('paused')==='true' };
   api('/mailbox', { body: { nodeId: nodeId, mailbox: mb } }).then(function(r){
-    toast(r.ok ? 'Boîte enregistrée' : (r.error || 'Échec'), !r.ok); if (r.ok) load(); else setBusy(false);
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+    toast(r.ok ? t('mb_saved') : (r.error || t('failed')), !r.ok); if (r.ok) load(); else setBusy(false);
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 
 // --- nœuds ---
@@ -464,19 +668,19 @@ function renderNodes(){
     return '<tr><td>'+esc(n.mailbox)+'</td><td>'+esc(n.label||'')+'</td>'
       +'<td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(n.exec_url)+'">'+esc(n.exec_url)+'</td>'
       +'<td>'+esc(n.token_hint)+'</td>'
-      +'<td>'+(n.enabled?'<span class="badge b-ok">actif</span>':'<span class="badge b-pending">inactif</span>')+'</td>'
+      +'<td>'+(n.enabled?'<span class="badge b-ok">'+t('badge_on')+'</span>':'<span class="badge b-pending">'+t('badge_off')+'</span>')+'</td>'
       +'<td class="muted">'+hTxt+(n.last_health_at?(' <span class="muted">('+esc(n.last_health_at)+' UTC)</span>'):'')+'</td>'
       +'<td class="row" style="flex-wrap:nowrap">'
-        +'<button class="btn small" onclick="healthNode('+n.id+')">health</button>'
-        +'<button class="btn small" onclick=\'editNode('+JSON.stringify(n).replace(/'/g,"&#39;")+')\'>modifier</button>'
-        +'<button class="btn danger small" onclick="deleteNode('+n.id+',\''+esc(n.mailbox)+'\')">suppr.</button>'
+        +'<button class="btn small" onclick="healthNode('+n.id+')">'+t('node_health')+'</button>'
+        +'<button class="btn small" onclick=\'editNode('+JSON.stringify(n).replace(/'/g,"&#39;")+')\'>'+t('node_edit')+'</button>'
+        +'<button class="btn danger small" onclick="deleteNode('+n.id+',\''+esc(n.mailbox)+'\')">'+t('node_del')+'</button>'
       +'</td></tr>';
   });
   document.querySelector('#nodeTbl tbody').innerHTML = rows.length ? rows.join('')
-    : '<tr><td colspan="7" class="muted">Aucun nœud. Ajouter le premier ci-dessous (sophie@getquickpage.fr est déjà déployé côté Apps Script).</td></tr>';
+    : '<tr><td colspan="7" class="muted">'+t('node_none')+'</td></tr>';
 }
 function editNode(n){
-  document.getElementById('nodeFormTitle').textContent = 'Modifier le nœud ' + n.mailbox;
+  document.getElementById('nodeFormTitle').textContent = t('node_edit_title', { mb: n.mailbox });
   document.getElementById('nf-id').value = n.id;
   document.getElementById('nf-mailbox').value = n.mailbox;
   document.getElementById('nf-label').value = n.label || '';
@@ -485,7 +689,7 @@ function editNode(n){
   document.getElementById('nf-enabled').checked = !!n.enabled;
 }
 function resetNodeForm(){
-  document.getElementById('nodeFormTitle').textContent = 'Ajouter un nœud';
+  document.getElementById('nodeFormTitle').textContent = t('node_add_title');
   ['nf-id','nf-mailbox','nf-label','nf-url','nf-token'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('nf-enabled').checked = true;
 }
@@ -500,23 +704,23 @@ function saveNode(){
     enabled: document.getElementById('nf-enabled').checked
   };
   api('/nodes', { body: body }).then(function(r){
-    toast(r.ok ? 'Nœud enregistré' : (r.error || 'Échec'), !r.ok);
+    toast(r.ok ? t('node_saved') : (r.error || t('failed')), !r.ok);
     if (r.ok) { resetNodeForm(); load(); } else setBusy(false);
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 function healthNode(id){
   if (BUSY) return; setBusy(true);
   api('/nodes/'+id+'/health', { method:'POST', body:{} }).then(function(r){
-    toast(r.ok ? ('Nœud ok — ' + (r.mailbox||'') + ' · campagne ' + (r.campaign_status||'?')) : ('Health KO : ' + (r.error||'')), !r.ok);
+    toast(r.ok ? t('health_ok', { mb: r.mailbox||'', st: r.campaign_status||'?' }) : (t('health_ko') + (r.error||'')), !r.ok);
     load();
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 function deleteNode(id, mailbox){
   if (BUSY) return;
-  if (!confirm('Supprimer le nœud ' + mailbox + ' ? (le projet Apps Script et son Control Sheet ne sont pas touchés)')) return;
+  if (!confirm(t('node_del_confirm', { mb: mailbox }))) return;
   setBusy(true);
-  api('/nodes/'+id, { method:'DELETE' }).then(function(){ toast('Nœud supprimé'); load(); })
-    .catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+  api('/nodes/'+id, { method:'DELETE' }).then(function(){ toast(t('node_deleted')); load(); })
+    .catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 
 // --- actions campagne / lead ---
@@ -525,40 +729,41 @@ function setCampaign(status){
   api('/campaign', { body: { status: status } }).then(function(r){
     if (r.error) { toast(r.error, true); setBusy(false); return; }
     var bad = (r.results||[]).filter(function(x){ return !x.ok; });
-    toast(bad.length ? ('Échec sur : ' + bad.map(function(x){ return x.mailbox; }).join(', ')) : ('Campagne ' + status + ' sur tous les nœuds'), !!bad.length);
+    toast(bad.length ? (t('fail_on') + bad.map(function(x){ return x.mailbox; }).join(', ')) : t('campaign_set', { st: status }), !!bad.length);
     load();
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 function setCampaignNode(nodeId, status){
   if (BUSY) return; setBusy(true);
   api('/campaign', { body: { status: status, nodeId: nodeId } }).then(function(r){
     if (r.error) { toast(r.error, true); setBusy(false); return; }
-    toast('Nœud → ' + status); load();
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+    toast(t('node_set', { st: status })); load();
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 function stopLead(nodeId, leadId){
   if (BUSY) return;
-  if (!confirm('Stopper ce lead ? Il ne recevra plus aucun envoi.')) return;
+  if (!confirm(t('stop_confirm'))) return;
   setBusy(true);
   api('/lead-stop', { body: { nodeId: nodeId, leadId: leadId } }).then(function(r){
-    toast(r.ok ? 'Lead stoppé' : (r.error || 'Échec'), !r.ok); if (r.ok) load(); else setBusy(false);
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+    toast(r.ok ? t('lead_stopped') : (r.error || t('failed')), !r.ok); if (r.ok) load(); else setBusy(false);
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 function pushSuppression(){
   if (BUSY) return;
   var emails = document.getElementById('suppText').value.split(/[\n,;]+/).map(function(s){ return s.trim(); }).filter(Boolean);
-  if (!emails.length) { toast('Aucun email', true); return; }
+  if (!emails.length) { toast(t('supp_none'), true); return; }
   setBusy(true);
   api('/suppression', { body: { emails: emails } }).then(function(r){
     if (r.error) { toast(r.error, true); setBusy(false); return; }
     var msg = (r.results||[]).map(function(x){
-      return x.mailbox + ' : ' + (x.ok ? ('+' + x.added + ' / ' + x.stopped + ' stoppé(s)') : ('ERR ' + x.error)); }).join('\n');
+      return x.mailbox + ' : ' + (x.ok ? ('+' + x.added + ' / ' + x.stopped + ' ' + t('stopped_n')) : ('ERR ' + x.error)); }).join('\n');
     toast(msg, (r.results||[]).some(function(x){ return !x.ok; }));
     document.getElementById('suppText').value = '';
     load();
-  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+  }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 
+applyStatic();
 load();
 setInterval(function(){ if (!BUSY && !document.hidden) load(); }, 90000);
 </script>
