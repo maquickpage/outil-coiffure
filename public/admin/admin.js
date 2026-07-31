@@ -1,4 +1,4 @@
-import { t, setLang, applyTranslations, getCurrentLang } from '/admin/i18n.js';
+import { t, setLang, applyTranslations, getCurrentLang } from '/admin/i18n.js?v=20260731-joignables';
 
 const state = {
   page: 0,
@@ -68,6 +68,7 @@ async function loadStats() {
   $('stat-csv-sources').textContent = stats.csvSources.length;
   if ($('stat-clean-names')) $('stat-clean-names').textContent = stats.withCleanName ?? '—';
   if ($('stat-never-contacted')) $('stat-never-contacted').textContent = stats.neverContacted ?? '—';
+  if ($('stat-reachable')) $('stat-reachable').textContent = stats.reachable ?? '—';
 
   const select = $('csv-source-filter');
   const current = select.value;

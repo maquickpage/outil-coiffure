@@ -166,6 +166,11 @@ a { color: var(--accent-dark); }
     border-radius: 8px;
     text-align: center;
 }
+/* Compteur « Joignables » : c'est le seul chiffre à regarder avant de lancer
+   une campagne, on le distingue des compteurs de fiches. */
+.stat-box-highlight {
+    box-shadow: inset 0 0 0 2px var(--accent-dark);
+}
 .stat-value {
     display: block;
     font-size: 2rem;

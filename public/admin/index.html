@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Outil coiffure — Admin</title>
-    <link rel="stylesheet" href="/admin/admin.css">
+    <link rel="stylesheet" href="/admin/admin.css?v=20260731-joignables">
     <link rel="stylesheet" href="/admin/admin-nav.css">
     <link rel="icon" type="image/png" href="/admin/picto-coif.png">
 </head>
@@ -43,6 +43,7 @@
                 <div class="stat-box"><span class="stat-value" id="stat-csv-sources">—</span><span class="stat-label" data-i18n="stats.csv_sources">Imports CSV</span></div>
                 <div class="stat-box"><span class="stat-value" id="stat-clean-names">—</span><span class="stat-label" data-i18n="stats.clean_names">Noms nettoyés</span></div>
                 <div class="stat-box"><span class="stat-value" id="stat-never-contacted">—</span><span class="stat-label" data-i18n="stats.never_contacted">Jamais contactés</span></div>
+                <div class="stat-box stat-box-highlight" title="Jamais contactés, adresse retenue par l'audit email : sans doublon, sans adresse de plateforme, domaine actif"><span class="stat-value" id="stat-reachable">—</span><span class="stat-label" data-i18n="stats.reachable">Joignables</span></div>
             </div>
         </section>
 
@@ -318,6 +319,6 @@
     </div>
 
     <script src="/admin/admin-nav.js?v=20260713-tracking"></script>
-    <script type="module" src="/admin/admin.js"></script>
+    <script type="module" src="/admin/admin.js?v=20260731-joignables"></script>
 </body>
 </html>

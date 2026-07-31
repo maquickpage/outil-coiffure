@@ -24,6 +24,7 @@ const TRANSLATIONS = {
     'stats.csv_sources': 'Imports CSV',
     'stats.clean_names': 'Noms nettoyés',
     'stats.never_contacted': 'Jamais contactés',
+    'stats.reachable': 'Joignables',
 
     // CSV import
     'csv.section_title': 'CSV',
@@ -212,6 +213,7 @@ const TRANSLATIONS = {
     'stats.csv_sources': 'CSV imports',
     'stats.clean_names': 'Cleaned names',
     'stats.never_contacted': 'Never contacted',
+    'stats.reachable': 'Reachable',
 
     'csv.section_title': 'CSV',
     'csv.export_title': 'Export enriched CSV',
@@ -394,6 +396,7 @@ const TRANSLATIONS = {
     'stats.csv_sources': 'CSV 导入',
     'stats.clean_names': '已清理名称',
     'stats.never_contacted': '未联系',
+    'stats.reachable': '可联系',
 
     'csv.section_title': 'CSV',
     'csv.export_title': '导出增强的 CSV',

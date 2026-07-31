@@ -136,7 +136,14 @@ router.get('/stats', requireAdminSession, (req, res) => {
   // Cold-mail : combien de salons ont déjà reçu une campagne Smartlead.
   const contacted = db.prepare('SELECT COUNT(*) as n FROM salons' + (groupClause ? groupClause + ' AND' : ' WHERE') + ' cold_mail_campaign IS NOT NULL').get(groupParams).n;
   const neverContacted = total - contacted;
-  res.json({ total, withScreenshot, withoutScreenshot, withCleanName, csvSources, contacted, neverContacted });
+  // Joignables : adresse retenue par l'audit email (email_audit IS NULL) ET jamais
+  // contactée. « Jamais contactés » compte des fiches, celui-ci compte des boîtes
+  // réellement atteignables : sans doublon, sans adresse de plateforme ni de
+  // domaine mort. Tant qu'aucun audit n'a tourné, les deux chiffres coïncident.
+  const reachable = db.prepare('SELECT COUNT(*) as n FROM salons' + (groupClause ? groupClause + ' AND' : ' WHERE') +
+    " cold_mail_campaign IS NULL AND email_audit IS NULL AND email IS NOT NULL AND trim(email) != ''").get(groupParams).n;
+  const audited = db.prepare('SELECT COUNT(*) as n FROM salons' + (groupClause ? groupClause + ' AND' : ' WHERE') + ' email_audit IS NOT NULL').get(groupParams).n;
+  res.json({ total, withScreenshot, withoutScreenshot, withCleanName, csvSources, contacted, neverContacted, reachable, audited });
 });
 
 export default router;

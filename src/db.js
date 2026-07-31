@@ -199,6 +199,13 @@ export function initSchema() {
   // reste NULL pour les campagnes dont on n'a pas la date exacte (seul l'export
   // W7 en fournit une), donc filtrer sur la date raterait W3/W6/W6-2.
   if (!cols.includes('cold_mail_campaign')) db.exec("ALTER TABLE salons ADD COLUMN cold_mail_campaign TEXT");
+  // Audit de l'adresse email (2026-07-30). NULL = adresse retenue pour le cold-mail.
+  // Sinon motif d'écartement : sans_email, nature_invalide, sans_serveur_mail,
+  // dns_incertain, plateforme_ou_agence, domaine_sans_lien, doublon,
+  // siege_de_chaine, plafond_domaine. Aucune adresse n'est effacée : seul ce
+  // motif est posé, donc l'écartement reste réversible.
+  if (!cols.includes('email_audit')) db.exec("ALTER TABLE salons ADD COLUMN email_audit TEXT");
+  if (!cols.includes('email_audit_at')) db.exec("ALTER TABLE salons ADD COLUMN email_audit_at TEXT");
   // Événements de visite : 1 ligne par event (preview_ouvert, editeur_ouvert,
   // editeur_modifie, pricing_ouvert, etape_prix/domaine/email, paiement_initie,
   // scroll_max…). Table ISOLÉE, aucun lien FK dur (slug en texte). Purge 90j
