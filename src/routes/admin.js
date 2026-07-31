@@ -16,6 +16,7 @@ import { slugify } from '../slug-generator.js';
 import photoPickerRouter from './photo-picker.js';
 import salonNewRouter from './salon-new.js';
 import callingRouter from './calling.js';
+import sequencerRouter from './sequencer.js';
 import { clientIp } from './tracking.js';
 import { runContactedImport } from '../contacted-import.js';
 
@@ -82,6 +83,10 @@ router.use(salonNewRouter);
 // Prospection téléphonique (file d'appel + cockpit) — derrière requireAuth.
 // Expose /admin/api/calling/*.
 router.use(callingRouter);
+
+// Séquenceur cold-email self-hosted (proxy vers les nœuds Apps Script) — derrière requireAuth.
+// Expose /admin/api/sequencer/*.
+router.use(sequencerRouter);
 
 // === Export CSV du suivi des visites maquettes (funnel) ===
 // Enrichi : chaque event joint aux infos salon (nom, ville, email, statut).
