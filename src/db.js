@@ -385,6 +385,23 @@ export function initSchema() {
   }
 }
 
+// Nœuds du séquenceur cold-email self-hosted (1 nœud = 1 projet Apps Script = 1 boîte Gmail).
+// L'URL /exec + le token API sont saisis dans l'onglet « Nœuds » de /admin/sequencer.html.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sequencer_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mailbox TEXT NOT NULL UNIQUE,
+    label TEXT,
+    exec_url TEXT NOT NULL,
+    api_token TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    last_health_json TEXT,
+    last_health_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT
+  );
+`);
+
 initSchema();
 
 if (process.argv[2] === 'init') {

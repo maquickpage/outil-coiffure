@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Séquenceur — Outil coiffure</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --ink:#1a1d21; --muted:#6b7280;
+          --accent:#2563eb; --green:#16a34a; --red:#dc2626; --amber:#d97706; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  .seq-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 18px; background:var(--card); border-bottom:1px solid var(--line); }
+  .seq-head h1 { font-size:16px; margin:0; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
+  .pill.running { color:#fff; background:var(--green); border-color:var(--green); }
+  .pill.paused  { color:#fff; background:var(--amber); border-color:var(--amber); }
+  .pill.mixed   { color:#fff; background:var(--muted); border-color:var(--muted); }
+  .pill.err     { color:#fff; background:var(--red); border-color:var(--red); }
+  .grow { flex:1; }
+  .seq-tabs { display:flex; gap:4px; padding:0 12px; background:var(--card); border-bottom:1px solid var(--line); overflow-x:auto; }
+  .seq-tabs button { border:0; background:none; padding:11px 14px; font-size:14px; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  .seq-tabs button.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+  main { padding:16px; max-width:1150px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button.btn { border:1px solid var(--line); background:var(--card); border-radius:8px; padding:8px 14px; font-size:14px; cursor:pointer; }
+  button.btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.btn.danger  { color:var(--red); border-color:#f3c6c6; }
+  button.btn.small   { padding:4px 10px; font-size:12px; }
+  button.btn:disabled { opacity:.5; cursor:default; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:10px; }
+  .stat { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .stat b { display:block; font-size:22px; }
+  .stat span { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+  .scroll { overflow-x:auto; }
+  .badge { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; }
+  .b-active{color:var(--accent);border-color:#c7d7fb}.b-queued{color:var(--muted)}.b-replied{color:var(--green);border-color:#bfe6c9}
+  .b-stopped,.b-failed,.b-unsubscribed{color:var(--red);border-color:#f3c6c6}.b-completed{color:#111;background:#eef1f4}
+  .b-ok{color:var(--green);border-color:#bfe6c9}.b-down{color:var(--red);border-color:#f3c6c6}.b-pending{color:var(--amber);border-color:#f5deb8}
+  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 3px; }
+  input, textarea, select { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:7px; font:inherit; background:#fff; }
+  textarea { min-height:90px; resize:vertical; font-family:ui-monospace,Menlo,monospace; font-size:13px; }
+  .step-card { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .muted { color:var(--muted); font-size:12px; }
+  .setup-banner { border:1px solid #f5deb8; background:#fdf6e7; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; }
+  .setup-banner b { color:var(--amber); }
+  .setup-banner ul { margin:6px 0 0; padding-left:20px; }
+  #toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 16px; border-radius:8px; font-size:13px; max-width:90%; white-space:pre-wrap; display:none; z-index:130; }
+  #toast.err { background:var(--red); }
+  .hide { display:none; }
+  @media (max-width:640px){ .grid2{grid-template-columns:1fr;} }
+</style>
+<link rel="stylesheet" href="/admin/admin-nav.css">
+<link rel="icon" type="image/png" href="/admin/picto-coif.png">
+</head>
+<body>
+<header class="anav">
+  <div class="anav-inner">
+    <a class="anav-brand" href="/admin/"><img class="anav-logo" src="/admin/picto-coif.png" alt=""><span>Outil coiffure</span></a>
+    <nav class="anav-tabs">
+      <a class="anav-tab" data-path="/admin" href="/admin/">Tableau de bord</a>
+      <a class="anav-tab" data-path="/admin/photos.html" href="/admin/photos.html">Photos</a>
+      <a class="anav-tab" data-path="/admin/stats.html" href="/admin/stats.html">Suivi</a>
+      <a class="anav-tab" data-path="/admin/stats-landing.html" href="/admin/stats-landing.html">Suivi landing</a>
+      <a class="anav-tab" data-path="/admin/nouveau-salon.html" href="/admin/nouveau-salon.html">➕ Nouveau salon</a>
+      <a class="anav-tab" data-path="/admin/calling.html" href="/admin/calling.html">☎️ Prospection</a>
+      <a class="anav-tab" data-path="/admin/sequencer.html" href="/admin/sequencer.html">📨 Séquenceur</a>
+    </nav>
+    <span class="anav-spacer"></span>
+    <div class="anav-right">
+      <span class="lang-switcher">
+        <button class="lang-btn" data-lang="fr" type="button">FR</button>
+        <button class="lang-btn" data-lang="en" type="button">EN</button>
+        <button class="lang-btn" data-lang="zh" type="button">中</button>
+      </span>
+      <button class="anav-logout" id="anav-logout" type="button">Déconnexion</button>
+    </div>
+  </div>
+</header>
+<script src="/admin/admin-nav.js"></script>
+
+<div class="seq-head">
+  <h1>Séquenceur cold-email</h1>
+  <span id="campPill" class="pill">…</span>
+  <span class="grow"></span>
+  <span class="muted" id="clock"></span>
+  <button class="btn" id="refreshBtn" onclick="load()">↻ Actualiser</button>
+</div>
+<nav class="seq-tabs">
+  <button class="active" data-tab="overview" onclick="tab(this)">Vue d'ensemble</button>
+  <button data-tab="leads" onclick="tab(this)">Leads</button>
+  <button data-tab="import" onclick="tab(this)">Import CSV</button>
+  <button data-tab="template" onclick="tab(this)">Séquence</button>
+  <button data-tab="mailboxes" onclick="tab(this)">Boîtes</button>
+  <button data-tab="nodes" onclick="tab(this)">Nœuds</button>
+</nav>
+
+<main>
+  <div id="setupBanner" class="setup-banner hide"></div>
+
+  <!-- VUE D'ENSEMBLE -->
+  <section id="overview">
+    <div class="card">
+      <div class="row" style="margin-bottom:14px">
+        <button class="btn primary" id="startBtn" onclick="setCampaign('running')">▶ Démarrer (tous les nœuds)</button>
+        <button class="btn" id="pauseBtn" onclick="setCampaign('paused')">⏸ Tout mettre en pause</button>
+        <span class="muted">Le dispatcher de chaque nœud tourne toutes les 10 min. La pause stoppe les envois ; la détection de réponses continue.</span>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Nœuds / boîtes aujourd'hui</h3>
+      <div class="scroll"><table id="mbMini"><thead><tr>
+        <th>Boîte</th><th>État nœud</th><th>Campagne</th><th>Envoyés / plafond</th><th>Fenêtre</th><th>Jours</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- LEADS -->
+  <section id="leads" class="hide">
+    <div class="card scroll">
+      <div class="row" style="margin-bottom:10px">
+        <select id="leadFilter" style="width:auto" onchange="renderLeads()">
+          <option value="">Tous statuts</option>
+          <option>queued</option><option>active</option><option>replied</option>
+          <option>stopped</option><option>unsubscribed</option><option>failed</option><option>completed</option>
+        </select>
+        <span class="muted" id="leadCount"></span>
+      </div>
+      <table id="leadTbl"><thead><tr>
+        <th>Salon</th><th>Email</th><th>Boîte (nœud)</th><th>Step</th><th>Statut</th>
+        <th>Dernier envoi</th><th>Prochain envoi</th><th></th>
+      </tr></thead><tbody></tbody></table>
+      <p class="muted" id="leadEmpty">Aucun lead. Importer un CSV.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Suppression (tous les nœuds)</h3>
+      <p class="muted">Un email par ligne. Poussé sur la liste de suppression de chaque nœud actif ; les leads queued/active correspondants sont stoppés.</p>
+      <textarea id="suppText" placeholder="email1@exemple.fr&#10;email2@exemple.fr" style="min-height:60px"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn danger" onclick="pushSuppression()">Pousser la suppression</button></div>
+    </div>
+  </section>
+
+  <!-- IMPORT -->
+  <section id="import" class="hide">
+    <div class="card">
+      <h3 style="margin-top:0">Import de leads (CSV)</h3>
+      <p class="muted">Colonnes requises : <b>email</b>, <b>salon_slug</b>. Optionnelles : first_name, salon_name, city,
+        preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide,
+        déjà importé, sur suppression) rejette le fichier <b>entier</b> du nœud concerné, sans écriture.</p>
+      <label>Destination</label>
+      <select id="importTarget"></select>
+      <label>Fichier</label>
+      <input type="file" id="csvFile" accept=".csv,text/csv">
+      <textarea id="csvText" placeholder="…ou coller le CSV ici (1re ligne = entêtes)" style="margin-top:10px"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="importBtn" onclick="doImport()">Valider &amp; importer</button>
+      </div>
+      <div id="importResult" class="muted" style="margin-top:10px; white-space:pre-wrap"></div>
+    </div>
+  </section>
+
+  <!-- SÉQUENCE -->
+  <section id="template" class="hide">
+    <div class="card">
+      <h3 style="margin-top:0">Séquence 5 steps</h3>
+      <p class="muted">Variables : {{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}}
+        {{preview_image_url}} {{admin_url}}. Gap = jours avant CE step (step 1 = 0 en général).
+        Thread : reply = même fil Gmail, new = nouveau fil.
+        <span id="stepsSource"></span></p>
+      <div id="stepsDiffWarn" class="setup-banner hide"></div>
+      <div id="steps"></div>
+      <button class="btn primary" id="saveStepsBtn" onclick="saveSteps()">Enregistrer sur TOUS les nœuds actifs</button>
+    </div>
+  </section>
+
+  <!-- BOÎTES -->
+  <section id="mailboxes" class="hide">
+    <div id="mbEditors"></div>
+  </section>
+
+  <!-- NŒUDS -->
+  <section id="nodes" class="hide">
+    <div class="card">
+      <h3 style="margin-top:0">Nœuds Apps Script enregistrés</h3>
+      <p class="muted">1 nœud = 1 projet Apps Script déployé en web app sous une boîte Gmail
+        (accès « Anyone », token via <code>initApiToken()</code>). Le portail ne stocke aucun lead : chaque
+        nœud garde son Control Sheet.</p>
+      <div class="scroll"><table id="nodeTbl"><thead><tr>
+        <th>Boîte</th><th>Libellé</th><th>URL /exec</th><th>Token</th><th>Actif</th><th>Dernier health</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0" id="nodeFormTitle">Ajouter un nœud</h3>
+      <input type="hidden" id="nf-id">
+      <div class="grid2">
+        <div><label>Boîte (adresse email)</label><input id="nf-mailbox" placeholder="solene@getquickpage.fr"></div>
+        <div><label>Libellé</label><input id="nf-label" placeholder="Solene Perrin"></div>
+      </div>
+      <label>URL de la web app (…/exec)</label>
+      <input id="nf-url" placeholder="https://script.google.com/macros/s/…/exec">
+      <label>Token API (laisser vide pour conserver l'existant en modification)</label>
+      <input id="nf-token" placeholder="token loggé par initApiToken()">
+      <label><input type="checkbox" id="nf-enabled" checked style="width:auto"> Actif</label>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" onclick="saveNode()">Enregistrer le nœud</button>
+        <button class="btn" onclick="resetNodeForm()">Annuler</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+// Les 4 boîtes validées Gmail (memory.md bibiproject : senders approuvés placement 2026-07-28).
+// Un nœud manquant pour l'une d'elles = setup en attente, affiché dans la bannière.
+var EXPECTED_MAILBOXES = ['solene@getquickpage.fr', 'cedric@getquickpage.fr',
+                          'sophie@getquickpage.fr', 'camille@monsitehq.com'];
+
+var DATA = null, BUSY = false;
+
+function tab(btn){
+  document.querySelectorAll('.seq-tabs button').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  ['overview','leads','import','template','mailboxes','nodes'].forEach(function(id){
+    document.getElementById(id).classList.toggle('hide', id !== btn.dataset.tab);
+  });
+}
+function toast(msg, isErr){
+  var t = document.getElementById('toast'); t.textContent = msg; t.className = isErr ? 'err' : '';
+  t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(function(){ t.style.display='none'; }, isErr ? 8000 : 3000);
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function setBusy(b){ BUSY=b; document.querySelectorAll('button.btn').forEach(function(x){ x.disabled=b; }); }
+
+function api(path, opts){
+  opts = opts || {};
+  opts.credentials = 'same-origin';
+  if (opts.body) { opts.method = opts.method || 'POST'; opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(opts.body); }
+  return fetch('/admin/api/sequencer' + path, opts).then(function(r){
+    if (r.status === 401) { location.href = '/admin/login'; throw new Error('non authentifié'); }
+    return r.json();
+  });
+}
+
+function load(){
+  setBusy(true);
+  api('/overview').then(function(d){ DATA = d; render(); setBusy(false); })
+    .catch(function(e){ toast('Chargement échoué : ' + e.message, true); setBusy(false); });
+}
+
+function okNodes(){ return (DATA && DATA.nodes || []).filter(function(n){ return n.ok; }); }
+
+function render(){
+  if(!DATA){ return; }
+  renderBanner();
+  renderOverview();
+  renderLeads();
+  renderImportTargets();
+  renderSteps();
+  renderMailboxes();
+  renderNodes();
+}
+
+// --- bannière setup en attente ---
+function renderBanner(){
+  var reg = DATA.nodes_registered || [];
+  var byMb = {}; reg.forEach(function(n){ byMb[n.mailbox] = n; });
+  var missing = EXPECTED_MAILBOXES.filter(function(m){ return !byMb[m]; });
+  var down = (DATA.nodes || []).filter(function(n){ return !n.ok; });
+  var el = document.getElementById('setupBanner');
+  if (!missing.length && !down.length) { el.classList.add('hide'); return; }
+  var html = '<b>⚠ Setup en attente</b><ul>';
+  missing.forEach(function(m){ html += '<li>Aucun nœud pour <b>' + esc(m) + '</b> — déployer le projet Apps Script sous ce compte (clasp), lancer setup() + installTrigger() + initApiToken(), déployer la web app en accès « Anyone », puis l\'enregistrer dans l\'onglet Nœuds.</li>'; });
+  down.forEach(function(n){ html += '<li>Nœud <b>' + esc(n.mailbox) + '</b> injoignable : ' + esc(n.error || 'erreur inconnue') + '</li>'; });
+  html += '</ul>';
+  el.innerHTML = html; el.classList.remove('hide');
+}
+
+// --- vue d'ensemble ---
+function renderOverview(){
+  var nodes = DATA.nodes || [];
+  var ok = okNodes();
+  var statuses = ok.map(function(n){ return n.campaign_status; });
+  var pill = document.getElementById('campPill');
+  if (!nodes.length)          { pill.textContent = 'aucun nœud'; pill.className = 'pill'; }
+  else if (!ok.length)        { pill.textContent = 'nœuds injoignables'; pill.className = 'pill err'; }
+  else if (statuses.every(function(s){ return s === 'running'; })) { pill.textContent = 'running'; pill.className = 'pill running'; }
+  else if (statuses.every(function(s){ return s === 'paused'; }))  { pill.textContent = 'paused'; pill.className = 'pill paused'; }
+  else                        { pill.textContent = 'mixte'; pill.className = 'pill mixed'; }
+  var firstOk = ok[0];
+  document.getElementById('clock').textContent = firstOk ? ('Paris ' + firstOk.now_paris) : '';
+
+  var s = DATA.aggregate || {};
+  var order = [['total','Total'],['queued','Queued'],['active','Active'],
+    ['step1','Step 1'],['step2','Step 2'],['step3','Step 3'],['step4','Step 4'],['step5','Step 5'],
+    ['replied','Replied'],['stopped','Stopped'],['failed','Failed'],['completed','Completed']];
+  document.getElementById('stats').innerHTML = order.map(function(o){
+    return '<div class="stat"><b>'+(s[o[0]]||0)+'</b><span>'+o[1]+'</span></div>'; }).join('');
+
+  var rows = [];
+  nodes.forEach(function(n){
+    if (!n.ok) {
+      rows.push('<tr><td>'+esc(n.mailbox)+'</td><td><span class="badge b-down">injoignable</span></td>'
+        +'<td colspan="4" class="muted">'+esc(n.error||'')+'</td>'
+        +'<td><button class="btn small" onclick="setCampaignNode('+n.node_id+',\'paused\')" disabled>—</button></td></tr>');
+      return;
+    }
+    (n.mailboxes || []).forEach(function(m){
+      var over = m.sent_today >= m.daily_cap;
+      rows.push('<tr><td>'+esc(m.address)+'</td>'
+        +'<td><span class="badge b-ok">ok</span></td>'
+        +'<td><span class="pill '+esc(n.campaign_status)+'">'+esc(n.campaign_status)+'</span></td>'
+        +'<td'+(over?' style="color:var(--amber)"':'')+'>'+m.sent_today+' / '+m.daily_cap+'</td>'
+        +'<td>'+esc(m.window_start)+'–'+esc(m.window_end)+'</td>'
+        +'<td>'+esc(m.send_days)+'</td>'
+        +'<td>'+(n.campaign_status==='running'
+            ? '<button class="btn small" onclick="setCampaignNode('+n.node_id+',\'paused\')">⏸ pause</button>'
+            : '<button class="btn small" onclick="setCampaignNode('+n.node_id+',\'running\')">▶ start</button>')+'</td></tr>');
+    });
+  });
+  document.querySelector('#mbMini tbody').innerHTML = rows.join('');
+}
+
+// --- leads (fusion multi-nœuds) ---
+function renderLeads(){
+  var filter = document.getElementById('leadFilter').value;
+  var rows = [], total = 0;
+  okNodes().forEach(function(n){
+    (n.leads || []).forEach(function(l){
+      total++;
+      if (filter && l.status !== filter) return;
+      var canStop = ['stopped','unsubscribed','replied','completed'].indexOf(l.status) === -1;
+      rows.push('<tr><td>'+esc(l.salon_name||'-')+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.mailbox)+'</td>'
+        +'<td>'+l.current_step+'/5</td>'
+        +'<td><span class="badge b-'+esc(l.status)+'">'+esc(l.status)+'</span>'
+          +(l.last_error?' <span class="muted" title="'+esc(l.last_error)+'">!</span>':'')+'</td>'
+        +'<td>'+esc(l.last_sent_at)+'</td><td>'+esc(l.next_send_at)+'</td>'
+        +'<td>'+(canStop?'<button class="btn danger small" onclick="stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
+    });
+  });
+  document.querySelector('#leadTbl tbody').innerHTML = rows.join('');
+  document.getElementById('leadCount').textContent = rows.length + ' affiché(s) / ' + total + ' au total';
+  document.getElementById('leadEmpty').style.display = total ? 'none' : 'block';
+}
+
+// --- import ---
+function renderImportTargets(){
+  var sel = document.getElementById('importTarget');
+  var opts = ['<option value="roundrobin">Répartir sur tous les nœuds actifs (round-robin)</option>'];
+  (DATA.nodes_registered || []).forEach(function(n){
+    if (n.enabled) opts.push('<option value="'+n.id+'">'+esc(n.mailbox)+' uniquement</option>');
+  });
+  var cur = sel.value; sel.innerHTML = opts.join(''); if (cur) sel.value = cur;
+}
+function doImport(){
+  if (BUSY) return;
+  var f = document.getElementById('csvFile').files[0], pasted = document.getElementById('csvText').value.trim();
+  if (f) { var rd = new FileReader(); rd.onload = function(){ sendCsv(rd.result); }; rd.readAsText(f); }
+  else if (pasted) { sendCsv(pasted); }
+  else { toast('Choisir un fichier ou coller le CSV', true); }
+}
+function sendCsv(text){
+  setBusy(true);
+  var target = document.getElementById('importTarget').value;
+  var body = target === 'roundrobin' ? { csv: text, mode: 'roundrobin' } : { csv: text, nodeId: Number(target) };
+  api('/import', { body: body }).then(function(r){
+    var out = document.getElementById('importResult');
+    if (r.error) { out.textContent = r.error; toast('Import refusé', true); setBusy(false); return; }
+    if (r.results) {
+      out.textContent = r.results.map(function(x){
+        return x.mailbox + ' : ' + (x.ok ? ('importé ' + (x.imported||0) + '/' + (x.rows_sent!=null?x.rows_sent:x.imported)) : ('REFUSÉ — ' + x.error));
+      }).join('\n');
+      toast(r.results.every(function(x){ return x.ok; }) ? 'Import terminé' : 'Import partiel — voir détail', !r.results.every(function(x){ return x.ok; }));
+    } else {
+      out.textContent = r.ok ? ('Importé ' + r.imported + ' lead(s)') : r.error;
+      toast(r.ok ? ('Importé ' + r.imported + ' lead(s)') : r.error, !r.ok);
+    }
+    if (!r.error) { document.getElementById('csvText').value=''; document.getElementById('csvFile').value=''; }
+    load();
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+
+// --- séquence (steps) ---
+function renderSteps(){
+  var ok = okNodes();
+  var src = ok[0];
+  var srcEl = document.getElementById('stepsSource');
+  var warnEl = document.getElementById('stepsDiffWarn');
+  if (!src) { document.getElementById('steps').innerHTML = '<p class="muted">Aucun nœud joignable.</p>'; srcEl.textContent=''; warnEl.classList.add('hide'); return; }
+  srcEl.textContent = '(chargée depuis ' + src.mailbox + ')';
+  var ref = JSON.stringify(src.steps);
+  var diff = ok.filter(function(n){ return JSON.stringify(n.steps) !== ref; }).map(function(n){ return n.mailbox; });
+  if (diff.length) {
+    warnEl.innerHTML = '<b>⚠ Séquences divergentes</b> — ' + esc(diff.join(', ')) + ' n\'ont pas les mêmes steps que ' + esc(src.mailbox) + '. « Enregistrer sur TOUS » réaligne tout le monde.';
+    warnEl.classList.remove('hide');
+  } else warnEl.classList.add('hide');
+
+  document.getElementById('steps').innerHTML = (src.steps || []).map(function(st, i){
+    return '<div class="step-card"><b>Step '+st.step_no+'</b>'
+      +'<label>Objet</label><input data-step="'+i+'" data-f="subject" value="'+esc(st.subject)+'">'
+      +'<label>Corps</label><textarea data-step="'+i+'" data-f="body">'+esc(st.body)+'</textarea>'
+      +'<div class="grid2"><div><label>Gap (jours)</label><input type="number" min="0" data-step="'+i+'" data-f="gap_days" value="'+st.gap_days+'"></div>'
+      +'<div><label>Thread</label><select data-step="'+i+'" data-f="thread_mode">'
+        +'<option value="new"'+(st.thread_mode==='new'?' selected':'')+'>nouveau fil</option>'
+        +'<option value="reply"'+(st.thread_mode!=='new'?' selected':'')+'>reply (même fil)</option>'
+      +'</select></div></div></div>';
+  }).join('');
+}
+function saveSteps(){
+  if (BUSY) return; setBusy(true);
+  var steps = [];
+  for (var i = 0; i < 5; i++) {
+    function g(f){ var el = document.querySelector('[data-step="'+i+'"][data-f="'+f+'"]'); return el ? el.value : ''; }
+    steps.push({ subject:g('subject'), body:g('body'), gap_days:g('gap_days'), thread_mode:g('thread_mode') });
+  }
+  api('/steps', { body: { steps: steps } }).then(function(r){
+    if (r.error) { toast(r.error, true); setBusy(false); return; }
+    var bad = (r.results||[]).filter(function(x){ return !x.ok; });
+    toast(bad.length ? ('Échec sur : ' + bad.map(function(x){ return x.mailbox; }).join(', ')) : 'Séquence enregistrée sur tous les nœuds', !!bad.length);
+    load();
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+
+// --- boîtes ---
+function renderMailboxes(){
+  var html = [];
+  okNodes().forEach(function(n){
+    (n.mailboxes || []).forEach(function(m, i){
+      var key = n.node_id + '_' + i;
+      html.push('<div class="card"><h3 style="margin-top:0">'+esc(m.address)+' <span class="muted">'+esc(m.display_name)+'</span></h3>'
+        +'<div class="grid2">'
+        +'<div><label>Plafond quotidien</label><input type="number" min="0" data-mb="'+key+'" data-f="daily_cap" value="'+m.daily_cap+'"></div>'
+        +'<div><label>Jours d\'envoi (1=Lun..7=Dim)</label><input data-mb="'+key+'" data-f="send_days" value="'+esc(m.send_days)+'"></div>'
+        +'<div><label>Début fenêtre (HH:MM)</label><input data-mb="'+key+'" data-f="window_start" value="'+esc(m.window_start)+'"></div>'
+        +'<div><label>Fin fenêtre (HH:MM)</label><input data-mb="'+key+'" data-f="window_end" value="'+esc(m.window_end)+'"></div>'
+        +'<div><label>En pause</label><select data-mb="'+key+'" data-f="paused"><option value="false"'+(!m.paused?' selected':'')+'>non</option><option value="true"'+(m.paused?' selected':'')+'>oui</option></select></div>'
+        +'<div style="display:flex;align-items:flex-end"><button class="btn primary" onclick="saveMailbox('+n.node_id+',\''+key+'\',\''+esc(m.address)+'\')">Enregistrer</button></div>'
+        +'</div></div>');
+    });
+  });
+  document.getElementById('mbEditors').innerHTML = html.length ? html.join('') : '<div class="card muted">Aucun nœud joignable.</div>';
+}
+function saveMailbox(nodeId, key, address){
+  if (BUSY) return; setBusy(true);
+  function g(f){ return document.querySelector('[data-mb="'+key+'"][data-f="'+f+'"]').value; }
+  var mb = { address: address, daily_cap: g('daily_cap'), send_days: g('send_days'),
+             window_start: g('window_start'), window_end: g('window_end'), paused: g('paused')==='true' };
+  api('/mailbox', { body: { nodeId: nodeId, mailbox: mb } }).then(function(r){
+    toast(r.ok ? 'Boîte enregistrée' : (r.error || 'Échec'), !r.ok); if (r.ok) load(); else setBusy(false);
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+
+// --- nœuds ---
+function renderNodes(){
+  var rows = (DATA.nodes_registered || []).map(function(n){
+    var h = n.last_health;
+    var hTxt = h ? (h.ok ? ('ok · ' + esc(h.now_paris||'')) : ('ERR — ' + esc(h.error||''))) : '—';
+    return '<tr><td>'+esc(n.mailbox)+'</td><td>'+esc(n.label||'')+'</td>'
+      +'<td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(n.exec_url)+'">'+esc(n.exec_url)+'</td>'
+      +'<td>'+esc(n.token_hint)+'</td>'
+      +'<td>'+(n.enabled?'<span class="badge b-ok">actif</span>':'<span class="badge b-pending">inactif</span>')+'</td>'
+      +'<td class="muted">'+hTxt+(n.last_health_at?(' <span class="muted">('+esc(n.last_health_at)+' UTC)</span>'):'')+'</td>'
+      +'<td class="row" style="flex-wrap:nowrap">'
+        +'<button class="btn small" onclick="healthNode('+n.id+')">health</button>'
+        +'<button class="btn small" onclick=\'editNode('+JSON.stringify(n).replace(/'/g,"&#39;")+')\'>modifier</button>'
+        +'<button class="btn danger small" onclick="deleteNode('+n.id+',\''+esc(n.mailbox)+'\')">suppr.</button>'
+      +'</td></tr>';
+  });
+  document.querySelector('#nodeTbl tbody').innerHTML = rows.length ? rows.join('')
+    : '<tr><td colspan="7" class="muted">Aucun nœud. Ajouter le premier ci-dessous (sophie@getquickpage.fr est déjà déployé côté Apps Script).</td></tr>';
+}
+function editNode(n){
+  document.getElementById('nodeFormTitle').textContent = 'Modifier le nœud ' + n.mailbox;
+  document.getElementById('nf-id').value = n.id;
+  document.getElementById('nf-mailbox').value = n.mailbox;
+  document.getElementById('nf-label').value = n.label || '';
+  document.getElementById('nf-url').value = n.exec_url;
+  document.getElementById('nf-token').value = '';
+  document.getElementById('nf-enabled').checked = !!n.enabled;
+}
+function resetNodeForm(){
+  document.getElementById('nodeFormTitle').textContent = 'Ajouter un nœud';
+  ['nf-id','nf-mailbox','nf-label','nf-url','nf-token'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('nf-enabled').checked = true;
+}
+function saveNode(){
+  if (BUSY) return; setBusy(true);
+  var body = {
+    id: document.getElementById('nf-id').value ? Number(document.getElementById('nf-id').value) : undefined,
+    mailbox: document.getElementById('nf-mailbox').value.trim(),
+    label: document.getElementById('nf-label').value.trim(),
+    exec_url: document.getElementById('nf-url').value.trim(),
+    api_token: document.getElementById('nf-token').value.trim() || undefined,
+    enabled: document.getElementById('nf-enabled').checked
+  };
+  api('/nodes', { body: body }).then(function(r){
+    toast(r.ok ? 'Nœud enregistré' : (r.error || 'Échec'), !r.ok);
+    if (r.ok) { resetNodeForm(); load(); } else setBusy(false);
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+function healthNode(id){
+  if (BUSY) return; setBusy(true);
+  api('/nodes/'+id+'/health', { method:'POST', body:{} }).then(function(r){
+    toast(r.ok ? ('Nœud ok — ' + (r.mailbox||'') + ' · campagne ' + (r.campaign_status||'?')) : ('Health KO : ' + (r.error||'')), !r.ok);
+    load();
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+function deleteNode(id, mailbox){
+  if (BUSY) return;
+  if (!confirm('Supprimer le nœud ' + mailbox + ' ? (le projet Apps Script et son Control Sheet ne sont pas touchés)')) return;
+  setBusy(true);
+  api('/nodes/'+id, { method:'DELETE' }).then(function(){ toast('Nœud supprimé'); load(); })
+    .catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+
+// --- actions campagne / lead ---
+function setCampaign(status){
+  if (BUSY) return; setBusy(true);
+  api('/campaign', { body: { status: status } }).then(function(r){
+    if (r.error) { toast(r.error, true); setBusy(false); return; }
+    var bad = (r.results||[]).filter(function(x){ return !x.ok; });
+    toast(bad.length ? ('Échec sur : ' + bad.map(function(x){ return x.mailbox; }).join(', ')) : ('Campagne ' + status + ' sur tous les nœuds'), !!bad.length);
+    load();
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+function setCampaignNode(nodeId, status){
+  if (BUSY) return; setBusy(true);
+  api('/campaign', { body: { status: status, nodeId: nodeId } }).then(function(r){
+    if (r.error) { toast(r.error, true); setBusy(false); return; }
+    toast('Nœud → ' + status); load();
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+function stopLead(nodeId, leadId){
+  if (BUSY) return;
+  if (!confirm('Stopper ce lead ? Il ne recevra plus aucun envoi.')) return;
+  setBusy(true);
+  api('/lead-stop', { body: { nodeId: nodeId, leadId: leadId } }).then(function(r){
+    toast(r.ok ? 'Lead stoppé' : (r.error || 'Échec'), !r.ok); if (r.ok) load(); else setBusy(false);
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+function pushSuppression(){
+  if (BUSY) return;
+  var emails = document.getElementById('suppText').value.split(/[\n,;]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+  if (!emails.length) { toast('Aucun email', true); return; }
+  setBusy(true);
+  api('/suppression', { body: { emails: emails } }).then(function(r){
+    if (r.error) { toast(r.error, true); setBusy(false); return; }
+    var msg = (r.results||[]).map(function(x){
+      return x.mailbox + ' : ' + (x.ok ? ('+' + x.added + ' / ' + x.stopped + ' stoppé(s)') : ('ERR ' + x.error)); }).join('\n');
+    toast(msg, (r.results||[]).some(function(x){ return !x.ok; }));
+    document.getElementById('suppText').value = '';
+    load();
+  }).catch(function(e){ toast('Erreur : '+e.message, true); setBusy(false); });
+}
+
+load();
+setInterval(function(){ if (!BUSY && !document.hidden) load(); }, 90000);
+</script>
+</body>
+</html>
