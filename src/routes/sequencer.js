@@ -221,4 +221,5 @@ router.post('/api/sequencer/import', async (req, res) => {
   res.json({ results: nodes.map((n, i) => ({ node_id: n.id, mailbox: n.mailbox, rows_sent: buckets[i].length, ...results[i] })) });
 });
 
+export { listNodes, callNodes };
 export default router;
