@@ -200,6 +200,10 @@ button { font-family: inherit; }
 .hp-nav-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 @media (max-width: 720px) {
   .hp-nav-link { display: none; }
+  /* Le CTA de la navbar est masqué sur mobile : il débordait de l'écran, ce qui
+     provoquait un défilement horizontal et décalait toute la page. Le même appel
+     à l'action reste présent dans le hero, la section couverture et les tarifs. */
+  #hp-cta-nav { display: none; }
   .hp-nav-right { gap: 0; }
   .hp-nav-inner { padding: 12px 20px; }
 }
