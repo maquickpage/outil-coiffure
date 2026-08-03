@@ -37,7 +37,12 @@ export function verifyToken(token) {
   return email.toLowerCase();
 }
 
-function page(title, message) {
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function page(title, message, extra = '') {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title><style>
@@ -45,7 +50,9 @@ body{font:16px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1a1d21;
 margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}
 .card{background:#fff;border:1px solid #e3e6ea;border-radius:12px;padding:28px 32px;max-width:520px}
 h1{font-size:19px;margin:0 0 10px}p{margin:0 0 8px;color:#4b5563}
-</style></head><body><div class="card"><h1>${title}</h1><p>${message}</p></div></body></html>`;
+button{margin-top:14px;padding:11px 18px;font:inherit;font-weight:600;color:#fff;background:#1a1d21;
+border:0;border-radius:8px;cursor:pointer}button:hover{background:#333a42}
+</style></head><body><div class="card"><h1>${title}</h1><p>${message}</p>${extra}</div></body></html>`;
 }
 
 // Enregistre la désinscription en local (traçabilité de l'opposition, exigée par le RGPD)
@@ -71,15 +78,23 @@ router.post('/u/:token', express.urlencoded({ extended: false }), async (req, re
   const email = verifyToken(req.params.token);
   if (!email) return res.status(400).type('html').send(page('Lien invalide', 'Ce lien de désinscription n\'est pas valide ou a expiré.'));
   await applyUnsubscribe(email, 'one-click');
-  res.type('html').send(page('Désinscription enregistrée', `L'adresse <strong>${email}</strong> ne recevra plus de messages.`));
+  res.type('html').send(page('Désinscription enregistrée', `L'adresse <strong>${escapeHtml(email)}</strong> ne recevra plus de messages.`));
 });
 
-// Clic humain depuis le corps du message : même effet, sans étape de confirmation.
-router.get('/u/:token', async (req, res) => {
+// Clic humain depuis le corps du message. Un GET ne DOIT RIEN modifier : les antivirus de
+// messagerie et les prefetchers de liens (Gmail, Outlook Safe Links, passerelles d'entreprise)
+// suivent les URL sans intention humaine et désinscriraient des destinataires qui n'ont jamais
+// cliqué. On affiche donc une confirmation qui POSTe. Le POST, lui, reste sans confirmation :
+// c'est ce que le one-click RFC 8058 exige.
+router.get('/u/:token', (req, res) => {
   const email = verifyToken(req.params.token);
   if (!email) return res.status(400).type('html').send(page('Lien invalide', 'Ce lien de désinscription n\'est pas valide ou a expiré.'));
-  await applyUnsubscribe(email, 'link');
-  res.type('html').send(page('Désinscription enregistrée', `L'adresse <strong>${email}</strong> ne recevra plus de messages.`));
+  res.type('html').send(page(
+    'Confirmer la désinscription',
+    `Confirmez que l'adresse <strong>${escapeHtml(email)}</strong> ne doit plus recevoir de messages.`,
+    `<form method="post" action="/u/${encodeURIComponent(req.params.token)}">` +
+    `<button type="submit">Confirmer la désinscription</button></form>`
+  ));
 });
 
 export default router;
