@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from 'fs';
 import db from './src/db.js';
 import apiRouter from './src/routes/api.js';
 import editRouter from './src/routes/edit.js';
+import unsubscribeRouter from './src/routes/unsubscribe.js';
 import { buildSalonView } from './src/defaults.js';
 import { renderSalonHtml, renderRobotsTxt, renderSitemap, isMainDomainHost } from './src/ssr.js';
 import { isTemplateId, TEMPLATES } from './src/templates.js';
@@ -320,6 +321,10 @@ app.use('/legal', (req, res, next) => {
 // sur les deux hôtes (Helsinki + Falkenstein) pour qu'on puisse linker /legal/cgv-2y.html
 // depuis la modale pricing ET les afficher sur les sites coiffeurs suspendus.
 app.use('/legal', express.static(join(SITE_DIR, 'legal'), { maxAge: '1h' }));
+
+// Désinscription un clic du séquenceur cold-email (RFC 8058) — PUBLIQUE et hors session :
+// Gmail/Outlook appellent /u/:token sans cookie, et le POST ne doit rien demander de plus.
+app.use('/', unsubscribeRouter);
 app.use('/api', apiRouter);
 app.use('/api', editRouter); // expose /api/edit/:slug
 

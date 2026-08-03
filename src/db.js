@@ -388,6 +388,12 @@ export function initSchema() {
 // Nœuds du séquenceur cold-email self-hosted (1 nœud = 1 projet Apps Script = 1 boîte Gmail).
 // L'URL /exec + le token API sont saisis dans l'onglet « Nœuds » de /admin/sequencer.html.
 db.exec(`
+  CREATE TABLE IF NOT EXISTS sequencer_unsubscribes (
+    email TEXT PRIMARY KEY,
+    source TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS sequencer_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mailbox TEXT NOT NULL UNIQUE,
