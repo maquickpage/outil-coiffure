@@ -151,10 +151,19 @@ ssh root@138.201.152.222 "/opt/caddy/start-caddy.sh"
 
 Si le container Falkenstein est crashé :
 ```bash
-# Restart via Coolify API
+# Restart via Coolify API. Le token n'est PAS dans ce dépôt : il est dans le
+# gestionnaire de mots de passe de l'équipe (entrée « Coolify Falkenstein »).
+# Exporter la variable avant de lancer la commande.
+export COOLIFY_FALKENSTEIN_TOKEN='<coller le token>'
 curl -sX POST "http://138.201.152.222:8000/api/v1/applications/e10dhrfu7kn5rrjywb9nm1bu/restart" \
-  -H "Authorization: Bearer 1|TrTjYEtXh3Lu908LUjAoaVLPU7PnhDzVoV9FFyKr1c216d4d"
+  -H "Authorization: Bearer $COOLIFY_FALKENSTEIN_TOKEN"
 ```
+
+> ⚠️ **Ne jamais écrire un token en clair dans ce dépôt : il est PUBLIC.**
+> Un token Coolify porte l'habilitation `root`, il donne donc l'administration
+> complète de l'instance, y compris la lecture des variables d'environnement
+> (clés Stripe, accès base). Le token précédent, publié ici du 18 mai au 3 août
+> 2026, a été révoqué et remplacé le 2026-08-03.
 
 ---
 
