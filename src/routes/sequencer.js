@@ -18,7 +18,8 @@ const RETRY_BASE_MS = 1200;    // attente croissante entre deux essais
 
 // Actions autorisées côté nœud — tout le reste est refusé avant de sortir du portail.
 const NODE_ACTIONS = new Set(['health', 'dashboard', 'uploadCsv', 'saveSteps',
-  'saveMailbox', 'setCampaign', 'stopLead', 'addSuppression']);
+  'saveMailbox', 'setCampaign', 'stopLead', 'addSuppression',
+  'listSuppression', 'removeSuppression']);
 
 function listNodes(onlyEnabled = false) {
   const rows = db.prepare('SELECT * FROM sequencer_nodes ORDER BY mailbox').all();
@@ -224,6 +225,61 @@ router.post('/api/sequencer/suppression', async (req, res) => {
   });
   memoriser(emails);
   res.json({ results: await callNodes(targets, { action: 'addSuppression', emails }), memorises: emails.length });
+});
+
+// ---------- Réconciliation des listes de suppression ----------
+// Une liste de suppression vit dans CHAQUE nœud. Rien ne garantit qu'elles soient
+// identiques : une entrée posée sur un seul nœud y fige des leads sans que rien ne
+// le signale ailleurs. Ces deux routes rendent ces listes lisibles et réversibles.
+// Elles exigent les actions listSuppression/removeSuppression côté nœud ; tant qu'un
+// nœud n'est pas à jour, il répond « unknown action » et c'est rapporté tel quel.
+router.get('/api/sequencer/suppression', async (req, res) => {
+  const nodes = listNodes(true);
+  if (!nodes.length) return res.status(400).json({ error: 'aucun nœud actif' });
+  const results = await callNodes(nodes, { action: 'listSuppression' });
+
+  // Une adresse présente sur un seul nœud est le cas qui coûte des prospects :
+  // elle y bloque les leads alors qu'elle circule librement sur les autres.
+  const parEmail = new Map();
+  for (const r of results) {
+    if (!r.ok || !Array.isArray(r.emails)) continue;
+    for (const e of r.emails) {
+      const cle = normaliserEmail(e);
+      if (!parEmail.has(cle)) parEmail.set(cle, []);
+      parEmail.get(cle).push(r.mailbox);
+    }
+  }
+  const repondants = results.filter(r => r.ok).length;
+  const divergentes = [...parEmail.entries()]
+    .filter(([, boites]) => boites.length < repondants)
+    .map(([email, boites]) => ({ email, presente_sur: boites }));
+
+  const centrale = new Set(db.prepare('SELECT email FROM sequencer_unsubscribes').all().map(r => normaliserEmail(r.email)));
+  res.json({
+    par_noeud: results.map(r => ({ mailbox: r.mailbox, ok: !!r.ok, count: r.count ?? null, error: r.error })),
+    total_distinctes: parEmail.size,
+    divergentes,
+    absentes_de_la_liste_centrale: [...parEmail.keys()].filter(e => !centrale.has(e)).length,
+    liste_centrale: centrale.size
+  });
+});
+
+router.post('/api/sequencer/suppression/remove', async (req, res) => {
+  const emails = (req.body.emails || []).map(normaliserEmail).filter(e => e.includes('@'));
+  if (!emails.length) return res.status(400).json({ error: 'aucun email valide' });
+  const nodes = listNodes(true);
+  if (!nodes.length) return res.status(400).json({ error: 'aucun nœud actif' });
+  const requeue = req.body.requeue !== false;   // par défaut on remet les leads en file
+
+  const results = await callNodes(nodes, { action: 'removeSuppression', emails, requeue });
+  // Le portail doit oublier l'opposition en même temps que les nœuds, sinon le filtre
+  // d'import continuerait d'écarter ces adresses et le retrait n'aurait servi à rien.
+  const oublier = db.transaction(liste => {
+    const st = db.prepare('DELETE FROM sequencer_unsubscribes WHERE email = ?');
+    for (const e of liste) st.run(e);
+  });
+  oublier(emails);
+  res.json({ results, retirees_de_la_liste_centrale: emails.length });
 });
 
 // ---------- Import CSV ----------
