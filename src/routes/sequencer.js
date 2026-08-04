@@ -19,7 +19,7 @@ const RETRY_BASE_MS = 1200;    // attente croissante entre deux essais
 // Actions autorisées côté nœud — tout le reste est refusé avant de sortir du portail.
 const NODE_ACTIONS = new Set(['health', 'dashboard', 'uploadCsv', 'saveSteps',
   'saveMailbox', 'setCampaign', 'stopLead', 'addSuppression',
-  'listSuppression', 'removeSuppression']);
+  'listSuppression', 'removeSuppression', 'sendTest']);
 
 function listNodes(onlyEnabled = false) {
   const rows = db.prepare('SELECT * FROM sequencer_nodes ORDER BY mailbox').all();
@@ -225,6 +225,24 @@ router.post('/api/sequencer/suppression', async (req, res) => {
   });
   memoriser(emails);
   res.json({ results: await callNodes(targets, { action: 'addSuppression', emails }), memorises: emails.length });
+});
+
+// ---------- Envoi de test ----------
+// Prévisualiser une étape sans écrire à un vrai salon. Le nœud sert les leads dans
+// l'ordre de sa feuille : un lead ajouté pour tester passerait après tous les vrais
+// prospects. sendTest court-circuite la file, sans toucher aux compteurs ni au statut
+// de campagne, mais en empruntant le vrai chemin d'envoi (en-têtes et partie HTML
+// de production). Sans ça, un test ne prouve rien.
+router.post('/api/sequencer/send-test', async (req, res) => {
+  const to = String(req.body.to || '').trim();
+  if (!to.includes('@')) return res.status(400).json({ error: 'adresse "to" invalide' });
+  const step = Number(req.body.step) || 1;
+  const n = req.body.nodeId
+    ? db.prepare('SELECT * FROM sequencer_nodes WHERE id = ?').get(req.body.nodeId)
+    : listNodes(true)[0];
+  if (!n) return res.status(400).json({ error: 'aucun nœud actif' });
+  const r = await callNode(n, { action: 'sendTest', to, step, lead: req.body.lead || {} });
+  res.json({ mailbox: n.mailbox, ...r });
 });
 
 // ---------- Réconciliation des listes de suppression ----------
