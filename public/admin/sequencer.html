@@ -111,6 +111,7 @@
         <span class="muted" id="t-dispatcher-hint"></span>
       </div>
       <div class="stats" id="stats"></div>
+      <p class="muted" id="capacity" style="margin:10px 0 0"></p>
     </div>
     <div class="card">
       <h3 style="margin-top:0" id="t-mb-today"></h3>
@@ -238,6 +239,9 @@ var T = {
     import_btn: "Valider & importer", import_choose: "Choisir un fichier ou coller le CSV",
     import_done: "Import terminé", import_partial: "Import partiel — voir détail", import_refused: "Import refusé",
     imported_n: "importé {n}", refused: "REFUSÉ — ",
+    filtered_out: "Écartés avant envoi : {u} désinscrit(s), {d} déjà confié(s) à une boîte",
+    capacity_line: "Capacité : {c} envois/jour sur {b} boîte(s) — {q} en file, soit {j} jour(s). Confiés au total : {t}",
+    capacity_down: " — ⚠ {n} nœud(s) injoignable(s), capacité réduite",
     steps_title: "Séquence 5 steps",
     steps_help: "Variables : {{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}} {{preview_image_url}} {{admin_url}}. Gap = jours avant CE step (step 1 = 0 en général). Thread : reply = même fil Gmail, new = nouveau fil. Steps 4–5 vides = la séquence s'arrête après le step 3.",
     steps_source: "(chargée depuis {mb})",
@@ -297,6 +301,9 @@ var T = {
     import_btn: "Validate & import", import_choose: "Choose a file or paste CSV",
     import_done: "Import complete", import_partial: "Partial import — see detail", import_refused: "Import refused",
     imported_n: "imported {n}", refused: "REFUSED — ",
+    filtered_out: "Filtered out before sending: {u} unsubscribed, {d} already assigned to a mailbox",
+    capacity_line: "Capacity: {c} sends/day across {b} mailbox(es) — {q} queued, i.e. {j} day(s). Total assigned: {t}",
+    capacity_down: " — ⚠ {n} node(s) unreachable, reduced capacity",
     steps_title: "5-step sequence",
     steps_help: "Variables: {{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}} {{preview_image_url}} {{admin_url}}. Gap = days before THIS step fires (step 1 usually 0). Thread: reply = same Gmail thread, new = fresh thread. Blank steps 4–5 = the sequence ends after step 3.",
     steps_source: "(loaded from {mb})",
@@ -356,6 +363,9 @@ var T = {
     import_btn: "校验并导入", import_choose: "请选择文件或粘贴 CSV",
     import_done: "导入完成", import_partial: "部分导入 — 见详情", import_refused: "导入被拒绝",
     imported_n: "已导入 {n}", refused: "被拒绝 — ",
+    filtered_out: "发送前已排除：{u} 个已退订，{d} 个已分配给邮箱",
+    capacity_line: "容量：{b} 个邮箱每天 {c} 封 — 队列 {q}，约 {j} 天。累计已分配：{t}",
+    capacity_down: " — ⚠ {n} 个节点不可达，容量下降",
     steps_title: "5 步序列",
     steps_help: "变量：{{first_name}} {{salon_name}} {{city}} {{salon_slug}} {{preview_url}} {{preview_image_url}} {{admin_url}}。Gap = 距本步的天数（step 1 通常为 0）。Thread：reply = 同一 Gmail 会话，new = 新会话。第 4–5 步留空 = 序列在第 3 步后结束。",
     steps_source: "（从 {mb} 加载）",
@@ -506,6 +516,17 @@ function renderOverview(){
   document.getElementById('stats').innerHTML = order.map(function(o){
     return '<div class="stat"><b>'+(s[o[0]]||0)+'</b><span>'+esc(o[1])+'</span></div>'; }).join('');
 
+  // Capacité d'envoi : traduit la file d'attente en jours, et prévient si un nœud
+  // à terre ampute le débit quotidien sans que ça se voie dans les compteurs.
+  var cap = DATA.capacite;
+  var capEl = document.getElementById('capacity');
+  if (cap && capEl) {
+    var txt = t('capacity_line', { c: cap.envois_par_jour, b: cap.boites_actives, q: cap.en_file,
+      j: cap.jours_restants == null ? '?' : cap.jours_restants, t: DATA.leads_confies || 0 });
+    if (cap.noeuds_injoignables) txt += t('capacity_down', { n: cap.noeuds_injoignables });
+    capEl.textContent = txt;
+  } else if (capEl) { capEl.textContent = ''; }
+
   var rows = [];
   nodes.forEach(function(n){
     if (!n.ok) {
@@ -584,6 +605,11 @@ function sendCsv(text){
     } else {
       out.textContent = r.ok ? t('imported_n', { n: r.imported }) : r.error;
       toast(r.ok ? t('imported_n', { n: r.imported }) : r.error, !r.ok);
+    }
+    // Les lignes écartées ne sont pas des erreurs : on les montre pour que personne
+    // ne cherche pourquoi le total importé est inférieur au fichier fourni.
+    if (r.filtres && (r.filtres.desinscrits || r.filtres.deja_confies)) {
+      out.textContent += '\n' + t('filtered_out', { u: r.filtres.desinscrits, d: r.filtres.deja_confies });
     }
     if (!r.error) { document.getElementById('csvText').value=''; document.getElementById('csvFile').value=''; }
     load();
