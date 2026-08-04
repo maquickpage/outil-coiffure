@@ -7,11 +7,14 @@ import express from 'express';
 import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
 import db from '../db.js';
+import { COLONNES_IMPORT, normaliserEmail, filtrerLot, repartir, estUnRejeuIdentique } from '../sequencer-filters.js';
 
 const router = express.Router();
 router.use(express.json({ limit: '20mb' }));
 
 const NODE_TIMEOUT_MS = 45000; // Apps Script peut être lent (cold start + Sheets)
+const NODE_RETRIES = 3;        // relances sur échec de transport uniquement
+const RETRY_BASE_MS = 1200;    // attente croissante entre deux essais
 
 // Actions autorisées côté nœud — tout le reste est refusé avant de sortir du portail.
 const NODE_ACTIONS = new Set(['health', 'dashboard', 'uploadCsv', 'saveSteps',
@@ -33,8 +36,10 @@ function publicNode(n) {
   };
 }
 
-async function callNode(node, payload) {
-  if (!NODE_ACTIONS.has(payload.action)) return { ok: false, error: 'action refusée: ' + payload.action };
+// Un seul aller-retour vers le nœud. Marque les échecs de TRANSPORT (__transport)
+// pour que l'appelant sache qu'une relance a du sens ; une réponse métier ok:false
+// n'est jamais marquée, on ne relance pas ce que le nœud a délibérément refusé.
+async function callNodeOnce(node, payload) {
   try {
     // Content-Type text/plain : Apps Script lit e.postData.contents tel quel, et le POST
     // renvoie un 302 vers script.googleusercontent.com que fetch suit par défaut.
@@ -48,12 +53,34 @@ async function callNode(node, payload) {
     const text = await res.text();
     try { return JSON.parse(text); }
     catch {
-      // Une page HTML ici = déploiement en access "Myself" (login Google exigé) ou URL /exec périmée.
-      return { ok: false, error: `réponse non-JSON (HTTP ${res.status}) — vérifier que la web app est déployée en accès "Anyone" et que l'URL /exec est à jour` };
+      // Une page HTML ici = déploiement en access "Myself" (login Google exigé), URL /exec
+      // périmée, ou simple hoquet d'Apps Script (404/500 transitoires observés en série).
+      return { ok: false, __transport: true, http: res.status,
+        error: `réponse non-JSON (HTTP ${res.status}) — vérifier que la web app est déployée en accès "Anyone" et que l'URL /exec est à jour` };
     }
   } catch (err) {
-    return { ok: false, error: err.name === 'TimeoutError' ? 'timeout nœud (45s)' : String(err.message || err) };
+    return { ok: false, __transport: true,
+      error: err.name === 'TimeoutError' ? `timeout nœud (${Math.round(NODE_TIMEOUT_MS / 1000)}s)` : String(err.message || err) };
   }
+}
+
+// Apps Script est instable par nature : démarrages à froid, quotas, 404 passagers sur
+// l'URL /exec. Sans relance, une opération parfaitement valide échoue au hasard et
+// l'opérateur croit à une panne. On réessaie donc les échecs de transport, avec une
+// attente croissante et un peu d'aléa pour ne pas retomber en rafale sur le même creux.
+async function callNode(node, payload, { essais = NODE_RETRIES } = {}) {
+  if (!NODE_ACTIONS.has(payload.action)) return { ok: false, error: 'action refusée: ' + payload.action };
+  let dernier;
+  for (let essai = 1; essai <= essais; essai++) {
+    dernier = await callNodeOnce(node, payload);
+    if (!dernier.__transport) return essai > 1 ? { ...dernier, essais: essai } : dernier;
+    if (essai < essais) {
+      const attente = RETRY_BASE_MS * essai + Math.floor(Math.random() * 500);
+      await new Promise(r => setTimeout(r, attente));
+    }
+  }
+  const { __transport, ...propre } = dernier;
+  return { ...propre, essais };
 }
 
 // Fan-out parallèle vers plusieurs nœuds → [{node_id, mailbox, ...réponse}]
@@ -119,10 +146,34 @@ router.get('/api/sequencer/overview', async (req, res) => {
   for (const r of results) {
     if (r.ok && r.stat) for (const k of Object.keys(agg)) agg[k] += Number(r.stat[k]) || 0;
   }
+  // Capacité réelle : ce qui décide du rythme d'une campagne, ce n'est pas le nombre de
+  // leads mais la somme des plafonds journaliers des boîtes JOIGNABLES. Un nœud à terre
+  // retire sa part de capacité sans prévenir, d'où le calcul à partir des seules réponses
+  // valides. « jours_restants » traduit la file d'attente en délai, seule unité qui parle
+  // quand on planifie une campagne.
+  let capaciteJour = 0, boites = 0;
+  for (const r of results) {
+    if (!r.ok || !Array.isArray(r.mailboxes)) continue;
+    for (const mb of r.mailboxes) {
+      if (mb.paused) continue;
+      capaciteJour += Number(mb.daily_cap) || 0;
+      boites++;
+    }
+  }
+  const capacite = {
+    boites_actives: boites,
+    envois_par_jour: capaciteJour,
+    en_file: agg.queued,
+    jours_restants: capaciteJour > 0 ? Math.ceil(agg.queued / capaciteJour) : null,
+    noeuds_injoignables: results.filter(r => !r.ok).length
+  };
+
   res.json({
     nodes_registered: listNodes().map(publicNode),
     nodes: results,
     aggregate: agg,
+    capacite,
+    leads_confies: db.prepare('SELECT COUNT(*) n FROM sequencer_leads').get().n,
     all_ok: results.length > 0 && results.every(r => r.ok)
   });
 });
@@ -163,7 +214,16 @@ router.post('/api/sequencer/suppression', async (req, res) => {
   if (!emails.length) return res.status(400).json({ error: 'aucun email valide' });
   const targets = listNodes(true);
   if (!targets.length) return res.status(400).json({ error: 'aucun nœud actif' });
-  res.json({ results: await callNodes(targets, { action: 'addSuppression', emails }) });
+  // La suppression manuelle doit être aussi durable qu'une désinscription reçue par
+  // lien : sans cette écriture, l'adresse repasserait au prochain import puisque seuls
+  // les nœuds actuels la connaîtraient.
+  const memoriser = db.transaction(liste => {
+    const req2 = db.prepare(`INSERT INTO sequencer_unsubscribes (email, source) VALUES (?, 'suppression_manuelle')
+      ON CONFLICT(email) DO NOTHING`);
+    for (const e of liste) req2.run(e);
+  });
+  memoriser(emails);
+  res.json({ results: await callNodes(targets, { action: 'addSuppression', emails }), memorises: emails.length });
 });
 
 // ---------- Import CSV ----------
@@ -172,17 +232,26 @@ router.post('/api/sequencer/suppression', async (req, res) => {
 //   même règle que le nœud), le découpe ligne à ligne sur les nœuds actifs, et force la colonne
 //   mailbox de chaque ligne sur la boîte du nœud destinataire. Un nœud peut encore refuser sa
 //   part (ex. email déjà importé chez lui) : le résultat est rapporté PAR nœud.
+function lireDesinscrits() {
+  return new Set(db.prepare('SELECT email FROM sequencer_unsubscribes').all().map(r => normaliserEmail(r.email)));
+}
+function lireDejaConfies() {
+  return new Set(db.prepare('SELECT email FROM sequencer_leads').all().map(r => normaliserEmail(r.email)));
+}
+// N'enregistre QUE ce qu'un nœud a effectivement accepté : si le nœud a refusé son
+// lot, les adresses restent disponibles pour un prochain essai.
+const inscrireLead = db.prepare(`INSERT OR IGNORE INTO sequencer_leads (email, salon_slug, node_id, mailbox)
+  VALUES (?, ?, ?, ?)`);
+function enregistrerLot(lignes, node) {
+  const tx = db.transaction(rows => {
+    for (const r of rows) inscrireLead.run(normaliserEmail(r.email), String(r.salon_slug || ''), node.id, node.mailbox);
+  });
+  tx(lignes);
+}
+
 router.post('/api/sequencer/import', async (req, res) => {
   const { csv, nodeId, mode } = req.body || {};
   if (!csv || !csv.trim()) return res.status(400).json({ error: 'CSV vide' });
-
-  if (mode !== 'roundrobin') {
-    const n = nodeOr404(req, res); if (!n) return;
-    return res.json(await callNode(n, { action: 'uploadCsv', csv }));
-  }
-
-  const nodes = listNodes(true);
-  if (!nodes.length) return res.status(400).json({ error: 'aucun nœud actif' });
 
   let records;
   try {
@@ -192,33 +261,48 @@ router.post('/api/sequencer/import', async (req, res) => {
   }
   if (!records.length) return res.status(400).json({ error: 'aucune ligne' });
 
-  const errors = [];
-  const seen = new Set();
-  records.forEach((r, i) => {
-    const line = i + 2;
-    const email = String(r.email || '').trim().toLowerCase();
-    if (!email || !email.includes('@')) errors.push(`ligne ${line}: email vide/invalide`);
-    else if (seen.has(email)) errors.push(`ligne ${line}: email en double dans le fichier (${email})`);
-    else seen.add(email);
-    if (!String(r.salon_slug || '').trim()) errors.push(`ligne ${line}: salon_slug vide`);
-  });
-  if (errors.length) {
-    return res.status(400).json({ error: `${errors.length} erreur(s), rien n'est importé:\n- ` + errors.slice(0, 25).join('\n- ') });
+  // Deux garde-fous qui n'existent qu'ici : une désinscription vaut pour TOUTES les
+  // boîtes, et une adresse déjà confiée à un nœud ne doit pas partir depuis un second
+  // expéditeur (double séquence = plainte quasi certaine).
+  const { retenus, erreurs, ecartes } = filtrerLot(records, lireDesinscrits(), lireDejaConfies());
+  if (erreurs.length) {
+    return res.status(400).json({ error: `${erreurs.length} erreur(s), rien n'est importé:\n- ` + erreurs.slice(0, 25).join('\n- ') });
+  }
+  const filtres = { desinscrits: ecartes.desinscrits.length, deja_confies: ecartes.deja_confies.length };
+  if (!retenus.length) {
+    return res.status(400).json({ error: 'aucune ligne à importer après filtrage', filtres });
   }
 
-  const columns = ['email', 'first_name', 'salon_name', 'city', 'salon_slug',
-                   'preview_url', 'preview_image_url', 'admin_url', 'mailbox'];
-  const buckets = nodes.map(() => []);
-  records.forEach((r, i) => {
-    const nodeIdx = i % nodes.length;
-    buckets[nodeIdx].push(columns.map(c => c === 'mailbox' ? nodes[nodeIdx].mailbox : String(r[c] || '')));
+  // ---- Envoi vers un seul nœud ----
+  if (mode !== 'roundrobin') {
+    const n = nodeOr404(req, res); if (!n) return;
+    const lignes = retenus.map(r => COLONNES_IMPORT.map(c => String(r[c] || '')));
+    let r = await callNode(n, { action: 'uploadCsv', csv: stringify([COLONNES_IMPORT, ...lignes]) });
+    if (estUnRejeuIdentique(r, lignes.length)) r = { ok: true, imported: 0, rejeu: true };
+    if (r.ok) enregistrerLot(retenus, n);
+    return res.json({ ...r, rows_sent: lignes.length, filtres });
+  }
+
+  // ---- Répartition sur tous les nœuds actifs ----
+  const nodes = listNodes(true);
+  if (!nodes.length) return res.status(400).json({ error: 'aucun nœud actif' });
+
+  const paniers = repartir(retenus, nodes);
+  const results = await Promise.all(nodes.map((n, i) => {
+    if (!paniers[i].length) return Promise.resolve({ ok: true, imported: 0 });
+    return callNode(n, { action: 'uploadCsv', csv: stringify([COLONNES_IMPORT, ...paniers[i]]) });
+  }));
+
+  const sortie = nodes.map((n, i) => {
+    let r = results[i];
+    // Réponse perdue puis relance : le nœud répond « already imported » sur tout le lot.
+    // Le premier envoi avait abouti, ce n'est pas un échec.
+    if (estUnRejeuIdentique(r, paniers[i].length)) r = { ok: true, imported: 0, rejeu: true };
+    if (r.ok) enregistrerLot(retenus.filter((_, idx) => idx % nodes.length === i), n);
+    return { node_id: n.id, mailbox: n.mailbox, rows_sent: paniers[i].length, ...r };
   });
 
-  const results = await Promise.all(nodes.map((n, i) => {
-    if (!buckets[i].length) return Promise.resolve({ ok: true, imported: 0 });
-    return callNode(n, { action: 'uploadCsv', csv: stringify([columns, ...buckets[i]]) });
-  }));
-  res.json({ results: nodes.map((n, i) => ({ node_id: n.id, mailbox: n.mailbox, rows_sent: buckets[i].length, ...results[i] })) });
+  res.json({ results: sortie, filtres });
 });
 
 export { listNodes, callNodes };

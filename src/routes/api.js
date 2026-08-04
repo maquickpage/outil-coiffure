@@ -140,8 +140,12 @@ router.get('/stats', requireAdminSession, (req, res) => {
   // contactée. « Jamais contactés » compte des fiches, celui-ci compte des boîtes
   // réellement atteignables : sans doublon, sans adresse de plateforme ni de
   // domaine mort. Tant qu'aucun audit n'a tourné, les deux chiffres coïncident.
+  // On retire aussi ce qui est déjà confié au séquenceur : ces leads sont en file
+  // d'envoi, les recompter comme « joignables » ferait réexporter les mêmes adresses
+  // à chaque vague et aboutirait à une double séquence chez le prospect.
   const reachable = db.prepare('SELECT COUNT(*) as n FROM salons' + (groupClause ? groupClause + ' AND' : ' WHERE') +
-    " cold_mail_campaign IS NULL AND email_audit IS NULL AND email IS NOT NULL AND trim(email) != ''").get(groupParams).n;
+    " cold_mail_campaign IS NULL AND email_audit IS NULL AND email IS NOT NULL AND trim(email) != ''" +
+    ' AND lower(trim(email)) NOT IN (SELECT email FROM sequencer_leads)').get(groupParams).n;
   const audited = db.prepare('SELECT COUNT(*) as n FROM salons' + (groupClause ? groupClause + ' AND' : ' WHERE') + ' email_audit IS NOT NULL').get(groupParams).n;
   res.json({ total, withScreenshot, withoutScreenshot, withCleanName, csvSources, contacted, neverContacted, reachable, audited });
 });

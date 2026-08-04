@@ -406,6 +406,24 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT
   );
+
+  -- Registre portail des leads dispatchés vers les nœuds. Le nœud reste la source
+  -- de vérité de l'ENVOI ; cette table répond à trois besoins que le nœud ne peut
+  -- pas couvrir, parce qu'il ne voit que sa propre boîte :
+  --   1. dédoublonnage ENTRE nœuds (un salon ne doit jamais recevoir deux séquences
+  --      depuis deux expéditeurs différents, c'est un déclencheur anti-spam) ;
+  --   2. exclusion des prochains exports (sinon on réimporte les mêmes à chaque fois) ;
+  --   3. piste d'audit : qui a été confié à quelle boîte, et quand.
+  -- L'email est la clé : c'est la seule identité que voient les serveurs de réception.
+  CREATE TABLE IF NOT EXISTS sequencer_leads (
+    email TEXT PRIMARY KEY,
+    salon_slug TEXT,
+    node_id INTEGER,
+    mailbox TEXT,
+    imported_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_sequencer_leads_slug ON sequencer_leads(salon_slug);
+  CREATE INDEX IF NOT EXISTS idx_sequencer_leads_node ON sequencer_leads(node_id);
 `);
 
 initSchema();
