@@ -175,22 +175,6 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(sync).catch(() => {});
   }
 
-  function buildPassiveBanner() {
-    const section = document.createElement('aside');
-    section.id = 'mqs-passive-price';
-    section.setAttribute('aria-label', 'Tarifs MaQuickPage');
-    section.innerHTML = `
-      <div class="mqs-passive-price-inner">
-        <span class="mqs-passive-price-kicker">Votre site, prêt à être mis en ligne</span>
-        <strong>Plans dès 9,90 € TTC/mois</strong>
-        <span>Domaine, hébergement et mises à jour inclus</span>
-        <button type="button">Voir les formules →</button>
-      </div>
-    `;
-    section.querySelector('button').addEventListener('click', () => openPricingModal('mid_banner'));
-    return section;
-  }
-
   function buildBar() {
     const count = availableDomains.length;
     const firstHostname = count ? escapeHtml(availableDomains[0].hostname) : '';
@@ -338,14 +322,11 @@
     try { window.mqsTrack && window.mqsTrack('paywall_dismissed', getSheetMeta()); } catch (e) {}
   }
 
+  // Le bandeau prix intercalé entre les sections a été retiré : entre le ribbon
+  // du haut et la bar du bas, la page portait déjà assez de sollicitations, et
+  // celui-ci coupait le site en deux au milieu du contenu.
   function mountPageConversion() {
     if (!isPreview) return;
-    const services = document.querySelector('#services, .services');
-    const gallery = document.querySelector('#galerie, .gallery');
-    if (services && gallery && !document.getElementById('mqs-passive-price')) {
-      services.insertAdjacentElement('afterend', buildPassiveBanner());
-    }
-
     const footer = document.querySelector('footer');
     if (!footer) return;
     // Le sentinel reste enfant direct de <body> pour ne jamais hériter de la

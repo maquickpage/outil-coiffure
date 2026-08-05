@@ -19,6 +19,39 @@ async function fetchSalon(slug) {
 }
 
 const $ = id => document.getElementById(id);
+
+// Nom lisible de la plateforme de reservation, pour un libelle de lien plus
+// parlant que « Reserver en ligne » quand on la reconnait.
+const BOOKING_PLATFORMS = [
+  ['planity', 'Planity'], ['treatwell', 'Treatwell'], ['booksy', 'Booksy'],
+  ['reservio', 'Reservio'], ['cituro', 'Cituro'], ['settime', 'SetTime'],
+  ['rdv360', 'RDV360'], ['merci-yanis', 'Merci Yanis'],
+];
+function bookingLinkLabel(url) {
+  const host = String(url || '').toLowerCase();
+  for (const [needle, name] of BOOKING_PLATFORMS) {
+    if (host.includes(needle)) return `Réserver sur ${name}`;
+  }
+  return 'Réserver en ligne';
+}
+
+// Ligne « Rendez-vous en ligne » de la section contact : c'est le SEUL endroit
+// du site qui renvoie vers la plateforme de reservation du salon. Masquee tant
+// qu'aucun lien n'est enregistre.
+function applyBookingLine(bookingUrl) {
+  const block = $('contact-booking-block');
+  const link = $('contact-booking');
+  if (!block || !link) return;
+  if (!bookingUrl) {
+    block.style.display = 'none';
+    document.body.classList.remove('mqs-has-booking');
+    return;
+  }
+  link.href = bookingUrl;
+  link.textContent = bookingLinkLabel(bookingUrl);
+  block.style.display = '';
+  document.body.classList.add('mqs-has-booking');
+}
 const setText = (id, t) => { const el = $(id); if (el && t != null) el.textContent = t; };
 const setHtml = (id, h) => { const el = $(id); if (el && h != null) el.innerHTML = h; };
 const escapeHtml = s => s == null ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -234,6 +267,26 @@ function buildServices(services) {
   });
 }
 
+// En-tête du carrousel : [◀] Nom de la catégorie [▶]. Les flèches étaient
+// centrées verticalement sur toute la hauteur du slide, donc perdues au milieu
+// d'une longue liste ; ici elles encadrent le titre, en haut, toujours visibles.
+// Le libellé garde la classe .services-cat-label pour hériter de la typo propre
+// à chaque template.
+function ensureCarouselHead(wrapper, prev, next) {
+  if (!wrapper) return null;
+  let head = wrapper.querySelector('.services-carousel-head');
+  if (head) return head;
+  head = document.createElement('div');
+  head.className = 'services-carousel-head';
+  const label = document.createElement('p');
+  label.className = 'services-cat-label services-carousel-cat';
+  head.appendChild(prev);
+  head.appendChild(label);
+  head.appendChild(next);
+  wrapper.insertBefore(head, wrapper.firstChild);
+  return head;
+}
+
 function renderServices() {
   const grid = $('services-grid');
   const wrapper = $('services-wrapper');
@@ -266,20 +319,25 @@ function renderServices() {
     // main au flux normal, sinon la hauteur figée par le carrousel persiste.
     const clip = wrapper && wrapper.querySelector('.services-clip');
     if (clip) clip.style.height = '';
+    const existingHead = wrapper && wrapper.querySelector('.services-carousel-head');
+    if (existingHead) existingHead.hidden = true;
     if (prev) prev.hidden = true;
     if (next) next.hidden = true;
     if (dots) dots.innerHTML = '';
     return;
   }
 
+  // Le nom de catégorie sort du slide pour rejoindre l'en-tête fixe, entre les
+  // deux flèches. Il ne défile donc plus avec le contenu.
   if (servicesMode !== 'carousel') {
     grid.innerHTML = pages.map(p => `
       <div class="services-page">
-        ${p.label ? `<p class="services-cat-label">${p.label}</p>` : ''}
         ${p.items.map(serviceColHtml).join('')}
       </div>`).join('');
     servicesMode = 'carousel';
   }
+  const head = ensureCarouselHead(wrapper, prev, next);
+  if (head) head.hidden = false;
   if (servicesPage > pages.length - 1) servicesPage = pages.length - 1;
 
   // Les pages sont des flex items côte à côte : sans ça le conteneur prend la
@@ -300,6 +358,10 @@ function renderServices() {
     const step = page ? page.offsetWidth + gap : 0;
     grid.style.transform = `translateX(-${servicesPage * step}px)`;
     syncHeight();
+    const label = head && head.querySelector('.services-carousel-cat');
+    // Pas de libellé quand les pages ne sont pas des catégories (cas « une seule
+    // catégorie, liste longue » découpée en paquets) → on affiche le rang.
+    if (label) label.textContent = pages[servicesPage].label || `${servicesPage + 1} / ${pages.length}`;
     prev.hidden = false;
     next.hidden = false;
     prev.disabled = servicesPage === 0;
@@ -498,22 +560,19 @@ function renderSalon(view) {
     $('contact-phone-block').style.display = 'none';
   }
 
-  // Bouton "Reserver" : URL de reservation en ligne si disponible, sinon scroll vers #contact
+  // Bouton "Reserver" : TOUJOURS vers #contact, meme si le salon a un lien de
+  // reservation en ligne. Aucun bouton de la page ne doit faire sortir le
+  // visiteur du site ; la reservation en ligne se fait depuis la ligne dediee
+  // de la section contact (ci-dessous).
   const navCta = $('nav-cta');
   if (navCta) {
-    const bookingUrl = c.contact.bookingUrl;
-    if (bookingUrl) {
-      navCta.href = bookingUrl;
-      navCta.target = '_blank';
-      navCta.rel = 'noopener';
-      navCta.removeAttribute('data-scroll-fallback');
-    } else {
-      navCta.href = '#contact';
-      navCta.removeAttribute('target');
-      navCta.removeAttribute('rel');
-      navCta.dataset.scrollFallback = '1';
-    }
+    navCta.href = '#contact';
+    navCta.removeAttribute('target');
+    navCta.removeAttribute('rel');
+    navCta.dataset.scrollFallback = '1';
   }
+
+  applyBookingLine(c.contact.bookingUrl);
 
   if (c.contact.email) {
     const emailEl = $('contact-email');

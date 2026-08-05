@@ -404,6 +404,29 @@ body.photos-color .gallery-item img { filter: none; }
    masqué par hydrate.js via [hidden]). ---------------------------------- */
 .services-wrapper { position: relative; }
 .services-clip { overflow: visible; }
+/* En-tête du carrousel : [◀] Catégorie [▶], au-dessus de la liste. Les flèches
+   étaient centrées sur la hauteur du slide et se retrouvaient perdues au milieu
+   d'une longue liste ; ici elles encadrent le titre et restent à portée. */
+.services-carousel-head {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 0 var(--pad-x) 22px;
+}
+.services-carousel-head[hidden] { display: none; }
+.services-wrapper.is-carousel .services-carousel-head { display: flex; }
+.services-carousel-head .services-carousel-cat {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+}
+.services-wrapper.is-carousel .carousel-arrow {
+    position: static;
+    transform: none;
+    flex: 0 0 auto;
+}
+
 .carousel-arrow {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 40px; height: 40px;
@@ -598,7 +621,12 @@ body.photos-color .gallery-item img { filter: none; }
 .band-contact { background: var(--white); padding: var(--band-y) 0; }
 .contact-columns {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* grid-auto-flow: column → une colonne par bloc RÉELLEMENT affiché. Le
+       nombre varie (téléphone, email ou « Rendez-vous en ligne » peuvent
+       manquer selon le salon) ; un repeat(N, 1fr) figé laisserait une piste
+       vide et la grille n'occuperait plus toute la largeur. */
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: clamp(28px, 3vw, 52px);
     max-width: var(--content-max);
     margin: 0 auto;
@@ -757,7 +785,7 @@ body.photos-color .gallery-item img { filter: none; }
        pendant le scroll (et bugue sur iOS). On repasse en scroll. */
     .hero::before { background-attachment: scroll; }
     .services-grid { grid-template-columns: repeat(2, 1fr); }
-    .contact-columns { grid-template-columns: repeat(2, 1fr); }
+    .contact-columns { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
     .testimonials-row { grid-template-columns: repeat(2, 1fr); }
     .band-split { grid-template-columns: 1fr; min-height: 0; }
     /* Image d'intro réduite (40vh au lieu de 52vh) pour ne pas lire comme un
@@ -767,7 +795,7 @@ body.photos-color .gallery-item img { filter: none; }
 @media (max-width: 768px) {
     .hero::before { background-attachment: scroll; }
     .services-grid { grid-template-columns: 1fr; max-width: 440px; }
-    .contact-columns { grid-template-columns: 1fr; max-width: 440px; }
+    .contact-columns { grid-auto-flow: row; grid-template-columns: 1fr; max-width: 440px; }
     .testimonials-row { grid-template-columns: 1fr; max-width: 460px; }
     .gallery-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .gallery-grid.layout-masonry { column-count: 2; column-gap: 12px; }

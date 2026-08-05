@@ -5,15 +5,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap');
 
 #mqs-ribbon,
-#mqs-bar-wrap,
-#mqs-passive-price {
+#mqs-bar-wrap {
   font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 #mqs-ribbon *,
-#mqs-bar-wrap *,
-#mqs-passive-price * {
+#mqs-bar-wrap * {
   box-sizing: border-box;
 }
 
@@ -367,49 +365,6 @@
 .mqs-bar-cta:hover { background: #dcff6b; transform: translateY(-1px); }
 .mqs-bar-cta:active { transform: translateY(0); }
 
-/* ── PASSIVE MID-SCROLL PRICE ────────────────────────────────────────────── */
-#mqs-passive-price {
-  position: relative;
-  z-index: 2;
-  padding: 14px 20px;
-  border-top: 1px solid rgba(128,128,128,.18);
-  border-bottom: 1px solid rgba(128,128,128,.18);
-  background: #f4f4f2;
-  color: #0b0b0b;
-  font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
-}
-.mqs-passive-price-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  max-width: 1080px;
-  margin: 0 auto;
-}
-.mqs-passive-price-kicker {
-  color: #73736f;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-.mqs-passive-price-inner strong {
-  font-size: 16px;
-}
-.mqs-passive-price-inner > span:not(.mqs-passive-price-kicker) {
-  color: #73736f;
-  font-size: 13px;
-}
-.mqs-passive-price-inner button {
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 9px;
-  background: #0b0b0b;
-  color: #fff;
-  cursor: pointer;
-  font: 700 12px/1 inherit;
-}
-
 /* ── INLINE CONVERSION BEFORE FOOTER ─────────────────────────────────────── */
 #mqs-sheet-sentinel { width: 1px; height: 1px; }
 
@@ -465,9 +420,6 @@
     padding: 0; border: 0; font-weight: 600; font-size: 12px;
   }
   .mqs-bar-copy-2 .mqs-price-chip { display: inline-flex; margin-top: 4px; }
-  .mqs-passive-price-inner { flex-wrap: wrap; gap: 7px 12px; text-align: center; }
-  .mqs-passive-price-kicker { flex-basis: 100%; }
-  .mqs-passive-price-inner > span:not(.mqs-passive-price-kicker) { display: none; }
 }
 
 @media (max-width: 420px) {

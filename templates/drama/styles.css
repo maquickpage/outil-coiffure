@@ -177,7 +177,7 @@ body.photos-color .contact-map { filter: none; }
 }
 .hero-content {
     position: relative; z-index: 2;
-    padding: 0 28px; max-width: 900px;
+    padding: 0 28px; max-width: 900px; width: 100%;
     display: flex; flex-direction: column; align-items: center;
     animation: fadeUp .9s var(--ease) both;
 }
@@ -187,9 +187,15 @@ body.photos-color .contact-map { filter: none; }
 }
 .hero-title {
     font-family: var(--font-head); font-weight: 700;
-    font-size: clamp(3rem, 8vw, 5.5rem); line-height: 1.08;
+    /* Le plancher était à 3rem (48px) : un nom d'un seul mot un peu long
+       (« HAIRDRESSER'S ») dépassait alors des deux bords sur mobile, puisque
+       48px en capitales x 13 caractères font plus large que l'écran. Plancher
+       abaissé + coupure autorisée en dernier recours pour les noms extrêmes. */
+    font-size: clamp(2rem, 8.2vw, 5.5rem); line-height: 1.08;
     letter-spacing: 0.02em; text-transform: uppercase; color: var(--white);
     margin-bottom: 22px; text-wrap: balance;
+    max-width: 100%;
+    overflow-wrap: break-word;
 }
 .hero-subtitle {
     font-size: clamp(1rem, 1.5vw, 1.15rem); font-weight: 300; line-height: 1.6;
@@ -392,6 +398,30 @@ body.photos-color .contact-map { filter: none; }
 /* ============================================================================
    CAROUSEL CHROME (masqué par défaut)
    ============================================================================ */
+/* En-tête du carrousel : [◀] Catégorie [▶], au-dessus de la liste. Les flèches
+   étaient centrées sur la hauteur du slide et se retrouvaient perdues au milieu
+   d'une longue liste ; ici elles encadrent le titre et restent à portée. */
+.services-carousel-head {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 26px;
+}
+.services-carousel-head[hidden] { display: none; }
+.services-wrapper.is-carousel .services-carousel-head { display: flex; }
+.services-carousel-head .services-carousel-cat {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+}
+.services-wrapper.is-carousel .carousel-arrow {
+    position: static;
+    transform: none;
+    flex: 0 0 auto;
+}
+.services-wrapper.is-carousel .carousel-arrow:hover { transform: scale(1.08); }
+
 .carousel-arrow {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 46px; height: 46px; background: var(--gold); border: none; color: var(--noir);

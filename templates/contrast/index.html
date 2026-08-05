@@ -156,6 +156,13 @@
                 <strong>Email</strong>
                 <p><a href="#" id="contact-email">—</a></p>
             </div>
+            <!-- Affiché par hydrate.js uniquement si le salon a un lien de
+                 réservation en ligne (Planity, Treatwell…). Pas de picto ici :
+                 les colonnes de ce template n'en portent pas. -->
+            <div class="contact-col" id="contact-booking-block" style="display:none">
+                <strong>Rendez-vous en ligne</strong>
+                <p><a href="#" id="contact-booking" target="_blank" rel="noopener">Réserver en ligne</a></p>
+            </div>
             <div class="contact-col" id="contact-hours-block">
                 <strong>Horaires</strong>
                 <div id="contact-hours"></div>

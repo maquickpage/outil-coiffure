@@ -19,6 +19,39 @@ async function fetchSalon(slug) {
 }
 
 const $ = id => document.getElementById(id);
+
+// Nom lisible de la plateforme de reservation, pour un libelle de lien plus
+// parlant que « Reserver en ligne » quand on la reconnait.
+const BOOKING_PLATFORMS = [
+  ['planity', 'Planity'], ['treatwell', 'Treatwell'], ['booksy', 'Booksy'],
+  ['reservio', 'Reservio'], ['cituro', 'Cituro'], ['settime', 'SetTime'],
+  ['rdv360', 'RDV360'], ['merci-yanis', 'Merci Yanis'],
+];
+function bookingLinkLabel(url) {
+  const host = String(url || '').toLowerCase();
+  for (const [needle, name] of BOOKING_PLATFORMS) {
+    if (host.includes(needle)) return `Réserver sur ${name}`;
+  }
+  return 'Réserver en ligne';
+}
+
+// Ligne « Rendez-vous en ligne » de la section contact : c'est le SEUL endroit
+// du site qui renvoie vers la plateforme de reservation du salon. Masquee tant
+// qu'aucun lien n'est enregistre.
+function applyBookingLine(bookingUrl) {
+  const block = $('contact-booking-block');
+  const link = $('contact-booking');
+  if (!block || !link) return;
+  if (!bookingUrl) {
+    block.style.display = 'none';
+    document.body.classList.remove('mqs-has-booking');
+    return;
+  }
+  link.href = bookingUrl;
+  link.textContent = bookingLinkLabel(bookingUrl);
+  block.style.display = '';
+  document.body.classList.add('mqs-has-booking');
+}
 const setText = (id, t) => { const el = $(id); if (el && t != null) el.textContent = t; };
 const setHtml = (id, h) => { const el = $(id); if (el && h != null) el.innerHTML = h; };
 const escapeHtml = s => s == null ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -486,22 +519,19 @@ function renderSalon(view) {
     $('contact-phone-block').style.display = 'none';
   }
 
-  // Bouton "Reserver" : URL de reservation en ligne si disponible, sinon scroll vers #contact
+  // Bouton "Reserver" : TOUJOURS vers #contact, meme si le salon a un lien de
+  // reservation en ligne. Aucun bouton de la page ne doit faire sortir le
+  // visiteur du site ; la reservation en ligne se fait depuis la ligne dediee
+  // de la section contact (ci-dessous).
   const navCta = $('nav-cta');
   if (navCta) {
-    const bookingUrl = c.contact.bookingUrl;
-    if (bookingUrl) {
-      navCta.href = bookingUrl;
-      navCta.target = '_blank';
-      navCta.rel = 'noopener';
-      navCta.removeAttribute('data-scroll-fallback');
-    } else {
-      navCta.href = '#contact';
-      navCta.removeAttribute('target');
-      navCta.removeAttribute('rel');
-      navCta.dataset.scrollFallback = '1';
-    }
+    navCta.href = '#contact';
+    navCta.removeAttribute('target');
+    navCta.removeAttribute('rel');
+    navCta.dataset.scrollFallback = '1';
   }
+
+  applyBookingLine(c.contact.bookingUrl);
 
   if (c.contact.email) {
     const emailEl = $('contact-email');
