@@ -140,6 +140,10 @@
         servicesMode = "list";
       }
       grid.style.transform = "";
+      /* Retour en liste (rotation de l'écran, passage sur tablette) : on rend la
+         main au flux normal, sinon la hauteur figée par le carrousel persiste. */
+      var clipReset = wrapper && wrapper.querySelector(".services-clip");
+      if (clipReset) clipReset.style.height = "";
       if (prev) prev.hidden = true;
       if (next) next.hidden = true;
       if (dots) dots.innerHTML = "";
@@ -159,11 +163,24 @@
     }
     if (servicesPage > pages.length - 1) servicesPage = pages.length - 1;
 
+    /* Les pages sont des flex items côte à côte : sans ça le conteneur prend la
+       hauteur de la plus longue et toutes les pages s'étirent dessus. Résultat,
+       en passant d'une catégorie très fournie à une catégorie courte, on tombait
+       sur un grand vide avec deux lignes tout en haut. On fige donc la hauteur
+       du clip sur celle de la page affichée (animée par la transition CSS). */
+    function syncHeight() {
+      var clip = wrapper && wrapper.querySelector(".services-clip");
+      var active = grid.querySelectorAll(".services-page")[servicesPage];
+      if (!clip || !active) return;
+      clip.style.height = active.offsetHeight + "px";
+    }
+
     function update() {
       var page = grid.querySelector(".services-page");
       var gap = 24;
       var step = page ? page.offsetWidth + gap : 0;
       grid.style.transform = "translateX(-" + (servicesPage * step) + "px)";
+      syncHeight();
       prev.hidden = false;
       next.hidden = false;
       prev.disabled = servicesPage === 0;
@@ -187,6 +204,10 @@
     };
 
     update();
+    /* Les hauteurs bougent après coup (polices web, retour à la ligne d'un nom
+       de prestation long) → on remesure quand elles sont prêtes. */
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncHeight).catch(function () {});
+    requestAnimationFrame(syncHeight);
   }
 
   function hydrate(view) {

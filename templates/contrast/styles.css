@@ -429,9 +429,16 @@ body.photos-color .gallery-item img { filter: none; }
     .services-wrapper.is-carousel .services-clip {
         overflow: hidden;
         margin: 0 var(--pad-x);
+        /* Hauteur posée par hydrate.js = celle de la page affichée, pour ne pas
+           laisser un grand vide en passant d'une catégorie fournie à une
+           catégorie courte. La transition accompagne le changement de page. */
+        transition: height 0.45s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .services-wrapper.is-carousel .services-grid {
         display: flex;
+        /* align-items: flex-start → chaque page garde sa hauteur propre au lieu
+           d'être étirée sur celle de la plus longue. */
+        align-items: flex-start;
         grid-template-columns: none;
         gap: 24px;
         max-width: none;

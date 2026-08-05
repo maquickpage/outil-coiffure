@@ -321,7 +321,10 @@
     } else if (taken) {
       badge = `<span class="mqs-badge mqs-badge-pris">Déjà pris</span>`;
     } else {
-      badge = `<span class="mqs-badge mqs-badge-offert">Disponible · offert</span>`;
+      // Libellé court : « Disponible · offert » mangeait la ligne et tronquait
+      // le nom de domaine sur mobile. L'info « offert » reste portée par la
+      // note « 15 €/an offert avec votre formule » juste au-dessus.
+      badge = `<span class="mqs-badge mqs-badge-offert" title="Disponible · offert avec votre formule">Dispo</span>`;
     }
     const classes = ['mqs-domain-row'];
     if (isSelected) classes.push('mqs-domain-selected');
@@ -353,8 +356,8 @@
         resultHtml = `<p class="mqs-custom-error">${escapeHtml(msg)}</p>`;
       } else {
         const isSelected = state.selectedHostname === r.hostname;
-        // Tout domaine accepté est offert
-        const badge = `<span class="mqs-badge mqs-badge-offert">Disponible · offert</span>`;
+        // Tout domaine accepté est offert (libellé court, cf. renderDomainRow)
+        const badge = `<span class="mqs-badge mqs-badge-offert" title="Disponible · offert avec votre formule">Dispo</span>`;
         resultHtml = `
           <div class="mqs-domain-row ${isSelected ? 'mqs-domain-selected' : ''}" data-hostname="${escapeHtml(r.hostname)}" role="button" tabindex="0">
             <span class="mqs-domain-name">${escapeHtml(r.hostname)}</span>

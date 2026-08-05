@@ -262,6 +262,10 @@ function renderServices() {
       servicesMode = 'grid';
     }
     grid.style.transform = '';
+    // Retour en grille (rotation de l'écran, passage sur tablette) : on rend la
+    // main au flux normal, sinon la hauteur figée par le carrousel persiste.
+    const clip = wrapper && wrapper.querySelector('.services-clip');
+    if (clip) clip.style.height = '';
     if (prev) prev.hidden = true;
     if (next) next.hidden = true;
     if (dots) dots.innerHTML = '';
@@ -278,11 +282,24 @@ function renderServices() {
   }
   if (servicesPage > pages.length - 1) servicesPage = pages.length - 1;
 
+  // Les pages sont des flex items côte à côte : sans ça le conteneur prend la
+  // hauteur de la plus longue et toutes les pages s'étirent dessus. Résultat,
+  // en passant d'une catégorie très fournie à une catégorie courte, on tombait
+  // sur un grand vide avec deux lignes tout en haut. On fige donc la hauteur du
+  // clip sur celle de la page affichée (animée par la transition CSS).
+  const syncHeight = () => {
+    const clip = wrapper && wrapper.querySelector('.services-clip');
+    const active = grid.querySelectorAll('.services-page')[servicesPage];
+    if (!clip || !active) return;
+    clip.style.height = `${active.offsetHeight}px`;
+  };
+
   const update = () => {
     const page = grid.querySelector('.services-page');
     const gap = 24;
     const step = page ? page.offsetWidth + gap : 0;
     grid.style.transform = `translateX(-${servicesPage * step}px)`;
+    syncHeight();
     prev.hidden = false;
     next.hidden = false;
     prev.disabled = servicesPage === 0;
@@ -306,6 +323,10 @@ function renderServices() {
   };
 
   update();
+  // Les hauteurs bougent après coup (polices web, retour à la ligne d'un nom de
+  // prestation long) → on remesure quand elles sont prêtes et à chaque resize.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncHeight).catch(() => {});
+  requestAnimationFrame(syncHeight);
 }
 
 function applyHeroImage(src) {

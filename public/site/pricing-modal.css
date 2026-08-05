@@ -2763,6 +2763,48 @@
 @media (max-width: 700px) {
     #mqs-pricing-drawer #mqs-modal { padding: 20px 20px 32px; }
     .mqs-funnel-tabs button { padding: 8px 10px; font-size: 11px; }
+
+    /* Le stepper est centré et large ; la croix, posée en absolu dans le coin,
+       venait recouvrir « 3 · Récapitulatif ». On réserve sa place à droite et
+       on aligne le stepper à gauche. S'il ne tient toujours pas (très petits
+       écrans), il défile latéralement plutôt que de passer à la ligne — sinon
+       on perdrait de la hauteur, ce qu'on veut éviter ici. */
+    .mqs-funnel-tabs {
+        width: auto;
+        max-width: calc(100% - 34px);
+        margin-left: 0;
+        margin-right: auto;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .mqs-funnel-tabs::-webkit-scrollbar { display: none; }
+    .mqs-funnel-tabs button { flex: 0 0 auto; white-space: nowrap; }
+
+    /* Croix discrète : pas de pastille grise, juste le trait. Elle reste dans
+       le coin sans manger de hauteur. */
+    #mqs-pricing-drawer #mqs-modal-close {
+        top: 26px;
+        right: 6px;
+        width: 30px;
+        height: 30px;
+        background: transparent;
+        color: #b0b0ab;
+    }
+    #mqs-pricing-drawer #mqs-modal-close:hover,
+    #mqs-pricing-drawer #mqs-modal-close:active {
+        background: rgba(0, 0, 0, .06);
+        color: #6b7280;
+    }
+
+    /* Les slugs de salon donnent des domaines très longs
+       (agen-hairdressers-coiffeur-prive.fr) : on resserre la ligne pour en
+       montrer le plus possible avant l'ellipse. */
+    .mqs-domain-row { padding: 16px 16px; }
+    .mqs-domain-row.mqs-domain-selected { padding: 15px 15px; }
+    .mqs-domain-name { font-size: 15px; }
+    .mqs-badge { font-size: 12px; padding: 5px 10px; }
     .mqs-step-title { font-size: 30px; }
     .mqs-step-sub { font-size: 14px; }
     #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-sub { white-space: normal; }
