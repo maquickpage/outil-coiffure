@@ -131,18 +131,37 @@
 /* Sur écrans étroits, on garde « dès 9,90 €/mois » et on lâche le détail,
    puis le texte « Ce site a été créé… » avant de toucher au prix. */
 @media (max-width: 900px) { .mqs-ribbon-price-extra { display: none; } }
+/* Mobile : plutôt que de tronquer / superposer, le ribbon devient une bande
+   défilante horizontalement. Tout le contenu garde sa taille normale et se lit
+   en glissant latéralement. `display: contents` sur .mqs-ribbon-left fait
+   remonter la puce DÉMO et le message au niveau du conteneur scrollable, ce
+   qui permet de les réordonner : l'info tarifaire passe en premier, le message
+   marketing en dernier. */
 @media (max-width: 760px) {
-  .mqs-ribbon-message, .mqs-ribbon-cta { display: none; }
-  .mqs-ribbon-options { min-width: max-content; }
-  .mqs-ribbon-inner { overflow: hidden; }
+  .mqs-ribbon-inner {
+    padding: 0 12px;
+    gap: 10px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mqs-ribbon-inner::-webkit-scrollbar { display: none; }
+  .mqs-ribbon-left { display: contents; }
+  .mqs-ribbon-chip { order: 1; }
+  .mqs-ribbon-options { order: 2; flex: 0 0 auto; margin-left: 0; min-width: max-content; }
+  .mqs-ribbon-cta { order: 3; flex: 0 0 auto; }
+  .mqs-ribbon-message { order: 4; flex: 0 0 auto; padding-right: 4px; }
+  /* overflow-y: hidden rogne le badge s'il déborde du ribbon → on le remonte
+     juste ce qu'il faut pour qu'il reste entièrement dans les 48px. */
+  .mqs-ribbon-options button.is-popular span { top: -5px; }
 }
 @media (max-width: 420px) {
-  .mqs-ribbon-inner { padding: 0 10px; gap: 8px; }
-  .mqs-ribbon-left { gap: 8px; }
+  .mqs-ribbon-inner { padding: 0 10px; }
   .mqs-ribbon-price-main strong { font-size: 17px; }
   .mqs-ribbon-from { display: none; }
-  .mqs-ribbon-cta { font-size: 12px; }
-  .mqs-ribbon-cta svg { display: none; }
 }
 
 /* ── BOTTOM BAR ──────────────────────────────────────────────────────────── */
@@ -270,6 +289,14 @@
 .mqs-domain-preview-list strong span { color: #b7e400; }
 .mqs-domain-preview-list > span { padding: 6px 11px; border: 1px dashed rgba(255,255,255,.22); border-radius: 9px; color: rgba(255,255,255,.55); font-weight: 700; }
 .mqs-domain-helper { flex-basis: 100%; }
+/* Kicker de la version mobile de la bar (remplace la phrase d'accroche). */
+.mqs-bar-kicker {
+  color: rgba(255,255,255,.5);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 .mqs-price-chip {
   display: inline-flex; align-items: center;
   background: rgba(205,242,77,.12); color: #cdf24d;
@@ -361,11 +388,19 @@
   .mqs-bar-cta-desktop { display: none; }
   .mqs-bar-mobile,
   .mqs-bar-cta-mobile { display: block; }
-  .mqs-bar-copy-1 { font-size: 15px; max-width: 125px; }
-  .mqs-bar-copy-2 { display: grid; gap: 8px; font-size: 12.5px; }
+  .mqs-bar-copy-2 { display: grid; gap: 8px; font-size: 12.5px; margin-top: 0; }
   .mqs-domain-preview { font-size: 14px; }
+  /* Mobile : les adresses passent en texte simple (plus de pastilles bordées),
+     sinon la bar double de hauteur pour deux mots. */
+  .mqs-bar-mobile .mqs-domain-preview-list { gap: 2px 8px; }
+  .mqs-bar-mobile .mqs-domain-preview-list strong {
+    padding: 0; border: 0; background: none; font-size: 14px;
+  }
+  .mqs-bar-mobile .mqs-domain-preview-list > span {
+    padding: 0; border: 0; font-weight: 600; font-size: 12px;
+  }
   .mqs-bar-copy-2 .mqs-price-chip { display: inline-flex; margin-top: 4px; }
-  .mqs-bar-cta { padding: 14px 24px; font-size: 15px; }
+  .mqs-bar-cta { padding: 13px 18px; font-size: 14px; }
   .mqs-passive-price-inner { flex-wrap: wrap; gap: 7px 12px; text-align: center; }
   .mqs-passive-price-kicker { flex-basis: 100%; }
   .mqs-passive-price-inner > span:not(.mqs-passive-price-kicker) { display: none; }
@@ -375,7 +410,7 @@
   .mqs-bar-inner { align-items: center; gap: 14px; }
   .mqs-domain-offer-mark { display: none; }
   .mqs-bar-action { align-items: center; }
-  .mqs-bar-cta { padding: 14px 20px; font-size: 15px; }
+  .mqs-bar-cta { padding: 13px 16px; font-size: 14px; }
 }
 
 /* ── Ajustements pour les sites coiffeur (navbar fixée en haut) ─────────── */

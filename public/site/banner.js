@@ -142,15 +142,15 @@
     const desktopTitle = count
       ? 'Ces adresses web sont disponibles pour vous — <span>En voir plus</span>'
       : 'Trouvez l’adresse idéale pour votre salon';
-    const mobileTitle = desktopTitle;
     const desktopDetail = count
       ? `<span class="mqs-domain-preview-list"><strong><span aria-hidden="true">✓</span> ${firstHostname}</strong>${secondHostname ? `<strong><span aria-hidden="true">✓</span> ${secondHostname}</strong>` : ''}${desktopRemaining ? `<span>+${desktopRemaining} autres</span>` : ''}</span>`
       : '<span>Consultez nos suggestions ou recherchez directement le nom de votre choix.</span>';
+    // Mobile : pas de phrase d'accroche (la bar doit rester compacte au-dessus
+    // des deux pilules), juste le kicker + l'adresse + le reste du décompte.
     const mobileDetail = count
-      ? `<strong class="mqs-domain-preview"><span aria-hidden="true">✓</span> ${firstHostname}</strong>${mobileRemaining ? `<span>+${mobileRemaining} autres</span>` : ''}`
-      : '<span>Consultez nos suggestions ou recherchez directement le nom de votre choix.</span>';
-    const cta = count ? 'Voir mon adresse' : 'Explorer les domaines';
-    const mobileCta = cta;
+      ? `<span class="mqs-bar-kicker">Adresses disponibles</span><span class="mqs-domain-preview-list"><strong><span aria-hidden="true">✓</span> ${firstHostname}</strong>${mobileRemaining ? `<span>+${mobileRemaining} autres</span>` : ''}</span>`
+      : '<span class="mqs-bar-kicker">Adresses disponibles</span><span>Consultez nos suggestions ou recherchez le nom de votre choix.</span>';
+    const cta = count ? 'Voir les adresses' : 'Explorer les domaines';
     const b = document.createElement('div');
     b.id = 'mqs-bar-wrap';
     b.innerHTML = `
@@ -164,11 +164,10 @@
               <div class="mqs-bar-copy-2">${desktopDetail}</div>
             </div>
             <div class="mqs-bar-mobile">
-              <div class="mqs-bar-copy-1"><b>${mobileTitle}</b></div>
               <div class="mqs-bar-copy-2">${mobileDetail}</div>
             </div>
           </div>
-          <div class="mqs-bar-action"><button class="mqs-bar-cta" type="button"><span class="mqs-bar-cta-desktop">${cta}</span><span class="mqs-bar-cta-mobile">${mobileCta}</span> →</button><small>Gratuit · sans carte à cette étape</small></div>
+          <div class="mqs-bar-action"><button class="mqs-bar-cta" type="button">${cta}</button></div>
         </div>
       </div>
     `;

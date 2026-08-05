@@ -251,20 +251,63 @@ body.mqs-style-open {
   font: 600 12px/1.3 Montserrat, Arial, sans-serif;
 }
 
-@media (max-width: 600px) {
+/* ── Mobile ────────────────────────────────────────────────────────────────
+   La pastille « Style du site » devient une petite pilule sombre occupant la
+   moitié gauche, alignée juste au-dessus de la grande CTA MaQuickPage (l'autre
+   moitié étant tenue par « Modifier mon site », cf. preview-onboarding.css).
+   Même gabarit, même habillage que la grosse bar pour former un ensemble.
+   Le breakpoint est calé sur celui de banner.css (720px). */
+@media (max-width: 720px) {
   #mqs-style-switcher {
-    right: 16px;
-    bottom: calc(16px + var(--mqs-bar-h, 0px));
+    right: auto;
+    left: 20px;
+    width: calc(50% - 24px);
+    bottom: calc(22px + var(--mqs-bar-h, 0px) + 8px);
   }
 
   .mqs-style-trigger {
-    width: min(330px, calc(100vw - 32px));
+    width: 100%;
     min-width: 0;
+    height: 52px;
+    margin-left: 0;
+    gap: 0;
+    padding: 0 14px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 12px;
+    background: #0f0f0f;
+    color: #f4f4f2;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, .08) inset,
+      0 18px 40px -14px rgba(0, 0, 0, .6);
+    backdrop-filter: none;
+    font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
   }
 
-  .mqs-style-trigger-action {
-    width: auto;
+  .mqs-style-trigger > span:first-child { min-width: 0; }
+
+  .mqs-style-trigger small {
+    color: rgba(255, 255, 255, .5);
+    font-size: 9.5px;
+    font-weight: 700;
   }
+
+  .mqs-style-trigger strong {
+    display: block;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Sur mobile la pilule ne porte plus le texte explicatif : trop long, il
+     poussait la grande CTA et se faisait recouvrir. */
+  .mqs-style-trigger-action { display: none; }
+
+  /* Panneau ouvert : on masque la grande CTA et les deux pilules, sinon trois
+     calques se superposent en bas d'écran. */
+  body.mqs-style-open #mqs-bar-wrap,
+  body.mqs-style-open .mqs-pre-edit-btn,
+  body.mqs-style-open .mqs-style-trigger { display: none; }
 
   .mqs-style-panel {
     position: fixed;

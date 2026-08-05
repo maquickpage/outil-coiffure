@@ -135,13 +135,19 @@
     height: 18px;
     flex-shrink: 0;
 }
+/* Le kicker n'existe que dans la version pilule (mobile). */
+.mqs-pre-edit-btn-kicker { display: none; }
 .mqs-pre-edit-btn:hover {
     transform: translateY(-2px);
     background: #b39658;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-@media (max-width: 600px) {
+/* ── Mobile ────────────────────────────────────────────────────────────────
+   Le FAB doré devient une petite pilule sombre occupant la moitié droite,
+   alignée au-dessus de la grande CTA MaQuickPage, jumelle de la pilule
+   « Style du site » (cf. style-switcher.css). Breakpoint calé sur banner.css. */
+@media (max-width: 720px) {
     .mqs-pre-popup {
         max-width: calc(100vw - 32px);
         min-width: 0;
@@ -150,26 +156,60 @@
         width: auto;
     }
     .mqs-pre-edit-btn {
-        bottom: 16px;
-        right: 16px;
-        height: 46px;
-        padding: 0 16px;
-        font-size: 0.85rem;
+        left: auto;
+        right: 20px;
+        /* La var `--mqs-bar-h` (hauteur réelle de la bar CTA, posée par
+           banner.js) place la pilule pile au-dessus ; 0 quand il n'y a pas
+           de bar → la pilule redescend en bas d'écran. */
+        bottom: calc(22px + var(--mqs-bar-h, 0px) + 8px);
+        width: calc(50% - 24px);
+        height: 52px;
+        padding: 0 14px;
+        gap: 9px;
+        justify-content: flex-start;
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 12px;
+        background: #0f0f0f;
+        color: #f4f4f2;
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, .08) inset,
+            0 18px 40px -14px rgba(0, 0, 0, .6);
+        font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
+        font-size: 13px;
+        /* Même transition que la pilule « Style du site » : les deux glissent
+           en même temps quand la hauteur de la bar CTA change. */
+        transition: bottom 220ms ease, background 0.15s;
     }
-    /* Décalage du FAB UNIQUEMENT en mobile : quand la bar CTA MaQuickPage est
-       mountée (`body.mqs-bar-active` + var `--mqs-bar-h` = hauteur réelle),
-       on remonte le bouton "Modifier mon site" au-dessus de la bar pour
-       qu'il reste accessible. Sur desktop la bar est centrée et le FAB est
-       à droite, donc aucun chevauchement → pas de décalage. */
-    body.mqs-bar-active .mqs-pre-edit-btn {
-        bottom: calc(16px + var(--mqs-bar-h, 96px) + 10px);
+    .mqs-pre-edit-btn:hover {
+        transform: none;
+        background: #171717;
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, .08) inset,
+            0 18px 40px -14px rgba(0, 0, 0, .6);
+    }
+    .mqs-pre-edit-btn svg {
+        display: none; /* place gagnée pour le libellé */
+    }
+    .mqs-pre-edit-btn-text {
+        display: grid;
+        gap: 1px;
+        min-width: 0;
+        text-align: left;
+    }
+    .mqs-pre-edit-btn-kicker {
+        display: block;
+        color: rgba(255, 255, 255, .5);
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
     }
     .mqs-pre-edit-btn-label {
-        display: none; /* sur mobile : juste l'icône, gain de place */
-    }
-    .mqs-pre-edit-btn {
-        width: 46px;
-        padding: 0;
-        justify-content: center;
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
