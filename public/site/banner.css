@@ -38,6 +38,12 @@
 }
 .mqs-ribbon-inner {
   width: 100%; height: 100%;
+  display: flex; align-items: stretch;
+  overflow: hidden;
+}
+.mqs-ribbon-track {
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 0 24px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px;
@@ -131,6 +137,13 @@
 /* Sur écrans étroits, on garde « dès 9,90 €/mois » et on lâche le détail,
    puis le texte « Ce site a été créé… » avant de toucher au prix. */
 @media (max-width: 900px) { .mqs-ribbon-price-extra { display: none; } }
+/* Tablette / petit laptop : le message a `white-space: nowrap` et se comprime
+   sans se couper → son texte passait sous les puces de prix. En dessous de la
+   largeur où tout tient côte à côte (~1060px), on le retire. Sur mobile il est
+   au contraire conservé : le marquee lui donne la place de défiler. */
+@media (min-width: 761px) and (max-width: 1060px) {
+  .mqs-ribbon-message { display: none; }
+}
 /* Mobile : plutôt que de tronquer / superposer, le ribbon devient une bande
    défilante horizontalement. Tout le contenu garde sa taille normale et se lit
    en glissant latéralement. `display: contents` sur .mqs-ribbon-left fait
@@ -138,10 +151,9 @@
    qui permet de les réordonner : l'info tarifaire passe en premier, le message
    marketing en dernier. */
 @media (max-width: 760px) {
+  /* Repli quand le marquee est inactif (prefers-reduced-motion, ou JS non
+     exécuté) : la bande reste lisible en la faisant défiler au doigt. */
   .mqs-ribbon-inner {
-    padding: 0 12px;
-    gap: 10px;
-    justify-content: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -149,6 +161,12 @@
     -webkit-overflow-scrolling: touch;
   }
   .mqs-ribbon-inner::-webkit-scrollbar { display: none; }
+  .mqs-ribbon-track {
+    flex: 0 0 auto;
+    padding: 0 12px;
+    gap: 10px;
+    justify-content: flex-start;
+  }
   .mqs-ribbon-left { display: contents; }
   .mqs-ribbon-chip { order: 1; }
   .mqs-ribbon-options { order: 2; flex: 0 0 auto; margin-left: 0; min-width: max-content; }
@@ -157,6 +175,33 @@
   /* overflow-y: hidden rogne le badge s'il déborde du ribbon → on le remonte
      juste ce qu'il faut pour qu'il reste entièrement dans les 48px. */
   .mqs-ribbon-options button.is-popular span { top: -5px; }
+
+  /* ── Marquee : défilement automatique permanent ─────────────────────────
+     Activé par banner.js (classe .is-marquee) seulement si le contenu déborde
+     et que l'utilisateur n'a pas demandé de réduire les animations. La piste
+     est dupliquée : les deux glissent de -100 % de leur largeur, donc le clone
+     prend le relais pile quand l'original sort → boucle sans coupure.
+     `overflow-x: hidden` reprend la main pour que l'animation ne crée pas de
+     zone scrollable parasite. */
+  #mqs-ribbon.is-marquee .mqs-ribbon-inner { overflow-x: hidden; }
+  #mqs-ribbon.is-marquee .mqs-ribbon-track {
+    animation: mqsMarquee var(--mqs-marquee-duration, 20s) linear infinite;
+    will-change: transform;
+  }
+  /* Un tap fige la bande 5 s (cf. banner.js) : sans ça les puces de prix sont
+     des cibles mouvantes. */
+  #mqs-ribbon.is-paused .mqs-ribbon-track { animation-play-state: paused; }
+}
+@keyframes mqsMarquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+/* Ceinture et bretelles : même si le JS a posé .is-marquee (par ex. le réglage
+   système a changé après coup), on n'anime jamais en mode « moins d'animations ». */
+@media (prefers-reduced-motion: reduce) {
+  #mqs-ribbon.is-marquee .mqs-ribbon-track { animation: none; }
+  #mqs-ribbon.is-marquee .mqs-ribbon-inner { overflow-x: auto; }
+  .mqs-ribbon-track-clone { display: none; }
 }
 @media (max-width: 420px) {
   .mqs-ribbon-inner { padding: 0 10px; }
@@ -370,10 +415,16 @@
 
 /* ── Bar responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
-  #mqs-bar-wrap { bottom: 22px; width: calc(100% - 40px); }
+  /* env(safe-area-inset-bottom) : sur iPhone à encoche, la barre d'accueil
+     mange les ~34 px du bas. Sans ça la CTA se retrouve dessous. Vaut 0 partout
+     ailleurs (Android, iPhone à bouton), donc c'est neutre. */
+  #mqs-bar-wrap {
+    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 40px);
+  }
   .mqs-bar {
     width: 100%;
-    padding: 18px;
+    padding: 15px 16px;
     border-radius: 16px;
   }
   .mqs-sheet-handle { display: none; }
@@ -388,29 +439,41 @@
   .mqs-bar-cta-desktop { display: none; }
   .mqs-bar-mobile,
   .mqs-bar-cta-mobile { display: block; }
-  .mqs-bar-copy-2 { display: grid; gap: 8px; font-size: 12.5px; margin-top: 0; }
+  /* Empilement vertical : en ligne, le bouton (largeur fixe, texte insécable)
+     grignotait la colonne de gauche et le nom de domaine passait dessous.
+     En colonne, le texte dispose de toute la largeur quel que soit l'écran. */
+  .mqs-bar-inner {
+    display: grid;
+    gap: 11px;
+    align-items: stretch;
+  }
+  .mqs-bar-copy { min-width: 0; }
+  .mqs-bar-action { width: 100%; align-items: stretch; gap: 0; }
+  .mqs-bar-cta { width: 100%; padding: 13px 16px; font-size: 14.5px; }
+  .mqs-bar-copy-2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; font-size: 12.5px; margin-top: 0; }
+  .mqs-bar-kicker { flex-basis: 100%; }
   .mqs-domain-preview { font-size: 14px; }
   /* Mobile : les adresses passent en texte simple (plus de pastilles bordées),
      sinon la bar double de hauteur pour deux mots. */
-  .mqs-bar-mobile .mqs-domain-preview-list { gap: 2px 8px; }
+  .mqs-bar-mobile .mqs-domain-preview-list { gap: 2px 8px; min-width: 0; max-width: 100%; }
   .mqs-bar-mobile .mqs-domain-preview-list strong {
     padding: 0; border: 0; background: none; font-size: 14px;
+    min-width: 0; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis;
   }
   .mqs-bar-mobile .mqs-domain-preview-list > span {
     padding: 0; border: 0; font-weight: 600; font-size: 12px;
   }
   .mqs-bar-copy-2 .mqs-price-chip { display: inline-flex; margin-top: 4px; }
-  .mqs-bar-cta { padding: 13px 18px; font-size: 14px; }
   .mqs-passive-price-inner { flex-wrap: wrap; gap: 7px 12px; text-align: center; }
   .mqs-passive-price-kicker { flex-basis: 100%; }
   .mqs-passive-price-inner > span:not(.mqs-passive-price-kicker) { display: none; }
 }
 
 @media (max-width: 420px) {
-  .mqs-bar-inner { align-items: center; gap: 14px; }
   .mqs-domain-offer-mark { display: none; }
-  .mqs-bar-action { align-items: center; }
-  .mqs-bar-cta { padding: 13px 16px; font-size: 14px; }
+  .mqs-bar { padding: 14px; }
+  .mqs-bar-inner { gap: 10px; }
 }
 
 /* ── Ajustements pour les sites coiffeur (navbar fixée en haut) ─────────── */

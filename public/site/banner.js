@@ -88,33 +88,91 @@
     r.setAttribute('role', 'complementary');
     r.innerHTML = `
       <div class="mqs-ribbon-inner">
-        <div class="mqs-ribbon-left">
-          <span class="mqs-ribbon-chip">
-            <span class="mqs-ribbon-dot"></span>
-            DÉMO
-          </span>
-          <span class="mqs-ribbon-message">
-            Votre site est prêt — <b>il ne reste qu'une étape</b> pour le mettre en ligne
-          </span>
+        <div class="mqs-ribbon-track">
+          <div class="mqs-ribbon-left">
+            <span class="mqs-ribbon-chip">
+              <span class="mqs-ribbon-dot"></span>
+              DÉMO
+            </span>
+            <span class="mqs-ribbon-message">
+              Votre site est prêt — <b>il ne reste qu'une étape</b> pour le mettre en ligne
+            </span>
+          </div>
+          <div class="mqs-ribbon-options" aria-label="Formules disponibles">
+            <button type="button"><small>24 mois</small><strong>9,90 €</strong><small>/mois</small></button>
+            <button type="button" class="is-popular"><span>POPULAIRE</span><small>12 mois</small><strong>17,90 €</strong><small>/mois</small></button>
+            <button type="button"><small>Sans engag.</small><strong>29 €</strong><small>/mois</small></button>
+          </div>
+          <button class="mqs-ribbon-cta" type="button" aria-label="Voir les détails">
+            Détails
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2.5 6h7M6 2.5L9.5 6 6 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
-        <div class="mqs-ribbon-options" aria-label="Formules disponibles">
-          <button type="button"><small>24 mois</small><strong>9,90 €</strong><small>/mois</small></button>
-          <button type="button" class="is-popular"><span>POPULAIRE</span><small>12 mois</small><strong>17,90 €</strong><small>/mois</small></button>
-          <button type="button"><small>Sans engag.</small><strong>29 €</strong><small>/mois</small></button>
-        </div>
-        <button class="mqs-ribbon-cta" type="button" aria-label="Voir les détails">
-          Détails
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M2.5 6h7M6 2.5L9.5 6 6 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
       </div>
     `;
-    r.querySelector('.mqs-ribbon-cta').addEventListener('click', () => openPricingModal('top_ribbon'));
-    r.querySelectorAll('.mqs-ribbon-options button').forEach(button => {
-      button.addEventListener('click', () => openPricingModal('top_ribbon'));
+    // Délégation : le marquee mobile duplique la piste (cf. setupRibbonMarquee),
+    // donc on ne peut pas attacher les handlers aux boutons un par un.
+    r.addEventListener('click', (event) => {
+      if (event.target.closest('.mqs-ribbon-cta, .mqs-ribbon-options button')) {
+        openPricingModal('top_ribbon');
+      }
     });
     return r;
+  }
+
+  // ── Défilement automatique du ribbon sur mobile ────────────────────────────
+  // Le contenu ne tient pas dans 375px : plutôt que de le tronquer ou d'exiger
+  // un geste, on le fait défiler en boucle. Technique marquee classique : on
+  // clone la piste, les deux glissent de -100% de leur largeur, et comme le
+  // clone démarre là où l'original finit la boucle est invisible.
+  // Le clone est aria-hidden + non focusable (contenu dupliqué pour l'a11y).
+  const MOBILE_RIBBON_QUERY = '(max-width: 760px)';
+  const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+  let ribbonPauseTimer = null;
+
+  function setupRibbonMarquee(ribbon) {
+    const inner = ribbon.querySelector('.mqs-ribbon-inner');
+    const track = ribbon.querySelector('.mqs-ribbon-track');
+    if (!inner || !track) return;
+
+    const sync = () => {
+      const isMobile = window.matchMedia(MOBILE_RIBBON_QUERY).matches;
+      const reduced = window.matchMedia(REDUCED_MOTION_QUERY).matches;
+      const clone = inner.querySelector('.mqs-ribbon-track-clone');
+      // Marquee inutile si le contenu tient déjà, si on est sur desktop, ou si
+      // l'utilisateur a demandé moins d'animations (on retombe alors sur un
+      // défilement manuel, cf. .mqs-ribbon-inner en CSS).
+      if (!isMobile || reduced || track.scrollWidth <= inner.clientWidth + 1) {
+        if (clone) clone.remove();
+        ribbon.classList.remove('is-marquee');
+        return;
+      }
+      if (!clone) {
+        const copy = track.cloneNode(true);
+        copy.classList.add('mqs-ribbon-track-clone');
+        copy.setAttribute('aria-hidden', 'true');
+        copy.querySelectorAll('button').forEach(b => b.setAttribute('tabindex', '-1'));
+        inner.appendChild(copy);
+      }
+      // La durée suit la largeur pour garder une vitesse de lecture constante
+      // (~55 px/s) quelle que soit la taille de l'écran ou la longueur du texte.
+      ribbon.style.setProperty('--mqs-marquee-duration', `${Math.round(track.scrollWidth / 55)}s`);
+      ribbon.classList.add('is-marquee');
+    };
+
+    // Un tap met le défilement en pause quelques secondes : sans ça les puces
+    // de prix sont des cibles mouvantes, donc quasi incliquables au doigt.
+    ribbon.addEventListener('pointerdown', () => {
+      ribbon.classList.add('is-paused');
+      clearTimeout(ribbonPauseTimer);
+      ribbonPauseTimer = setTimeout(() => ribbon.classList.remove('is-paused'), 5000);
+    });
+
+    sync();
+    window.addEventListener('resize', sync);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(sync).catch(() => {});
   }
 
   function buildPassiveBanner() {
@@ -179,7 +237,28 @@
     return b;
   }
 
+  // Sur /preview, on attend la réponse de la recherche de domaines avant de
+  // monter la bar : sinon elle s'affiche d'abord dans son état de repli
+  // (« Trouvez l'adresse idéale… »), puis refreshBar() la remplace une seconde
+  // plus tard par la vraie liste — ce qui se voyait comme un clignotement.
+  // Garde-fou : si l'API traîne, on monte quand même le repli au bout de 2,5 s.
+  const DOMAIN_WAIT_MS = 2500;
+  let mountPending = false;
+  let mountWaitTimer = null;
+
   function mountBar() {
+    if (sheetShown || sheetDismissed) return;
+    if (isPreview && !domainLookupFinished) {
+      if (!mountPending) {
+        mountPending = true;
+        mountWaitTimer = setTimeout(() => { mountPending = false; mountBarNow(); }, DOMAIN_WAIT_MS);
+      }
+      return;
+    }
+    mountBarNow();
+  }
+
+  function mountBarNow() {
     if (sheetShown || sheetDismissed) return;
     const existing = document.getElementById('mqs-bar-wrap');
     if (existing) existing.remove();
@@ -187,6 +266,9 @@
     document.body.appendChild(bar);
     sheetShown = true;
     setBarActive(true);
+    // Signal utilisé par les deux pilules (« Style du site » / « Modifier mon
+    // site ») pour apparaître en même temps que la bar, pas au chargement.
+    window.dispatchEvent(new CustomEvent('mqs-bar-shown'));
     try { window.mqsTrack && window.mqsTrack('paywall_peek_viewed', getSheetMeta()); } catch (e) {}
     // Re-mesure après que le DOM ait peint, et au resize (la hauteur peut changer
     // si la 2e ligne wrap sur petite largeur).
@@ -236,7 +318,13 @@
       availableDomains = [];
     } finally {
       domainLookupFinished = true;
-      refreshBar();
+      if (mountPending) {
+        mountPending = false;
+        clearTimeout(mountWaitTimer);
+        mountBarNow();
+      } else {
+        refreshBar();
+      }
     }
   }
 
@@ -260,7 +348,6 @@
 
     const footer = document.querySelector('footer');
     if (!footer) return;
-    loadAvailableDomains();
     // Le sentinel reste enfant direct de <body> pour ne jamais hériter de la
     // grille d'un template hydraté.
     const bodyAnchor = Array.from(document.body.children).find(el => el.tagName === 'SCRIPT') || null;
@@ -292,7 +379,9 @@
     // Pas dans l'éditeur /admin/{slug} où l'utilisateur est déjà en train de
     // personnaliser son site — le ribbon serait redondant et visuellement parasite.
     if (isPreview && !document.getElementById('mqs-ribbon')) {
-      document.body.appendChild(buildRibbon());
+      const ribbon = buildRibbon();
+      document.body.appendChild(ribbon);
+      setupRibbonMarquee(ribbon);
       // Le ribbon pousse la navbar (cf. banner.css → body:has(#mqs-ribbon)).
       // On laisse main.js re-mesurer dynamiquement la nouvelle hauteur "header"
       // (= navbar + ribbon) via syncHeroBounds(). .hero-content suit avec
@@ -346,6 +435,11 @@
     }
 
     try { sheetDismissed = sessionStorage.getItem(SHEET_DISMISSED_KEY) === '1'; } catch (e) {}
+
+    // Lancé au plus tôt (et non à l'apparition de la bar) : la réponse a ainsi
+    // le temps d'arriver avant le premier scroll, et la bar se monte
+    // directement dans son état final.
+    loadAvailableDomains();
 
     // Le premier geste de scroll révèle immédiatement la chrome et la bubble.
     // Si OVH n'a pas encore répondu, la bubble affiche son fallback honnête puis

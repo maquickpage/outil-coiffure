@@ -117,10 +117,42 @@
     });
     document.body.appendChild(btn);
     state.editBtn = btn;
+    armEditButtonReveal();
+  }
+
+  // Le bouton n'apparaît qu'avec la grande CTA « adresses disponibles », pas au
+  // chargement de la démo. Signal principal : l'event `mqs-bar-shown` émis par
+  // banner.js. Repli : si la bar a été fermée plus tôt dans la session, l'event
+  // ne viendra jamais → on révèle 3 s après le premier scroll.
+  function armEditButtonReveal() {
+    let timer = null;
+    const onScroll = () => {
+      if (window.scrollY <= 0 || timer) return;
+      timer = setTimeout(revealEditButton, 3000);
+    };
+    state.onEditReveal = () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', onScroll);
+    };
+    window.addEventListener('mqs-bar-shown', revealEditButton, { once: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  // Révélation immédiate, sans attendre le scroll. Utilisé par la visite
+  // guidée : son étape 2 pointe le bouton, il doit donc être visible.
+  function revealEditButton() {
+    if (state.onEditReveal) state.onEditReveal();
+    const btn = state.editBtn || document.querySelector('.mqs-pre-edit-btn');
+    if (btn) btn.classList.add('is-revealed');
   }
 
   function start() {
     if (state.overlay) return;
+
+    // L'étape 2 met le bouton en surbrillance : il doit être visible dès le
+    // début de la visite, sans attendre le scroll.
+    revealEditButton();
 
     state.overlay = document.createElement('div');
     state.overlay.className = 'mqs-pre-overlay';

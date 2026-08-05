@@ -121,7 +121,7 @@
     cursor: pointer;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
     z-index: 9000;
-    transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+    transition: transform 0.26s, opacity 0.26s, background 0.15s, box-shadow 0.15s;
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -137,6 +137,15 @@
 }
 /* Le kicker n'existe que dans la version pilule (mobile). */
 .mqs-pre-edit-btn-kicker { display: none; }
+
+/* Comme la pilule « Style du site », le bouton n'apparaît qu'avec la grande CTA
+   (au premier scroll) — sauf pendant la visite guidée, dont l'étape 2 le met en
+   avant : preview-onboarding.js pose alors `is-revealed` sans attendre. */
+.mqs-pre-edit-btn:not(.is-revealed) {
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+}
 .mqs-pre-edit-btn:hover {
     transform: translateY(-2px);
     background: #b39658;
@@ -160,8 +169,9 @@
         right: 20px;
         /* La var `--mqs-bar-h` (hauteur réelle de la bar CTA, posée par
            banner.js) place la pilule pile au-dessus ; 0 quand il n'y a pas
-           de bar → la pilule redescend en bas d'écran. */
-        bottom: calc(22px + var(--mqs-bar-h, 0px) + 8px);
+           de bar → la pilule redescend en bas d'écran.
+           env(safe-area-inset-bottom) : barre d'accueil iPhone (0 ailleurs). */
+        bottom: calc(22px + env(safe-area-inset-bottom, 0px) + var(--mqs-bar-h, 0px) + 8px);
         width: calc(50% - 24px);
         height: 52px;
         padding: 0 14px;
@@ -178,7 +188,7 @@
         font-size: 13px;
         /* Même transition que la pilule « Style du site » : les deux glissent
            en même temps quand la hauteur de la bar CTA change. */
-        transition: bottom 220ms ease, background 0.15s;
+        transition: bottom 220ms ease, transform 0.26s, opacity 0.26s, background 0.15s;
     }
     .mqs-pre-edit-btn:hover {
         transform: none;
@@ -212,4 +222,14 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+}
+
+/* Très petits écrans (iPhone SE 1re gén., Android 320 pt) : « Modifier mon
+   site » dépasse de 2-3 px. On resserre padding et corps plutôt que de laisser
+   l'ellipse manger le mot. Doit rester identique à la pilule « Style du site »
+   (cf. style-switcher.css) pour que les deux gardent le même gabarit. */
+@media (max-width: 360px) {
+    .mqs-pre-edit-btn { padding: 0 11px; }
+    .mqs-pre-edit-btn-label { font-size: 12.5px; }
+    .mqs-pre-edit-btn-kicker { font-size: 9px; }
 }

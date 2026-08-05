@@ -45,24 +45,49 @@ const ALT_TEMPLATE_IDS = new Set(['contrast', 'drama']);
 // Chrome de vente injectée autour des templates du design kit (CONTRACT.md §4).
 // public/site/index.html contient déjà ces balises en dur ; les templates du
 // design kit n'ont QUE le design du salon → on injecte la même chrome ici.
+// ⚠️ Les `?v=` NE sont PAS écrits en dur ici : ils sont lus dans
+// public/site/index.html au boot. Sinon ils divergent silencieusement dès qu'on
+// bumpe une version côté classic, et les templates alternatifs continuent de
+// servir de vieux assets (bug vécu : la chrome CTA restait à l'ancienne version
+// sur contrast/drama alors qu'elle était à jour sur classic).
+const CHROME_HEAD_ASSETS = [
+  'banner.css',
+  'pricing-modal.css',
+  'waiting-screen.css',
+  'preview-onboarding.css',
+  'style-switcher.css',
+];
+const CHROME_BODY_ASSETS = [
+  { file: 'track.js' },
+  { file: 'template-config.js' },
+  { file: 'pricing-modal.js' },
+  { file: 'banner.js' },
+  { file: 'waiting-screen.js' },
+  { file: 'style-switcher.js' },
+  { file: 'preview-onboarding.js', attrs: ' defer' },
+];
+
+/** Récupère le `?v=N` déclaré pour un asset dans public/site/index.html. */
+function assetVersion(indexHtml, file) {
+  const escaped = file.replace(/\./g, '\\.');
+  const match = indexHtml.match(new RegExp(`/_assets/${escaped}(\\?v=[\\w.-]+)`));
+  return match ? match[1] : '';
+}
+
+function buildChrome() {
+  const indexHtml = readFileSync(TEMPLATE_PATH, 'utf8');
+  const head = CHROME_HEAD_ASSETS
+    .map(file => `<link rel="stylesheet" href="/_assets/${file}${assetVersion(indexHtml, file)}">`)
+    .join('\n    ');
+  const body = CHROME_BODY_ASSETS
+    .map(({ file, attrs = '' }) => `<script src="/_assets/${file}${assetVersion(indexHtml, file)}"${attrs}></script>`)
+    .join('\n    ');
+  return { head, body };
+}
+
 // main.js (hydratation du site classic) est volontairement absent : chaque
-// template embarque son propre hydrate.js.
-const CHROME_HEAD = [
-  '<link rel="stylesheet" href="/_assets/banner.css?v=19">',
-  '<link rel="stylesheet" href="/_assets/pricing-modal.css?v=45">',
-  '<link rel="stylesheet" href="/_assets/waiting-screen.css?v=2">',
-  '<link rel="stylesheet" href="/_assets/preview-onboarding.css?v=4">',
-  '<link rel="stylesheet" href="/_assets/style-switcher.css?v=7">',
-].join('\n    ');
-const CHROME_BODY = [
-  '<script src="/_assets/track.js?v=1"></script>',
-  '<script src="/_assets/template-config.js?v=1"></script>',
-  '<script src="/_assets/pricing-modal.js?v=51"></script>',
-  '<script src="/_assets/banner.js?v=36"></script>',
-  '<script src="/_assets/waiting-screen.js?v=3"></script>',
-  '<script src="/_assets/style-switcher.js?v=6"></script>',
-  '<script src="/_assets/preview-onboarding.js?v=7" defer></script>',
-].join('\n    ');
+// template alternatif embarque son propre hydrate.js.
+const { head: CHROME_HEAD, body: CHROME_BODY } = buildChrome();
 
 // Cache par template, lu une fois au boot. Si un fichier change, il faut
 // redémarrer le serveur (ou supprimer cette optimisation pour le dev).

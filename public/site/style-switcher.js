@@ -69,6 +69,24 @@
   });
   window.addEventListener('mqs-onboarding-closed', syncVisibility);
 
+  // La pilule n'apparaît qu'avec la grande CTA « adresses disponibles », pas au
+  // chargement de la démo. Signal principal : l'event émis par banner.js quand
+  // il monte la bar. Repli : si la bar a été fermée plus tôt dans la session,
+  // l'event ne viendra jamais → on révèle 3 s après le premier scroll.
+  let revealTimer = null;
+  const reveal = () => {
+    clearTimeout(revealTimer);
+    window.removeEventListener('scroll', onScrollReveal);
+    root.classList.add('is-revealed');
+  };
+  const onScrollReveal = () => {
+    if (window.scrollY <= 0 || revealTimer) return;
+    revealTimer = setTimeout(reveal, 3000);
+  };
+  window.addEventListener('mqs-bar-shown', reveal, { once: true });
+  window.addEventListener('scroll', onScrollReveal, { passive: true });
+  onScrollReveal();
+
   const observer = new MutationObserver(syncVisibility);
   observer.observe(document.body, { childList: true, subtree: true });
   syncVisibility();

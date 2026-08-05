@@ -35,6 +35,21 @@ body.mqs-style-open {
   display: none;
 }
 
+/* La pilule n'apparaît qu'avec la grande CTA « adresses disponibles » (au
+   premier scroll), pas dès l'ouverture de la démo. `is-revealed` est posée par
+   style-switcher.js sur l'event `mqs-bar-shown` émis par banner.js.
+   ⚠️ L'animation porte sur .mqs-style-trigger, jamais sur #mqs-style-switcher :
+   un `transform` sur la racine en ferait le bloc conteneur du panneau et du
+   scrim (position: fixed), qui cesseraient d'être plein écran. */
+#mqs-style-switcher:not(.is-revealed) { pointer-events: none; }
+#mqs-style-switcher:not(.is-revealed) .mqs-style-trigger {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.mqs-style-trigger {
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+
 .mqs-style-trigger {
   width: fit-content;
   min-width: 355px;
@@ -262,8 +277,11 @@ body.mqs-style-open {
     right: auto;
     left: 20px;
     width: calc(50% - 24px);
-    bottom: calc(22px + var(--mqs-bar-h, 0px) + 8px);
+    /* env(safe-area-inset-bottom) : aligne la pilule sur la CTA, qui prend elle
+       aussi en compte la barre d'accueil iPhone (cf. banner.css). */
+    bottom: calc(22px + env(safe-area-inset-bottom, 0px) + var(--mqs-bar-h, 0px) + 8px);
   }
+
 
   .mqs-style-trigger {
     width: 100%;
@@ -332,4 +350,12 @@ body.mqs-style-open {
     right: 16px;
     bottom: 82px;
   }
+}
+
+/* Très petits écrans : mêmes valeurs que la pilule « Modifier mon site »
+   (cf. preview-onboarding.css) pour que les deux restent jumelles. */
+@media (max-width: 360px) {
+  .mqs-style-trigger { padding: 0 11px; }
+  .mqs-style-trigger strong { font-size: 12.5px; }
+  .mqs-style-trigger small { font-size: 9px; }
 }
