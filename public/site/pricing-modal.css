@@ -1392,6 +1392,17 @@
     color: #111318;
     font-size: 0.65rem;
     font-weight: 800;
+    /* Flex item : le texte passait à la ligne dans la pastille et se calait à
+       gauche. Insécable + centré pour qu'il reste bien au milieu. */
+    flex: 0 0 auto;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Montant du bouton de paiement : insécable, pour ne jamais séparer le nombre
+   de son symbole € (cf. le <br> posé avant, dans pricing-modal.js). */
+.mqs-payment-cta-amount {
+    white-space: nowrap;
 }
 
 .mqs-order-price-line {
@@ -2764,15 +2775,15 @@
     #mqs-pricing-drawer #mqs-modal { padding: 20px 20px 32px; }
     .mqs-funnel-tabs button { padding: 8px 10px; font-size: 11px; }
 
-    /* Le stepper est centré et large ; la croix, posée en absolu dans le coin,
-       venait recouvrir « 3 · Récapitulatif ». On réserve sa place à droite et
-       on aligne le stepper à gauche. S'il ne tient toujours pas (très petits
-       écrans), il défile latéralement plutôt que de passer à la ligne — sinon
-       on perdrait de la hauteur, ce qu'on veut éviter ici. */
+    /* Le stepper reste CENTRÉ. Pour qu'il ne puisse jamais passer sous la croix,
+       on borne sa largeur : centré, une largeur de `100% - 2 × marge` garantit
+       que ses deux bords s'arrêtent avant elle, quelle que soit la taille de
+       l'écran. S'il ne tient pas, il défile latéralement plutôt que de passer à
+       la ligne — sinon on perdrait de la hauteur, ce qu'on veut éviter ici. */
     .mqs-funnel-tabs {
-        width: auto;
-        max-width: calc(100% - 34px);
-        margin-left: 0;
+        width: fit-content;
+        max-width: calc(100% - 56px);
+        margin-left: auto;
         margin-right: auto;
         overflow-x: auto;
         scrollbar-width: none;
@@ -2780,15 +2791,15 @@
         -webkit-overflow-scrolling: touch;
     }
     .mqs-funnel-tabs::-webkit-scrollbar { display: none; }
-    .mqs-funnel-tabs button { flex: 0 0 auto; white-space: nowrap; }
+    .mqs-funnel-tabs button { flex: 0 0 auto; white-space: nowrap; padding: 8px 8px; font-size: 10.5px; }
 
-    /* Croix discrète : pas de pastille grise, juste le trait. Elle reste dans
-       le coin sans manger de hauteur. */
+    /* Croix discrète : pas de pastille grise, juste le trait. Resserrée contre
+       le bord pour laisser le maximum de place au stepper recentré. */
     #mqs-pricing-drawer #mqs-modal-close {
-        top: 26px;
-        right: 6px;
-        width: 30px;
-        height: 30px;
+        top: 27px;
+        right: 2px;
+        width: 26px;
+        height: 26px;
         background: transparent;
         color: #b0b0ab;
     }

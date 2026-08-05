@@ -490,7 +490,7 @@
             <span class="mqs-checkout-lock" aria-hidden="true">
               🔒
             </span>
-            <span><strong>Continuer vers Stripe</strong><small>Le clic ne débite pas immédiatement<br>votre carte.</small></span>
+            <span><strong>Paiement sécurisé</strong><small>Le clic ne débite pas immédiatement<br>votre carte.</small></span>
           </div>
 
           <div class="mqs-email-block">
@@ -524,11 +524,14 @@
           </div>
 
           <button class="mqs-payment-cta" type="button" id="mqs-submit-btn" ${submitDisabled}>
-            <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe · ${formatEur(plan.monthlyPriceTtc)} aujourd'hui`}</span>
+            <!-- Retour à la ligne explicite AVANT le montant : sans lui, le texte
+                 se coupait n'importe où et séparait le nombre de son symbole €
+                 (« 17,90 / € aujourd'hui »). Le montant est insécable. -->
+            <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe<br><span class="mqs-payment-cta-amount">${formatEur(plan.monthlyPriceTtc)} aujourd'hui</span>`}</span>
             ${state.submitting ? '' : '<span aria-hidden="true">→</span>'}
           </button>
           ${state.checkoutError ? `<p class="mqs-checkout-error" role="alert">${escapeHtml(state.checkoutError)}</p>` : ''}
-          <p class="mqs-payment-fineprint">Vous pourrez vérifier une dernière fois le montant avant de confirmer. Paiement sécurisé et chiffré par Stripe.</p>
+          <p class="mqs-payment-fineprint">Paiement sécurisé et chiffré par Stripe.</p>
         </section>
       </div>
 
