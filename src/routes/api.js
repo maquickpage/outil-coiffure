@@ -45,6 +45,9 @@ router.get('/salons', requireAdminSession, (req, res) => {
   // renseigné que pour les campagnes dont on a l'export Smartlead daté).
   if (req.query.contact_status === 'never') where += ' AND cold_mail_campaign IS NULL';
   else if (req.query.contact_status === 'contacted') where += ' AND cold_mail_campaign IS NOT NULL';
+  else if (req.query.contact_status === 'sequenced') {
+    where += ' AND EXISTS (SELECT 1 FROM sequencer_leads q WHERE q.salon_slug = salons.slug)';
+  }
   if (req.query.email_domain) {
     where += ' AND email LIKE @email_domain';
     params.email_domain = `%@${String(req.query.email_domain).replace(/^@/, '').trim()}`;

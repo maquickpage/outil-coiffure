@@ -5,7 +5,7 @@ const state = {
   pageSize: 50,
   search: '',
   csvSource: '',
-  contactStatus: '', // '' = tous, 'never' = jamais cold-mailés, 'contacted' = déjà partis
+  contactStatus: '', // '' = tous, 'never' = jamais cold-mailés, 'contacted' = déjà partis, 'sequenced' = confiés au séquenceur
   groupId: '',     // '' = tous les salons, 'none' = sans groupe, '<id>' = groupe specifique
   groups: [],
   orphanCount: 0,
@@ -916,6 +916,7 @@ async function selectAllAcrossPages() {
     if (state.search) params.set('search', state.search);
     if (state.csvSource) params.set('csv_source', state.csvSource);
     if (state.groupId) params.set('group_id', state.groupId);
+    if (state.contactStatus) params.set('contact_status', state.contactStatus);
     const data = await api('/admin/salon-slugs?' + params.toString());
     if (Array.isArray(data.slugs)) {
       for (const s of data.slugs) state.selectedSlugs.add(s);

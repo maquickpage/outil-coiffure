@@ -661,6 +661,9 @@ function coldMailConds({ email_domain, contact_status, exclude_contacted }, cond
   }
   if (contact_status === 'never') conds.push('cold_mail_campaign IS NULL');
   else if (contact_status === 'contacted') conds.push('cold_mail_campaign IS NOT NULL');
+  else if (contact_status === 'sequenced') {
+    conds.push('EXISTS (SELECT 1 FROM sequencer_leads q WHERE q.salon_slug = salons.slug)');
+  }
   // Exclusion d'EXPORT : plus forte que le filtre d'affichage ci-dessus.
   // Beaucoup de propriétaires partagent un même e-mail entre plusieurs salons
   // (multi-salons, enseignes) : 224 e-mails du pool « jamais contacté » sont
@@ -730,7 +733,8 @@ router.get('/salon-slugs', (req, res) => {
   const { where, params } = buildFilterWhere({
     group_id: req.query.group_id,
     csv_source: req.query.csv_source,
-    search: req.query.search
+    search: req.query.search,
+    contact_status: req.query.contact_status
   });
   const rows = db.prepare(`SELECT slug FROM salons ${where} ORDER BY id ASC`).all(...params);
   res.json({ slugs: rows.map(r => r.slug), count: rows.length });
