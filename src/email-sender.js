@@ -77,6 +77,237 @@ function escapeHtml(s) {
 }
 
 /**
+ * Layout commun aux emails transactionnels (wrapper <table> = standard email,
+ * cf. Stripe/Linear : évite que Gmail/Outlook détachent le footer du contenu).
+ * `body` = le HTML du contenu, inséré tel quel dans la carte blanche.
+ */
+function renderEmailLayout({ subject, body }) {
+  return `<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f5;">
+  <tr>
+    <td align="center" style="padding: 24px 12px;">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px; width: 100%; background: #ffffff; border-radius: 12px; padding: 30px;">
+        <tr><td>
+${body}
+          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 28px 0;">
+          <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin: 0 0 24px;">
+            Une question ? Répondez à cet email ou écrivez à <a href="mailto:contact@maquickpage.fr" style="color: #6b7280;">contact@maquickpage.fr</a>.<br>
+            MaQuickPage — KAISER CO · KAISER JOHANN, Entrepreneur individuel · SIREN 791 069 610 · 61 rue de Lyon, 75012 Paris<br>
+            <a href="https://maquickpage.fr/legal/cgv.html" style="color: #9ca3af;">CGV</a> ·
+            <a href="https://maquickpage.fr/legal/mentions-legales.html" style="color: #9ca3af;">Mentions légales</a> ·
+            <a href="https://maquickpage.fr/legal/privacy.html" style="color: #9ca3af;">Confidentialité</a>
+          </p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr><td align="center" style="padding-top: 12px;">
+              <a href="https://maquickpage.fr/" style="text-decoration: none; border: 0;">
+                <img src="https://maquickpage.fr/_assets/email/logo-signature.png" alt="MaQuickPage" width="100" height="100"
+                     style="display: block; width: 100px; height: 100px; border: 0; outline: none; text-decoration: none;">
+              </a>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body></html>`;
+}
+
+const PLAN_LABELS = {
+  TWO_YEAR: '9,90 € TTC/mois (engagement 24 mois)',
+  ONE_YEAR: '17,90 € TTC/mois (engagement 12 mois)',
+  FLEX: '29 € TTC/mois (sans engagement)',
+};
+
+/**
+ * Email #1 du parcours : envoyé dès la confirmation du paiement Stripe,
+ * AVANT que le site soit en ligne.
+ *
+ * Raison d'être : entre le paiement et la mise en ligne il peut s'écouler
+ * plusieurs dizaines de minutes (enregistrement du domaine chez le registrar).
+ * Le client vient de débiter sa carte et n'a encore rien reçu — ce mail est la
+ * preuve écrite que sa commande est passée.
+ *
+ * Contenu calé sur les standards de l'email de confirmation de commande :
+ * référence, récapitulatif de ce qui est acheté, moyen de paiement, ce qui se
+ * passe ensuite avec un délai annoncé, et un contact. Le récap reprend mot pour
+ * mot les lignes affichées au checkout (pricing-modal.js) : ce que le client a
+ * lu avant de payer doit être ce qu'il relit dans sa boîte mail.
+ */
+export async function sendPaymentReceivedEmail({ to, salonName, hostname, plan, sessionId }) {
+  const planLabel = PLAN_LABELS[plan] || plan || '';
+  const ref = sessionId ? sessionId.slice(-8).toUpperCase() : null;
+  const subject = 'Commande confirmée — votre site est en création';
+
+  const body = `
+          <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Merci ${escapeHtml(salonName)}, votre commande est confirmée.</h1>
+          <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin: 0 0 16px;">
+            Votre paiement a bien été reçu. Nous créons votre site en ce moment même —
+            <strong>vous n'avez rien à faire</strong>, vous recevrez un second email dès qu'il est en ligne.
+          </p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px; margin: 24px 0;">
+            <tr><td style="padding: 20px;">
+              <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Récapitulatif</p>
+              <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.9;">
+                Adresse de votre site : <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong> (offerte la 1<sup>re</sup> année)<br>
+                Formule : <strong style="color:#1a1a1a;">${escapeHtml(planLabel)}</strong><br>
+                Paiement : carte bancaire via Stripe<br>
+                ${ref ? `Référence : <strong style="color:#1a1a1a;">${escapeHtml(ref)}</strong>` : ''}
+              </p>
+            </td></tr>
+          </table>
+
+          <p style="margin: 0 0 10px; font-size: 15px; font-weight: 600; color:#1a1a1a;">Ce qui se passe maintenant</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 24px;">
+            <tr><td style="padding: 6px 0; font-size: 14px; color: #4b5563; line-height: 1.5;">
+              <strong style="color:#1a1a1a;">1. Réservation de votre adresse</strong><br>
+              Nous enregistrons ${escapeHtml(hostname)} à votre nom. Cette étape dépend du registrar :
+              elle prend en général quelques minutes, parfois jusqu'à 45 minutes.
+            </td></tr>
+            <tr><td style="padding: 6px 0; font-size: 14px; color: #4b5563; line-height: 1.5;">
+              <strong style="color:#1a1a1a;">2. Configuration et sécurisation</strong><br>
+              Mise en place technique et certificat HTTPS. Automatique, de notre côté.
+            </td></tr>
+            <tr><td style="padding: 6px 0; font-size: 14px; color: #4b5563; line-height: 1.5;">
+              <strong style="color:#1a1a1a;">3. Mise en ligne</strong><br>
+              Vous recevez un email avec l'adresse de votre site et votre accès pour le modifier
+              (textes, photos, prestations, horaires).
+            </td></tr>
+          </table>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #FAF6EC; border-left: 4px solid #F4A300; border-radius: 0 8px 8px 0; margin: 0 0 24px;">
+            <tr><td style="padding: 18px 20px;">
+              <p style="margin: 0 0 8px; font-size: 13px; color: #002FA7; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Compris dans votre abonnement</p>
+              <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.8;">
+                Votre site personnalisé · 3 designs au choix · nom de domaine offert la 1<sup>re</sup> année ·
+                hébergement en Allemagne (UE) et maintenance · mises à jour ·
+                installation et mise en ligne offertes.
+              </p>
+            </td></tr>
+          </table>
+
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">
+            Besoin d'une facture ou d'une modification ? Répondez directement à cet email, nous vous répondons personnellement.
+          </p>`;
+
+  const text = `Merci ${salonName}, votre commande est confirmée.
+
+Votre paiement a bien été reçu. Nous créons votre site en ce moment même.
+Vous n'avez rien à faire : vous recevrez un second email dès qu'il est en ligne.
+
+RÉCAPITULATIF
+Adresse de votre site : ${hostname} (offerte la 1re année)
+Formule : ${planLabel}
+Paiement : carte bancaire via Stripe${ref ? `\nRéférence : ${ref}` : ''}
+
+CE QUI SE PASSE MAINTENANT
+1. Réservation de votre adresse — nous enregistrons ${hostname} à votre nom.
+   Cette étape dépend du registrar : quelques minutes en général, parfois jusqu'à 45 minutes.
+2. Configuration et sécurisation — mise en place technique et certificat HTTPS, automatique.
+3. Mise en ligne — vous recevez un email avec l'adresse de votre site et votre accès
+   pour le modifier (textes, photos, prestations, horaires).
+
+COMPRIS DANS VOTRE ABONNEMENT
+Votre site personnalisé, 3 designs au choix, nom de domaine offert la 1re année,
+hébergement en Allemagne (UE) et maintenance, mises à jour, installation et mise en ligne offertes.
+
+Besoin d'une facture ou d'une modification ? Répondez directement à cet email.
+
+MaQuickPage — KAISER CO · KAISER JOHANN, Entrepreneur individuel · SIREN 791 069 610
+CGV : https://maquickpage.fr/legal/cgv.html`;
+
+  return sendRaw({ to, subject, html: renderEmailLayout({ subject, body }), text });
+}
+
+/**
+ * Email #2 (conditionnel) : le registrar traîne à livrer le domaine.
+ *
+ * Envoyé automatiquement au bout de OVH_DELAY_NOTICE_MS (8 min par défaut)
+ * quand le domaine n'est toujours pas attribué. À ce stade le client a payé, on
+ * lui a annoncé "moins de 5 minutes", et il a très probablement fermé l'onglet :
+ * sans ce message, il se retrouve avec un débit et aucun site, sans explication.
+ *
+ * Structure calée sur les pratiques d'apology/delay email : excuse directe
+ * ("nous sommes désolés", pas de conditionnel), cause factuelle assumée,
+ * personne responsable, délai concret annoncé, et quoi faire s'il est dépassé.
+ */
+export async function sendRegistrarDelayEmail({ to, salonName, hostname }) {
+  const subject = 'Retard sur la mise en ligne — nous prenons la main';
+
+  const body = `
+          <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Bonjour ${escapeHtml(salonName)},</h1>
+          <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin: 0 0 16px;">
+            Nous sommes désolés : la mise en ligne de votre site prend plus de temps que prévu.
+            Nous préférons vous prévenir plutôt que vous laisser sans nouvelles.
+          </p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px; margin: 24px 0;">
+            <tr><td style="padding: 20px; font-size: 14px; color: #4b5563; line-height: 1.6;">
+              <p style="margin: 0 0 10px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Ce qui se passe</p>
+              <p style="margin: 0 0 12px;">
+                L'enregistrement d'un nom de domaine passe par un organisme extérieur, notre registrar.
+                Aujourd'hui, son délai de traitement pour <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong>
+                est plus long que d'habitude. Le retard vient de là, et de nulle part ailleurs.
+              </p>
+              <p style="margin: 0;">
+                <strong style="color:#1a1a1a;">Votre paiement est bien enregistré et votre site est prêt.</strong>
+                Il attend uniquement que l'adresse lui soit attribuée.
+              </p>
+            </td></tr>
+          </table>
+
+          <p style="margin: 0 0 10px; font-size: 15px; font-weight: 600; color:#1a1a1a;">Ce que nous faisons</p>
+          <p style="font-size: 14px; color: #4b5563; line-height: 1.6; margin: 0 0 24px;">
+            Un membre de notre équipe suit votre dossier personnellement jusqu'à la mise en ligne.
+            Dès que l'adresse est attribuée, la fin de l'installation se fait toute seule, en quelques minutes.
+            <strong style="color:#1a1a1a;">Votre site sera en ligne dans l'heure</strong>, et vous recevrez
+            un email à ce moment-là avec votre accès. Vous n'avez rien à faire d'ici là.
+          </p>
+
+          <p style="font-size: 14px; color: #4b5563; line-height: 1.6; margin: 0 0 16px;">
+            Si vous n'avez rien reçu d'ici une heure, répondez simplement à cet email : nous vous répondrons directement.
+          </p>
+
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">
+            Encore désolé pour cette attente — ce n'est pas l'expérience que nous voulons vous offrir.
+          </p>`;
+
+  const text = `Bonjour ${salonName},
+
+Nous sommes désolés : la mise en ligne de votre site prend plus de temps que prévu.
+Nous préférons vous prévenir plutôt que vous laisser sans nouvelles.
+
+CE QUI SE PASSE
+L'enregistrement d'un nom de domaine passe par un organisme extérieur, notre registrar.
+Aujourd'hui, son délai de traitement pour ${hostname} est plus long que d'habitude.
+Le retard vient de là, et de nulle part ailleurs.
+Votre paiement est bien enregistré et votre site est prêt : il attend uniquement que
+l'adresse lui soit attribuée.
+
+CE QUE NOUS FAISONS
+Un membre de notre équipe suit votre dossier personnellement jusqu'à la mise en ligne.
+Dès que l'adresse est attribuée, la fin de l'installation se fait toute seule, en quelques
+minutes. Votre site sera en ligne dans l'heure, et vous recevrez un email à ce moment-là
+avec votre accès. Vous n'avez rien à faire d'ici là.
+
+Si vous n'avez rien reçu d'ici une heure, répondez simplement à cet email :
+nous vous répondrons directement.
+
+Encore désolé pour cette attente — ce n'est pas l'expérience que nous voulons vous offrir.
+
+MaQuickPage — contact@maquickpage.fr`;
+
+  return sendRaw({ to, subject, html: renderEmailLayout({ subject, body }), text });
+}
+
+/**
  * Email envoyé après que le site est passé LIVE (provisioning OK).
  *
  * Modèle Magic Link Only :
@@ -274,6 +505,8 @@ export async function sendProvisioningErrorEmail({ adminEmail, salonName, slug, 
 
 export default {
   isEnabled,
+  sendPaymentReceivedEmail,
+  sendRegistrarDelayEmail,
   sendSignupSuccessEmail,
   sendProvisioningErrorEmail,
   sendRecoveryEmail,

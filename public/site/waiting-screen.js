@@ -63,7 +63,7 @@
       <h2 class="mqs-waiting-title">Votre site arrive…</h2>
       <p class="mqs-waiting-sub">
         Nous configurons votre domaine et votre site.
-        Cela prend généralement <strong>moins de 5 minutes</strong>.
+        Cela prend généralement <strong>quelques minutes</strong>.
       </p>
       <ul class="mqs-waiting-steps">${stepsHtml}</ul>
       <p class="mqs-waiting-note">
@@ -145,19 +145,50 @@
     `;
   }
 
-  function showError(msg) {
+  // Écran de sortie "on prend le relais".
+  //
+  // Volontairement SANS message d'erreur technique : le client vient de payer,
+  // afficher "OVH domain xxx not ready within 300000ms" ne lui apprend rien et
+  // lui fait croire qu'il a perdu son argent. Ce qu'il doit savoir tient en
+  // trois points : son paiement est enregistré, quelqu'un s'en occupe, il sera
+  // prévenu par email. Le détail technique reste dans les logs et dans
+  // l'alerte admin.
+  function showHandoff() {
     const card = document.querySelector('.mqs-waiting-card');
     if (!card) return;
     card.innerHTML = `
-      <h2 class="mqs-waiting-title">Configuration en cours</h2>
+      <h2 class="mqs-waiting-title">Votre site arrive — nous prenons le relais</h2>
       <p class="mqs-waiting-sub">
-        Nous rencontrons un délai inhabituel. Pas d'inquiétude — un humain prend
-        le relais et vous serez contacté(e) par email dans l'heure.
+        L'enregistrement de votre adresse web prend plus de temps que d'habitude
+        chez notre registrar. <strong>Votre paiement est bien enregistré</strong> et
+        votre site est prêt : il attend uniquement son adresse.
       </p>
-      <p class="mqs-waiting-note">${escapeHtml(msg || '')}</p>
+      <p class="mqs-waiting-note">
+        Vous pouvez fermer cette fenêtre. Vous recevrez un email dès que votre site
+        est en ligne — en général dans l'heure.
+      </p>
       <button id="mqs-waiting-close" class="mqs-waiting-cta" type="button">Fermer</button>
     `;
     document.getElementById('mqs-waiting-close')?.addEventListener('click', closeOverlay);
+  }
+
+  // Le registrar traîne mais le provisioning tourne toujours : on garde la
+  // checklist et on remplace la promesse "moins de 5 minutes" par la vérité,
+  // sinon le client regarde un spinner en se demandant si c'est planté.
+  let delayNoticeShown = false;
+  function showRegistrarDelayNotice() {
+    if (delayNoticeShown) return;
+    delayNoticeShown = true;
+    const sub = document.querySelector('.mqs-waiting-sub');
+    if (sub) {
+      sub.innerHTML = `L'enregistrement de votre adresse web prend un peu plus de temps
+        que d'habitude. Votre paiement est bien enregistré et votre site est prêt —
+        il attend uniquement son adresse.`;
+    }
+    const note = document.querySelector('.mqs-waiting-note');
+    if (note) {
+      note.textContent = 'Vous pouvez fermer cette fenêtre : nous vous envoyons un email dès que votre site est en ligne.';
+    }
   }
 
   function escapeHtml(s) {
@@ -176,7 +207,7 @@
     elapsedSec += 4;
     if (elapsedSec > TIMEOUT_SEC) {
       clearInterval(pollInterval);
-      showError('Configuration plus longue que prévu — vous recevrez un email dès que le site est en ligne (généralement 15-30 min). Vous pouvez fermer cette fenêtre.');
+      showHandoff();
       return;
     }
 
@@ -184,7 +215,7 @@
     let url = '/api/signup/status?';
     if (sessionId) url += 'session_id=' + encodeURIComponent(sessionId);
     else if (slug) url += 'slug=' + encodeURIComponent(slug);
-    else { showError('Slug introuvable.'); clearInterval(pollInterval); return; }
+    else { showHandoff(); clearInterval(pollInterval); return; }
 
     try {
       const res = await fetch(url);
@@ -202,10 +233,11 @@
       }
       if (data.status === 'error') {
         clearInterval(pollInterval);
-        showError(data.error || 'Erreur de configuration côté serveur.');
+        showHandoff();
         return;
       }
       // 'pending' ou 'provisioning' → on update la progression visuelle selon le step réel
+      if (data.registrarDelay) showRegistrarDelayNotice();
       applyStepProgress(data.step);
     } catch (err) {
       // Réseau : retry au prochain tick

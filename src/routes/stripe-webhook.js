@@ -14,6 +14,7 @@ import Stripe from 'stripe';
 import db from '../db.js';
 import { startProvisioning, syncSalonToFalkenstein } from '../provisioning-worker.js';
 import { isTemplateId } from '../templates.js';
+import { sendPaymentReceivedEmail } from '../email-sender.js';
 
 const router = express.Router();
 
@@ -124,6 +125,24 @@ async function onCheckoutCompleted(session) {
   }
   if (updateResult.changes !== 1) {
     throw new Error(`salon introuvable pour checkout.session.completed (${slug})`);
+  }
+
+  // Accusé de réception du paiement, envoyé tout de suite : entre ce moment et
+  // la mise en ligne il peut s'écouler jusqu'à 45 min (délai registrar), et le
+  // client vient de débiter sa carte sans rien avoir reçu.
+  // Fire-and-forget : un problème d'email ne doit jamais faire échouer le
+  // webhook (Stripe rejouerait l'event et on relancerait un provisioning).
+  const customerEmail = session.customer_email || session.customer_details?.email
+    || db.prepare('SELECT owner_email FROM salons WHERE slug = ?').get(slug)?.owner_email;
+  if (customerEmail) {
+    const row = db.prepare('SELECT nom_clean, nom, plan FROM salons WHERE slug = ?').get(slug);
+    sendPaymentReceivedEmail({
+      to: customerEmail,
+      salonName: row?.nom_clean || row?.nom || 'votre salon',
+      hostname,
+      plan: planKey,
+      sessionId: session.id,
+    }).catch(err => console.error('[stripe-webhook] email paiement reçu échoué (non-fatal):', err.message));
   }
 
   // Lance l'orchestrator (worker async, ne bloque pas la réponse webhook)

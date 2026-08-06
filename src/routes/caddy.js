@@ -58,7 +58,17 @@ router.get('/check-hostname', (req, res) => {
     return res.status(200).send('ok');
   }
 
-  // Lookup en DB par live_hostname
+  // Lookup en DB par live_hostname.
+  //
+  // Le provisioning crée DEUX records DNS : l'apex (salon-jean.fr) et www
+  // (www.salon-jean.fr), tous deux → IP Falkenstein. Mais seul l'apex est
+  // stocké en live_hostname. Sans le strip ci-dessous, Caddy demande un cert
+  // pour www.salon-jean.fr → 404 → refus → TLS handshake fail → le visiteur
+  // qui tape "www." voit un avertissement de sécurité du navigateur.
+  // On autorise donc le cert pour www.{apex} dès que l'apex est connu ;
+  // le redirect www → apex est fait par le middleware TENANT_ONLY de server.js.
+  const apex = domain.startsWith('www.') ? domain.slice(4) : domain;
+
   let salon;
   try {
     salon = db.prepare(`
@@ -66,7 +76,7 @@ router.get('/check-hostname', (req, res) => {
       FROM salons
       WHERE live_hostname = ?
       LIMIT 1
-    `).get(domain);
+    `).get(apex);
   } catch (err) {
     console.error('[caddy/check-hostname] DB error:', err.message);
     return res.status(500).send('db_error');

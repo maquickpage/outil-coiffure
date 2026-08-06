@@ -176,6 +176,27 @@ function serveSuspendedPage(res) {
 //   - /legal/*    → page suspended.html + CGV servies en lecture publique
 //   - /_assets/*  → CSS/JS pour rendre la page suspendue
 //   - /health     → monitoring
+// Redirection www → apex sur les sites clients.
+//
+// Le provisioning pointe l'apex ET www vers Falkenstein (2 records DNS), et
+// l'ask-endpoint Caddy autorise le cert pour les deux (cf. src/routes/caddy.js).
+// Un visiteur qui tape www.salon-jean.fr doit atterrir sur salon-jean.fr :
+//   - une seule URL canonique (SEO : pas de contenu dupliqué)
+//   - le SSR et les liens internes sont construits sur l'apex
+// Placé AVANT la gate de suspension pour rediriger même un site suspendu.
+if (TENANT_ONLY) {
+  app.use((req, res, next) => {
+    const host = (req.hostname || '').toLowerCase();
+    if (!host.startsWith('www.')) return next();
+    const apex = host.slice(4);
+    // On ne redirige que si l'apex est un site client connu : évite de créer
+    // une boucle ou de rediriger un hostname infra qui commencerait par www.
+    const salon = lookupSalonByHost({ hostname: apex });
+    if (!salon) return next();
+    return res.redirect(301, `https://${apex}${req.originalUrl}`);
+  });
+}
+
 if (TENANT_ONLY) {
   app.use((req, res, next) => {
     // Whitelist : on ne bloque jamais ces routes

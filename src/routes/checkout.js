@@ -489,6 +489,10 @@ router.get('/signup/status', (req, res) => {
     // | 'verify_live' | 'finalize' | 'done'
     step: job?.step || null,
     error: job?.error || null,
+    // true quand le registrar dépasse son délai habituel : la waiting screen
+    // affiche alors un message d'attente explicite au lieu de laisser tourner
+    // un spinner muet. Le provisioning, lui, continue.
+    registrarDelay: !!job?.registrarDelay,
     liveHostname: row.live_hostname,
     plan: row.plan,
     signedUpAt: row.signed_up_at,

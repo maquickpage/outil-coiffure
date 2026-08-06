@@ -26,7 +26,11 @@
 
 import db from './db.js';
 import { ovhFetch } from './ovh-client.js';
-import { sendSignupSuccessEmail, sendProvisioningErrorEmail } from './email-sender.js';
+import {
+  sendSignupSuccessEmail,
+  sendProvisioningErrorEmail,
+  sendRegistrarDelayEmail,
+} from './email-sender.js';
 import { generateRecoveryToken } from './routes/admin-recover.js';
 
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
@@ -154,12 +158,16 @@ async function runProvisioning(job, params) {
   // de re-payer 6€ à chaque test E2E. Liste en env var (csv).
   const testSkipOvhRegisterHostnames = (process.env.TEST_SKIP_OVH_REGISTER_HOSTNAMES || '')
     .split(',').map(s => s.trim()).filter(Boolean);
-  const skipOvhRegister = testSkipOvhRegisterHostnames.includes(hostname);
+  // Idempotence : si le domaine est déjà dans le portefeuille OVH, l'achat a
+  // déjà eu lieu (retry après un timeout, ou domaine de test qu'on possède).
+  // Sans ça, OVH répond 400 "already managed by OVHcloud" et le retry est mort.
+  const alreadyOwned = testSkipOvhRegisterHostnames.includes(hostname)
+    || await ovhOwnsDomain(hostname);
 
   // Étape 1 : OVH register (toujours 1 an = P1Y)
   job.step = 'ovh_register';
-  if (skipOvhRegister) {
-    console.log(`[TEST BYPASS] ${slug} → skip OVH register pour ${hostname} (déjà possédé)`);
+  if (alreadyOwned) {
+    console.log(`[provisioning] ${slug} → ${hostname} déjà dans le portefeuille OVH, skip achat`);
   } else {
     const orderInfo = await ovhRegisterDomain(hostname, 1);
     console.log(`[provisioning] ${slug} OVH order ${orderInfo.orderId} placed (P1Y)`);
@@ -167,10 +175,10 @@ async function runProvisioning(job, params) {
 
   // Étape 2 : poll OVH task domain jusqu'à "ok"
   job.step = 'ovh_poll';
-  if (skipOvhRegister) {
-    console.log(`[TEST BYPASS] ${slug} → skip OVH poll (domain déjà ready)`);
+  if (alreadyOwned) {
+    console.log(`[provisioning] ${slug} → skip poll OVH (domaine déjà livré)`);
   } else {
-    await pollOvhDomainReady(hostname);
+    await pollOvhDomainReady(hostname, { job, slug });
     console.log(`[provisioning] ${slug} OVH domain READY`);
   }
 
@@ -294,6 +302,45 @@ async function notifyAdminOfError(slug, hostname, errorMessage) {
   }
 }
 
+/**
+ * Le registrar (OVH) met plus longtemps que prévu à livrer le domaine.
+ *
+ * Le client a payé, on lui a annoncé "moins de 5 minutes", et il a
+ * très probablement fermé l'onglet. Sans ce message il reste avec un débit et
+ * aucun site : on le prévient là où on est sûr de le joindre, sa boîte mail.
+ * Non bloquant : le provisioning continue en arrière-plan pendant ce temps.
+ */
+async function notifyCustomerOfRegistrarDelay(slug, hostname) {
+  if (!slug) return;
+  try {
+    const row = db.prepare(`
+      SELECT nom_clean, nom, owner_email FROM salons WHERE slug = ?
+    `).get(slug);
+    if (!row?.owner_email) return;
+    const result = await sendRegistrarDelayEmail({
+      to: row.owner_email,
+      salonName: row.nom_clean || row.nom || 'votre salon',
+      hostname,
+    });
+    if (result.ok) {
+      console.log(`[provisioning] ${slug} email "délai registrar" envoyé → ${row.owner_email}`);
+    }
+    // L'admin aussi : c'est le signal qu'il faut garder un œil sur ce salon.
+    const adminEmail = process.env.RESEND_REPLY_TO || process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      await sendProvisioningErrorEmail({
+        adminEmail,
+        salonName: row.nom_clean || row.nom || slug,
+        slug,
+        hostname,
+        errorMessage: `Retard registrar : OVH n'a pas livré ${hostname} en ${Math.round(OVH_DELAY_NOTICE_MS / 60000)} min. Le worker continue d'attendre (timeout ${Math.round(OVH_POLL_TIMEOUT_MS / 60000)} min). Le client a été prévenu par email.`,
+      });
+    }
+  } catch (err) {
+    console.error(`[provisioning] ${slug} email délai registrar échoué (non-fatal):`, err.message);
+  }
+}
+
 async function sendSignupConfirmation(slug, hostname) {
   try {
     const row = db.prepare(`
@@ -333,6 +380,27 @@ async function sendSignupConfirmation(slug, hostname) {
 // =============================================================================
 // OVH steps
 // =============================================================================
+
+/**
+ * Le domaine est-il DÉJÀ dans notre portefeuille OVH ?
+ *
+ * Sert à rendre l'achat idempotent. Cas réel (2026-08-06) : OVH a mis 26 min
+ * à livrer un .fr, le worker a timeout à 5 min → status 'error'. Le retry
+ * repartait de l'étape achat et OVH répondait
+ * "400 This domain is already managed by OVHcloud" → salon irrécupérable
+ * sans intervention manuelle, alors que le domaine était bien payé.
+ */
+async function ovhOwnsDomain(hostname) {
+  try {
+    const domains = await ovhFetch('GET', '/domain');
+    return Array.isArray(domains) && domains.includes(hostname);
+  } catch (err) {
+    // Non-fatal : en cas de doute on laisse l'achat se tenter (OVH refusera
+    // proprement le doublon plutôt que de facturer deux fois).
+    console.warn(`[provisioning] check portefeuille OVH échoué pour ${hostname}:`, err.message);
+    return false;
+  }
+}
 
 async function ovhRegisterDomain(hostname, years = 1) {
   // 1. Create cart for the order
@@ -393,12 +461,29 @@ async function ovhRegisterDomain(hostname, years = 1) {
   };
 }
 
+// Délai au-delà duquel on considère que le registrar traîne : on prévient le
+// client par email (il a probablement fermé l'onglet) et on marque le job pour
+// que l'écran d'attente affiche un message adapté au lieu d'une erreur.
+const OVH_DELAY_NOTICE_MS = Number(process.env.OVH_DELAY_NOTICE_MS || 8 * 60 * 1000);
+// Timeout dur. Mesuré le 2026-08-06 : OVH a livré un .fr en 26 min. L'ancienne
+// valeur (5 min) faisait échouer des provisionings qui se seraient terminés
+// seuls. 45 min laisse de la marge sans bloquer un vrai incident indéfiniment.
+const OVH_POLL_TIMEOUT_MS = Number(process.env.OVH_POLL_TIMEOUT_MS || 45 * 60 * 1000);
+
 async function pollOvhDomainReady(hostname, options = {}) {
-  const timeoutMs = options.timeoutMs || 5 * 60 * 1000;
+  const timeoutMs = options.timeoutMs || OVH_POLL_TIMEOUT_MS;
   const intervalMs = options.intervalMs || 5000;
+  const { job, slug } = options;
   const start = Date.now();
+  let delayNotified = false;
 
   while (Date.now() - start < timeoutMs) {
+    // Le registrar traîne : on rassure le client par email, une seule fois.
+    if (!delayNotified && Date.now() - start > OVH_DELAY_NOTICE_MS) {
+      delayNotified = true;
+      if (job) job.registrarDelay = true;
+      notifyCustomerOfRegistrarDelay(slug, hostname).catch(() => {});
+    }
     try {
       // Check if domain is in our portfolio yet
       const domains = await ovhFetch('GET', '/domain');
