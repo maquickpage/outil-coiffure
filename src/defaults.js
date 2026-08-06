@@ -28,7 +28,7 @@ export const DEFAULT_GALLERY_IMAGES = [
   'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=800&q=80'
 ];
 
-export const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1920&q=80';
+export const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1633381521050-26bb467d9d5a?w=1920&q=80';
 
 // Catégories de services : 'femme' | 'homme' | 'autres'.
 // Affichées sur mobile en carrousel (1 slide par catégorie, liste dedans) ;
