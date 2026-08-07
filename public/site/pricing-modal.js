@@ -437,6 +437,7 @@
       <div class="mqs-step-header mqs-payment-header">
         <span class="mqs-step-eyebrow">Étape 3 / 3</span>
         <h2 class="mqs-step-title">Votre commande</h2>
+        <p class="mqs-step-sub">Vérifiez votre commande, puis validez en toute sécurité.</p>
       </div>
 
       <div class="mqs-payment-layout">
