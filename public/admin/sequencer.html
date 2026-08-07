@@ -88,7 +88,7 @@
   <span id="campPill" class="pill">…</span>
   <span class="grow"></span>
   <span class="muted" id="clock"></span>
-  <button class="btn" id="refreshBtn" onclick="load()">↻ <span id="t-refresh">Actualiser</span></button>
+  <button class="btn" id="refreshBtn" onclick="reloadManual()">↻ <span id="t-refresh">Actualiser</span></button>
 </div>
 <nav class="seq-tabs">
   <button class="active" data-tab="overview" onclick="tab(this)" id="t-tab-overview">Vue d'ensemble</button>
@@ -171,6 +171,7 @@
       <div id="stepsDiffWarn" class="setup-banner hide"></div>
       <div id="steps"></div>
       <button class="btn primary" id="saveStepsBtn" onclick="saveSteps()"></button>
+      <span id="unsavedFlag" class="muted hide" style="margin-left:10px;color:#b45309"></span>
     </div>
   </section>
 
@@ -249,6 +250,7 @@ var T = {
     lbl_subject: "Objet", lbl_body: "Corps", lbl_gap: "Gap (jours)", lbl_thread: "Thread",
     opt_new: "nouveau fil", opt_reply: "reply (même fil)",
     steps_save: "Enregistrer sur TOUS les nœuds actifs", steps_saved: "Séquence enregistrée sur tous les nœuds",
+    unsaved: "● modifications non enregistrées", refresh_confirm: "Des modifications ne sont pas enregistrées. Les perdre et recharger ?",
     no_node_up: "Aucun nœud joignable.",
     lbl_cap: "Plafond quotidien", lbl_days: "Jours d'envoi (1=Lun..7=Dim)", lbl_wstart: "Début fenêtre (HH:MM)",
     lbl_wend: "Fin fenêtre (HH:MM)", lbl_paused: "En pause", yes: "oui", no: "non", save: "Enregistrer",
@@ -311,6 +313,7 @@ var T = {
     lbl_subject: "Subject", lbl_body: "Body", lbl_gap: "Gap (days)", lbl_thread: "Thread",
     opt_new: "new thread", opt_reply: "reply (same thread)",
     steps_save: "Save to ALL active nodes", steps_saved: "Sequence saved on all nodes",
+    unsaved: "● unsaved changes", refresh_confirm: "You have unsaved changes. Discard them and reload?",
     no_node_up: "No reachable node.",
     lbl_cap: "Daily cap", lbl_days: "Send days (1=Mon..7=Sun)", lbl_wstart: "Window start (HH:MM)",
     lbl_wend: "Window end (HH:MM)", lbl_paused: "Paused", yes: "yes", no: "no", save: "Save",
@@ -373,6 +376,7 @@ var T = {
     lbl_subject: "主题", lbl_body: "正文", lbl_gap: "间隔（天）", lbl_thread: "会话",
     opt_new: "新会话", opt_reply: "reply（同一会话）",
     steps_save: "保存到全部启用节点", steps_saved: "序列已保存到全部节点",
+    unsaved: "● 有未保存的修改", refresh_confirm: "有未保存的修改。放弃并重新加载？",
     no_node_up: "没有可达节点。",
     lbl_cap: "每日上限", lbl_days: "发送日（1=周一..7=周日）", lbl_wstart: "窗口开始（HH:MM）",
     lbl_wend: "窗口结束（HH:MM）", lbl_paused: "暂停", yes: "是", no: "否", save: "保存",
@@ -426,6 +430,7 @@ function applyStatic(){
     't-import-title':'import_title', 't-import-help':'import_help', 't-import-dest':'import_dest',
     't-import-file':'import_file', 'importBtn':'import_btn',
     't-steps-title':'steps_title', 't-steps-help':'steps_help', 'saveStepsBtn':'steps_save',
+    'unsavedFlag':'unsaved',
     't-nodes-title':'nodes_title', 't-nodes-help':'nodes_help',
     'th-node-mb':'th_node_mb', 'th-node-label':'th_node_label', 'th-node-enabled':'th_node_enabled',
     'th-node-health':'th_node_health', 'nodeFormTitle':'node_add_title',
@@ -451,9 +456,17 @@ function toast(msg, isErr){
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function setBusy(b){ BUSY=b; document.querySelectorAll('button.btn').forEach(function(x){ x.disabled=b; }); }
 
+// Garde-fou : sans plafond, un /overview qui pend laisse BUSY à true et TOUS les
+// boutons grisés jusqu'au rechargement de la page.
+var API_TIMEOUT_MS = 150000;
 function api(path, opts){
   opts = opts || {};
   opts.credentials = 'same-origin';
+  if (window.AbortController) {
+    var ac = new AbortController();
+    opts.signal = ac.signal;
+    setTimeout(function(){ ac.abort(); }, API_TIMEOUT_MS);
+  }
   if (opts.body) { opts.method = opts.method || 'POST'; opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(opts.body); }
   return fetch('/admin/api/sequencer' + path, opts).then(function(r){
     if (r.status === 401) { location.href = '/admin/login'; throw new Error('401'); }
@@ -461,14 +474,36 @@ function api(path, opts){
   });
 }
 
-// Saisie en cours : bloque le rafraîchissement auto, sinon render() écrase les champs.
-var DIRTY = false;
-document.addEventListener('input', function(e){
-  if (e.target && e.target.closest && e.target.closest('#steps, #mbEditors, #import')) DIRTY = true;
+// Modifications non enregistrées. /overview interroge les nœuds Apps Script et peut
+// mettre plus d'une minute à répondre : tester « est-ce que l'utilisateur tape ? » au
+// LANCEMENT de la requête ne protège rien, la réponse revient bien après. Le verrou est
+// donc posé au MOMENT DU RENDU (renderSteps / renderMailboxes), quelle que soit l'origine
+// du rafraîchissement — timer, réponse tardive, enregistrement d'une autre section.
+var DIRTY_STEPS = false, DIRTY_MB = false;
+function anyDirty(){ return DIRTY_STEPS || DIRTY_MB; }
+function onEdit(e){
+  var el = e.target; if (!el || !el.closest) return;
+  if (el.closest('#steps')) DIRTY_STEPS = true;
+  else if (el.closest('#mbEditors')) DIRTY_MB = true;
+  else return;
+  showUnsaved();
+}
+document.addEventListener('input', onEdit);
+document.addEventListener('change', onEdit);
+window.addEventListener('beforeunload', function(e){
+  if (anyDirty()) { e.preventDefault(); e.returnValue = ''; }
 });
-document.addEventListener('change', function(e){
-  if (e.target && e.target.closest && e.target.closest('#steps, #mbEditors, #import')) DIRTY = true;
-});
+function showUnsaved(){
+  var el = document.getElementById('unsavedFlag');
+  if (el) el.classList.toggle('hide', !DIRTY_STEPS);
+}
+
+// Le bouton ↻ est le seul moyen d'écraser volontairement une saisie en cours.
+function reloadManual(){
+  if (anyDirty() && !confirm(t('refresh_confirm'))) return;
+  DIRTY_STEPS = false; DIRTY_MB = false; showUnsaved();
+  load();
+}
 
 // silent = rafraîchissement de fond : ne grise pas les boutons, ne toaste pas.
 function load(silent){
@@ -477,7 +512,7 @@ function load(silent){
     DATA = d;
     // finally : si render() casse, BUSY doit quand même retomber, sinon
     // tous les boutons restent grisés définitivement.
-    try { render(); DIRTY = false; }
+    try { render(); }
     finally { if (!silent) setBusy(false); }
   }).catch(function(e){
     if (silent) return;
@@ -636,6 +671,8 @@ function sendCsv(text){
 
 // --- séquence (steps) ---
 function renderSteps(){
+  // Saisie non enregistrée : on ne touche pas au DOM, sinon le contenu tapé est perdu.
+  if (DIRTY_STEPS) return;
   var ok = okNodes();
   var src = ok[0];
   var srcEl = document.getElementById('stepsSource');
@@ -671,12 +708,17 @@ function saveSteps(){
     if (r.error) { toast(r.error, true); setBusy(false); return; }
     var bad = (r.results||[]).filter(function(x){ return !x.ok; });
     toast(bad.length ? (t('fail_on') + bad.map(function(x){ return x.mailbox; }).join(', ')) : t('steps_saved'), !!bad.length);
-    load();
+    // L'enregistrement est fini : on rend la main TOUT DE SUITE. Le rafraîchissement
+    // part en fond, sinon le bouton reste grisé le temps que /overview réponde
+    // (jusqu'à ~2 min quand un nœud Apps Script ne répond pas).
+    DIRTY_STEPS = false; showUnsaved(); setBusy(false);
+    load(true);
   }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 
 // --- boîtes ---
 function renderMailboxes(){
+  if (DIRTY_MB) return; // idem : saisie en cours dans les réglages de boîtes
   var html = [];
   okNodes().forEach(function(n){
     (n.mailboxes || []).forEach(function(m, i){
@@ -700,7 +742,9 @@ function saveMailbox(nodeId, key, address){
   var mb = { address: address, daily_cap: g('daily_cap'), send_days: g('send_days'),
              window_start: g('window_start'), window_end: g('window_end'), paused: g('paused')==='true' };
   api('/mailbox', { body: { nodeId: nodeId, mailbox: mb } }).then(function(r){
-    toast(r.ok ? t('mb_saved') : (r.error || t('failed')), !r.ok); if (r.ok) load(); else setBusy(false);
+    toast(r.ok ? t('mb_saved') : (r.error || t('failed')), !r.ok);
+    setBusy(false);
+    if (r.ok) { DIRTY_MB = false; load(true); }
   }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
 
@@ -810,11 +854,11 @@ function pushSuppression(){
 applyStatic();
 load();
 setInterval(function(){
-  if (BUSY || DIRTY || document.hidden) return;
+  if (BUSY || anyDirty() || document.hidden) return;
   var a = document.activeElement;
   if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return; // curseur dans un champ
   load(true);
-}, 90000);
+}, 180000);
 </script>
 </body>
 </html>
