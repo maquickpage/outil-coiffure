@@ -2998,6 +2998,12 @@
     display: flex;
     flex-direction: column;
 }
+/* Un flex item se comprime par défaut quand le contenu déborde : le bandeau
+   des 3 étapes se retrouvait écrasé à 10 px de haut sur l'étape 3, la plus
+   longue. On interdit la compression de tous les blocs. */
+#mqs-pricing-drawer #mqs-modal > * {
+    flex-shrink: 0;
+}
 #mqs-pricing-drawer #mqs-modal > .mqs-modal-footer {
     margin-top: auto;
 }
@@ -3044,6 +3050,19 @@
     /* La règle de base le met à `width: 100%`, ce qui, dans une barre en ligne,
        écrase le bouton de retour et déforme la barre. */
     width: auto;
+    /* Noir sur blanc, comme les « Continuer » des étapes précédentes : en vert
+       lime le libellé passait mal, et l'action de fin de tunnel doit se lire
+       comme la suite logique des deux autres, pas comme un objet à part. */
+    background: #0a0a0a;
+    color: #ffffff;
+    box-shadow: none;
+}
+#mqs-pricing-drawer .mqs-footer-pay .mqs-payment-cta:hover:not(.is-locked) {
+    background: #1a1a1a;
+}
+/* Le montant garde l'accent lime : c'est l'information qu'on vient chercher. */
+#mqs-pricing-drawer .mqs-footer-pay .mqs-payment-cta-amount {
+    color: #d9f24e;
 }
 /* Pleine largeur seulement quand la barre est empilée (≤600 px). En ligne, un
    item à `width: 100%` écrase le bouton de retour et déforme la barre. */
