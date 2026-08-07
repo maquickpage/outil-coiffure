@@ -8,6 +8,7 @@ import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
 import db from '../db.js';
 import { COLONNES_IMPORT, normaliserEmail, filtrerLot, repartir, estUnRejeuIdentique } from '../sequencer-filters.js';
+import { resoudreSignature, neutraliserSignature } from '../sequencer-signature.js';
 
 const router = express.Router();
 router.use(express.json({ limit: '20mb' }));
@@ -90,6 +91,13 @@ async function callNodes(nodes, payload) {
   return nodes.map((n, i) => ({ node_id: n.id, mailbox: n.mailbox, ...results[i] }));
 }
 
+// Même chose, mais avec un payload calculé par nœud (séquence signée au nom de la boîte).
+async function callNodesEach(nodes, payloadPour) {
+  const results = await Promise.all(nodes.map(n => callNode(n, payloadPour(n))));
+  return nodes.map((n, i) => ({ node_id: n.id, mailbox: n.mailbox, ...results[i] }));
+}
+
+
 function nodeOr404(req, res) {
   const n = db.prepare('SELECT * FROM sequencer_nodes WHERE id = ?').get(req.params.id || req.body.nodeId);
   if (!n) res.status(404).json({ error: 'nœud inconnu' });
@@ -142,6 +150,12 @@ router.post('/api/sequencer/nodes/:id/health', async (req, res) => {
 router.get('/api/sequencer/overview', async (req, res) => {
   const nodes = listNodes(true);
   const results = await callNodes(nodes, { action: 'dashboard' });
+  // Les nœuds renvoient leur séquence signée ; l'admin doit revoir le modèle commun.
+  for (let i = 0; i < results.length; i++) {
+    if (results[i].ok && Array.isArray(results[i].steps)) {
+      results[i].steps = neutraliserSignature(results[i].steps, nodes[i]);
+    }
+  }
   const agg = { total: 0, queued: 0, active: 0, replied: 0, stopped: 0, unsubscribed: 0,
                 failed: 0, completed: 0, step1: 0, step2: 0, step3: 0, step4: 0, step5: 0 };
   for (const r of results) {
@@ -197,7 +211,8 @@ router.post('/api/sequencer/steps', async (req, res) => {
     ? [db.prepare('SELECT * FROM sequencer_nodes WHERE id = ?').get(nodeId)].filter(Boolean)
     : listNodes(true);
   if (!targets.length) return res.status(400).json({ error: 'aucun nœud actif' });
-  res.json({ results: await callNodes(targets, { action: 'saveSteps', steps }) });
+  res.json({ results: await callNodesEach(targets,
+    n => ({ action: 'saveSteps', steps: resoudreSignature(steps, n) })) });
 });
 
 router.post('/api/sequencer/mailbox', async (req, res) => {
