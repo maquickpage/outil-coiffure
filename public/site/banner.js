@@ -112,13 +112,11 @@
         </div>
       </div>
     `;
-    // Délégation : le marquee mobile duplique la piste (cf. setupRibbonMarquee),
-    // donc on ne peut pas attacher les handlers aux boutons un par un.
-    r.addEventListener('click', (event) => {
-      if (event.target.closest('.mqs-ribbon-cta, .mqs-ribbon-options button')) {
-        openPricingModal('top_ribbon');
-      }
-    });
+    // Le ribbon ENTIER ouvre le tunnel : viser une puce de prix au doigt, sur
+    // une bande qui défile, demandait une précision qu'on ne peut pas exiger.
+    // Délégation sur le conteneur — le marquee mobile duplique la piste
+    // (cf. setupRibbonMarquee), les handlers par bouton ne tiendraient pas.
+    r.addEventListener('click', () => openPricingModal('top_ribbon'));
     return r;
   }
 

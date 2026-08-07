@@ -29,6 +29,9 @@
   letter-spacing: .005em;
   display: flex; align-items: center;
   animation: mqsRibbonIn .35s cubic-bezier(.2,.7,.2,1);
+  /* Toute la bande est cliquable (cf. banner.js) : viser une puce de prix au
+     doigt, sur un contenu qui défile, demandait trop de précision. */
+  cursor: pointer;
 }
 @keyframes mqsRibbonIn {
   from { transform: translateY(-100%); }

@@ -859,17 +859,24 @@
    ============================================================================= */
 
 .mqs-domain-list {
-    /* Fenêtre scrollable interne : ~4 rows visibles max, scroll vertical
-       pour le reste. Évite la croissance verticale de la modale (= plus de
-       scroll global, le bouton "Continuer" reste visible sans avoir à
-       scroller la modale entière). */
+    /* Fenêtre scrollable interne : 3 rows visibles max, scroll vertical pour
+       le reste. Évite la croissance verticale de la modale (= plus de scroll
+       global, le bouton « Continuer » reste visible sans avoir à scroller la
+       modale entière). 3 plutôt que 4 : sur la plupart des mobiles, l'étape
+       tient alors dans l'écran sans scroll du tout.
+       Le liseré et le fond légèrement creusé signalent que cette zone défile
+       indépendamment de la page — sans eux, on ne comprend pas pourquoi seuls
+       les domaines bougent sous le doigt. */
     --mqs-domain-row-h: 50px;       /* hauteur approx d'1 row (padding 14×2 + texte) */
     --mqs-domain-list-gap: 6px;
-    max-height: calc(var(--mqs-domain-row-h) * 4 + var(--mqs-domain-list-gap) * 3);
+    max-height: calc(var(--mqs-domain-row-h) * 3 + var(--mqs-domain-list-gap) * 2);
     overflow-y: auto;
     overflow-x: hidden;
     margin: 0 0 14px 0;
-    padding-right: 4px;             /* léger espace pour la scrollbar custom */
+    padding: 8px;
+    border: 1px solid #e4e4df;
+    border-radius: 12px;
+    background: #fafaf8;
     display: flex;
     flex-direction: column;
     gap: var(--mqs-domain-list-gap);
@@ -2678,7 +2685,9 @@
 .mqs-domain-section { margin-bottom: 30px; }
 .mqs-domain-section-title { margin-bottom: 14px; font-size: 15px; font-weight: 800; }
 .mqs-domain-section-help { margin-top: -10px; color: #8a8a84; font-size: 14px; }
-.mqs-domain-list { --mqs-domain-row-h: 66px; --mqs-domain-list-gap: 12px; max-height: calc(var(--mqs-domain-row-h) * 4 + var(--mqs-domain-list-gap) * 3); }
+/* 3 rows visibles (et non 4) : l'étape gagne une rangée de hauteur et tient
+   dans l'écran sans scroll sur la plupart des mobiles. */
+.mqs-domain-list { --mqs-domain-row-h: 66px; --mqs-domain-list-gap: 12px; max-height: calc(var(--mqs-domain-row-h) * 3 + var(--mqs-domain-list-gap) * 2); }
 .mqs-domain-row { padding: 20px 22px; border-radius: 14px; }
 .mqs-domain-row.mqs-domain-selected { padding: 19px 21px; }
 .mqs-domain-name { font-size: 17px; font-weight: 600; }
@@ -3102,3 +3111,33 @@
 
 /* Sous 600 px, .mqs-footer-stepb passe déjà en `column-reverse` : action
    principale au-dessus, retour en dessous, tous deux pleine largeur. */
+
+/* =============================================================================
+   ÉTAPE 3 — espacements et hauteur des deux cartes
+   ============================================================================= */
+
+/* L'en-tête laissait 26 px sous lui PLUS 26 px au-dessus de la grille, soit
+   52 px entre le sous-titre et la carte « Détail » — bien plus que les ~12 px
+   qui séparent le titre de son sous-titre. On aligne les deux. */
+#mqs-pricing-drawer .mqs-payment-header {
+    margin-bottom: 12px;
+}
+#mqs-pricing-drawer .mqs-payment-layout {
+    margin-top: 0;
+}
+
+/* Desktop : les deux cartes portaient un `min-height: 596px` fixe alors que
+   leur contenu fait ~350 px. Elles se retrouvaient à moitié vides et
+   débordaient de l'écran, obligeant à scroller pour rien. Chacune reprend sa
+   hauteur naturelle, et `align-items: start` évite que la plus courte s'étire
+   sur la plus longue. */
+@media (min-width: 981px) {
+    #mqs-pricing-drawer .mqs-payment-layout {
+        align-items: start;
+    }
+    #mqs-pricing-drawer .mqs-order-card,
+    #mqs-pricing-drawer .mqs-checkout-card,
+    #mqs-pricing-drawer .mqs-ticket {
+        min-height: 0;
+    }
+}

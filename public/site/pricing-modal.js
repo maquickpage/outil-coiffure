@@ -134,6 +134,63 @@
     return PLANS.find(p => p.key === key);
   }
 
+  // ===========================================================================
+  // REPRISE DU PARCOURS
+  // Un coiffeur qui ferme le tunnel pour retourner voir son site le retrouvait
+  // remis à zéro : domaine, formule et email à ressaisir. On mémorise donc où
+  // il en était, par salon, pendant 24 h.
+  // L'acceptation des CGV est volontairement EXCLUE : c'est un consentement
+  // horodaté, il doit rester un geste explicite à chaque tentative de paiement.
+  // ===========================================================================
+  const FUNNEL_TTL_MS = 24 * 60 * 60 * 1000;
+
+  function funnelKey() {
+    return `mqs-funnel:${state.salonSlug || getSlugFromUrl() || ''}`;
+  }
+
+  function saveFunnelState() {
+    try {
+      localStorage.setItem(funnelKey(), JSON.stringify({
+        at: Date.now(),
+        step: state.step,
+        selectedHostname: state.selectedHostname,
+        selectedHostnameInfo: state.selectedHostnameInfo,
+        selectedPlan: state.selectedPlan,
+        pendingPlan: state.pendingPlan,
+        email: state.email,
+      }));
+    } catch (e) { /* quota plein ou stockage bloqué : la reprise est un confort */ }
+  }
+
+  function clearFunnelState() {
+    try { localStorage.removeItem(funnelKey()); } catch (e) {}
+  }
+
+  function restoreFunnelState() {
+    let saved = null;
+    try {
+      const raw = localStorage.getItem(funnelKey());
+      if (raw) saved = JSON.parse(raw);
+    } catch (e) { return; }
+    if (!saved || !saved.at || Date.now() - saved.at > FUNNEL_TTL_MS) {
+      clearFunnelState();
+      return;
+    }
+
+    if (saved.selectedHostname) {
+      state.selectedHostname = saved.selectedHostname;
+      state.selectedHostnameInfo = saved.selectedHostnameInfo || null;
+    }
+    if (planByKey(saved.selectedPlan)) state.selectedPlan = saved.selectedPlan;
+    if (planByKey(saved.pendingPlan)) state.pendingPlan = saved.pendingPlan;
+    if (typeof saved.email === 'string') state.email = saved.email;
+
+    // On ne rouvre une étape que si ses prérequis sont réunis : sans domaine
+    // l'étape 2 n'a pas de sens, sans formule l'étape 3 non plus.
+    if (saved.step === 'C' && state.selectedHostname && state.selectedPlan) state.step = 'C';
+    else if (saved.step === 'B' && state.selectedHostname) state.step = 'B';
+  }
+
   function currentTemplate() {
     const requested = new URLSearchParams(window.location.search).get('template');
     const fromView = window.__SALON_VIEW__ && window.__SALON_VIEW__.template;
@@ -633,6 +690,7 @@
       if (emailInput) {
         emailInput.addEventListener('input', () => {
           state.email = emailInput.value;
+          saveFunnelState();
           // Ne pas re-render à chaque keystroke (on garde le focus + cursor)
           refreshSubmitState();
         });
@@ -679,6 +737,7 @@
     if (state.selectedPlan !== planKey) state.cgvAccepted = false;
     state.selectedPlan = planKey;
     state.step = 'C';
+    saveFunnelState();
     // Tracking (best-effort) : a choisi un plan → arrive sur l'écran email/paiement.
     try { window.mqsTrack && window.mqsTrack('etape_email', { plan: planKey, hostname: state.selectedHostname }); } catch (e) {}
     renderModal();
@@ -797,6 +856,7 @@
       state.customResult = null;
       state.customQuery = '';
     }
+    saveFunnelState();
     renderModal();
   }
 
@@ -931,6 +991,9 @@
         renderModal();
         return;
       }
+      // Le parcours a abouti : on oublie la reprise, sinon un retour depuis
+      // Stripe rouvrirait le tunnel sur un état déjà consommé.
+      clearFunnelState();
       // Redirection vers Stripe Checkout
       window.location.href = data.url;
     } catch (err) {
@@ -942,6 +1005,7 @@
 
   function goToStep(stepKey) {
     state.step = stepKey;
+    saveFunnelState();
     renderModal();
     const modal = state.modalEl?.querySelector('#mqs-modal');
     if (modal) modal.scrollTop = 0;
@@ -978,6 +1042,9 @@
       state.selectedHostname = seededSuggestions[0].hostname;
       state.selectedHostnameInfo = seededSuggestions[0];
     }
+    // Reprise de là où le coiffeur s'était arrêté (cf. restoreFunnelState).
+    restoreFunnelState();
+
     state.openSource = source || 'unknown';
     state.presentation = window.location.pathname.indexOf('/preview/') === 0 ? 'drawer' : 'modal';
 
