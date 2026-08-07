@@ -227,80 +227,49 @@ CGV : https://maquickpage.fr/legal/cgv.html`;
 }
 
 /**
- * Email #2 (conditionnel) : le registrar traîne à livrer le domaine.
+ * Email #2 (conditionnel) : la mise en ligne prend du retard.
  *
- * Envoyé automatiquement au bout de OVH_DELAY_NOTICE_MS (8 min par défaut)
- * quand le domaine n'est toujours pas attribué. À ce stade le client a payé, on
- * lui a annoncé "moins de 5 minutes", et il a très probablement fermé l'onglet :
- * sans ce message, il se retrouve avec un débit et aucun site, sans explication.
+ * Envoyé automatiquement au bout de OVH_DELAY_NOTICE_MS (8 min par défaut).
+ * À ce stade le client a payé, on lui a annoncé quelques minutes, et il a très
+ * probablement fermé l'onglet : sans ce message il se retrouve avec un débit et
+ * aucun site.
  *
- * Structure calée sur les pratiques d'apology/delay email : excuse directe
- * ("nous sommes désolés", pas de conditionnel), cause factuelle assumée,
- * personne responsable, délai concret annoncé, et quoi faire s'il est dépassé.
+ * Volontairement court et générique : il sert pour n'importe quel retard, sans
+ * détailler la cause technique — le client a juste besoin de savoir que sa
+ * commande est bien passée et qu'il n'a rien à faire.
  */
-export async function sendRegistrarDelayEmail({ to, salonName, hostname }) {
-  const subject = 'Retard sur la mise en ligne — nous prenons la main';
+export async function sendProvisioningDelayEmail({ to, salonName, hostname }) {
+  const subject = 'Votre site prend un peu plus de temps que prévu';
 
   const body = `
           <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Bonjour ${escapeHtml(salonName)},</h1>
-          <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin: 0 0 16px;">
-            Nous sommes désolés : la mise en ligne de votre site prend plus de temps que prévu.
-            Nous préférons vous prévenir plutôt que vous laisser sans nouvelles.
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
+            La mise en ligne de votre site prend un peu plus de temps que prévu.
           </p>
-
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px; margin: 24px 0;">
-            <tr><td style="padding: 20px; font-size: 14px; color: #4b5563; line-height: 1.6;">
-              <p style="margin: 0 0 10px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Ce qui se passe</p>
-              <p style="margin: 0 0 12px;">
-                L'enregistrement d'un nom de domaine passe par un organisme extérieur, notre registrar.
-                Aujourd'hui, son délai de traitement pour <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong>
-                est plus long que d'habitude. Le retard vient de là, et de nulle part ailleurs.
-              </p>
-              <p style="margin: 0;">
-                <strong style="color:#1a1a1a;">Votre paiement est bien enregistré et votre site est prêt.</strong>
-                Il attend uniquement que l'adresse lui soit attribuée.
-              </p>
-            </td></tr>
-          </table>
-
-          <p style="margin: 0 0 10px; font-size: 15px; font-weight: 600; color:#1a1a1a;">Ce que nous faisons</p>
-          <p style="font-size: 14px; color: #4b5563; line-height: 1.6; margin: 0 0 24px;">
-            Un membre de notre équipe suit votre dossier personnellement jusqu'à la mise en ligne.
-            Dès que l'adresse est attribuée, la fin de l'installation se fait toute seule, en quelques minutes.
-            <strong style="color:#1a1a1a;">Votre site sera en ligne dans l'heure</strong>, et vous recevrez
-            un email à ce moment-là avec votre accès. Vous n'avez rien à faire d'ici là.
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
+            La commande de votre adresse <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong> a bien été
+            passée auprès de notre fournisseur : c'est sa livraison qui est plus longue que d'habitude.
+            Votre paiement est bien enregistré et votre site est prêt.
           </p>
-
-          <p style="font-size: 14px; color: #4b5563; line-height: 1.6; margin: 0 0 16px;">
-            Si vous n'avez rien reçu d'ici une heure, répondez simplement à cet email : nous vous répondrons directement.
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
+            Vous n'avez rien à faire : vous recevrez un email dès qu'il est en ligne,
+            en général dans l'heure.
           </p>
-
-          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">
-            Encore désolé pour cette attente — ce n'est pas l'expérience que nous voulons vous offrir.
+          <p style="font-size: 15px; color: #6b7280; line-height: 1.6; margin: 0;">
+            Désolé pour l'attente.
           </p>`;
 
   const text = `Bonjour ${salonName},
 
-Nous sommes désolés : la mise en ligne de votre site prend plus de temps que prévu.
-Nous préférons vous prévenir plutôt que vous laisser sans nouvelles.
+La mise en ligne de votre site prend un peu plus de temps que prévu.
 
-CE QUI SE PASSE
-L'enregistrement d'un nom de domaine passe par un organisme extérieur, notre registrar.
-Aujourd'hui, son délai de traitement pour ${hostname} est plus long que d'habitude.
-Le retard vient de là, et de nulle part ailleurs.
-Votre paiement est bien enregistré et votre site est prêt : il attend uniquement que
-l'adresse lui soit attribuée.
+La commande de votre adresse ${hostname} a bien été passée auprès de notre fournisseur :
+c'est sa livraison qui est plus longue que d'habitude. Votre paiement est bien enregistré
+et votre site est prêt.
 
-CE QUE NOUS FAISONS
-Un membre de notre équipe suit votre dossier personnellement jusqu'à la mise en ligne.
-Dès que l'adresse est attribuée, la fin de l'installation se fait toute seule, en quelques
-minutes. Votre site sera en ligne dans l'heure, et vous recevrez un email à ce moment-là
-avec votre accès. Vous n'avez rien à faire d'ici là.
+Vous n'avez rien à faire : vous recevrez un email dès qu'il est en ligne, en général dans l'heure.
 
-Si vous n'avez rien reçu d'ici une heure, répondez simplement à cet email :
-nous vous répondrons directement.
-
-Encore désolé pour cette attente — ce n'est pas l'expérience que nous voulons vous offrir.
+Désolé pour l'attente.
 
 MaQuickPage — contact@maquickpage.fr`;
 
@@ -506,7 +475,7 @@ export async function sendProvisioningErrorEmail({ adminEmail, salonName, slug, 
 export default {
   isEnabled,
   sendPaymentReceivedEmail,
-  sendRegistrarDelayEmail,
+  sendProvisioningDelayEmail,
   sendSignupSuccessEmail,
   sendProvisioningErrorEmail,
   sendRecoveryEmail,

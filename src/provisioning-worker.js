@@ -29,7 +29,7 @@ import { ovhFetch } from './ovh-client.js';
 import {
   sendSignupSuccessEmail,
   sendProvisioningErrorEmail,
-  sendRegistrarDelayEmail,
+  sendProvisioningDelayEmail,
 } from './email-sender.js';
 import { generateRecoveryToken } from './routes/admin-recover.js';
 
@@ -317,7 +317,7 @@ async function notifyCustomerOfRegistrarDelay(slug, hostname) {
       SELECT nom_clean, nom, owner_email FROM salons WHERE slug = ?
     `).get(slug);
     if (!row?.owner_email) return;
-    const result = await sendRegistrarDelayEmail({
+    const result = await sendProvisioningDelayEmail({
       to: row.owner_email,
       salonName: row.nom_clean || row.nom || 'votre salon',
       hostname,
