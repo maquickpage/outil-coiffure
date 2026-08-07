@@ -234,7 +234,8 @@
         ${customRow}
       </section>
 
-      <div class="mqs-modal-footer mqs-footer-stepb mqs-footer-solo">
+      <div class="mqs-modal-footer mqs-footer-stepb">
+        <button class="mqs-btn-back" type="button" id="mqs-close-btn">← Revenir au site</button>
         <button class="mqs-btn-continue" type="button" id="mqs-continue-btn" ${continueDisabled}>
           ${state.selectedHostname ? 'Continuer →' : 'Voir mes options'}
         </button>
@@ -418,7 +419,7 @@
     const price = formatEur(plan.monthlyPriceTtc);
 
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email);
-    const submitDisabled = (state.submitting || !emailValid || !state.cgvAccepted) ? 'disabled' : '';
+    const canSubmit = !state.submitting && emailValid && state.cgvAccepted;
     const commitmentDuration = state.selectedPlan === 'FLEX'
       ? 'sans engagement'
       : state.selectedPlan === 'TWO_YEAR' ? '24 mois' : '12 mois';
@@ -496,23 +497,28 @@
           </div>
 
           ${state.checkoutError ? `<p class="mqs-checkout-error" role="alert">${escapeHtml(state.checkoutError)}</p>` : ''}
+          <p class="mqs-payment-fineprint">Paiement Stripe sécurisé.</p>
+          <!-- Rempli au clic sur le bouton verrouillé, pour dire ce qui manque
+               au lieu de laisser deviner. -->
+          <p class="mqs-payment-hint" id="mqs-payment-hint" role="status" aria-live="polite"></p>
         </section>
       </div>
 
-      <button class="mqs-btn-back mqs-payment-back" type="button" id="mqs-back-btn">← Modifier ma formule</button>
-
-      <!-- Le bouton de paiement quitte la carte pour la barre collante : il
-           reste sous le pouce quelle que soit la position de scroll, comme aux
-           étapes 1 et 2. -->
+      <!-- Barre identique aux étapes 1 et 2 : action principale au-dessus,
+           retour en dessous, toujours sous le pouce quelle que soit la position
+           de scroll. -->
       <div class="mqs-modal-footer mqs-footer-stepb mqs-footer-pay">
-        <button class="mqs-payment-cta" type="button" id="mqs-submit-btn" ${submitDisabled}>
+        <button class="mqs-btn-back" type="button" id="mqs-back-btn">← Modifier ma formule</button>
+        <!-- Volontairement PAS l'attribut disabled : un bouton désactivé
+             n'émet aucun clic, on ne pourrait pas expliquer ce qui bloque. -->
+        <button class="mqs-payment-cta${canSubmit ? '' : ' is-locked'}" type="button" id="mqs-submit-btn"
+          aria-disabled="${canSubmit ? 'false' : 'true'}">
           <!-- Retour à la ligne explicite AVANT le montant : sans lui, le texte
                se coupait n'importe où et séparait le nombre de son symbole €
                (« 17,90 / € aujourd'hui »). Le montant est insécable. -->
           <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe<br><span class="mqs-payment-cta-amount">${price} aujourd'hui</span>`}</span>
           ${state.submitting ? '' : '<span aria-hidden="true">→</span>'}
         </button>
-        <p class="mqs-payment-fineprint">Paiement Stripe sécurisé.</p>
       </div>
     `;
   }
@@ -532,6 +538,9 @@
 
     // STEP A = choix du domaine (1er)
     if (state.step === 'A') {
+      // Le retour de la 1re étape sort du tunnel : même place que « Modifier le
+      // domaine » / « Modifier ma formule » aux étapes suivantes.
+      m.querySelector('#mqs-close-btn')?.addEventListener('click', closeModal);
       m.querySelector('#mqs-continue-btn')?.addEventListener('click', () => {
         if (state.selectedHostname) {
           // Domaine choisi → on montre les tarifs (étape 2). « etape_prix » = a vu
@@ -607,11 +616,16 @@
       m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('B'));
       // Helper : recompute enable/disable du bouton "Procéder au paiement"
       // (utilisé à la fois par l'event email et par l'event CGV checkbox).
+      // Le bouton n'est jamais `disabled` : il reste cliquable pour pouvoir
+      // dire ce qui manque (cf. onSubmitCheckout). `is-locked` porte l'aspect
+      // grisé, `aria-disabled` l'information pour les lecteurs d'écran.
       const refreshSubmitState = () => {
         const btn = m.querySelector('#mqs-submit-btn');
         if (!btn) return;
-        const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email);
-        btn.disabled = !emailOk || !state.cgvAccepted || state.submitting;
+        const locked = !canSubmitNow();
+        btn.classList.toggle('is-locked', locked);
+        btn.setAttribute('aria-disabled', String(locked));
+        if (!locked) clearPaymentHint();
       };
 
       const emailInput = m.querySelector('#mqs-email-input');
@@ -842,10 +856,52 @@
     }
   }
 
+  function canSubmitNow() {
+    return !state.submitting
+      && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email)
+      && state.cgvAccepted;
+  }
+
+  function clearPaymentHint() {
+    const hint = state.modalEl?.querySelector('#mqs-payment-hint');
+    if (hint) hint.textContent = '';
+  }
+
+  // Le bouton verrouillé reste cliquable : plutôt que de laisser le coiffeur
+  // deviner ce qui bloque, on nomme ce qui manque et on l'emmène au bon champ.
+  function showPaymentHint() {
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email);
+    const hint = state.modalEl?.querySelector('#mqs-payment-hint');
+    const message = !emailOk && !state.cgvAccepted
+      ? 'Renseignez votre email et acceptez les conditions générales pour continuer.'
+      : !emailOk
+        ? 'Renseignez votre email professionnel pour continuer.'
+        : 'Acceptez les conditions générales de vente pour continuer.';
+    if (hint) hint.textContent = message;
+
+    // On repart d'une ardoise propre : sans ça, un second clic rapide laissait
+    // le champ précédent encore surligné en même temps que le nouveau.
+    state.modalEl?.querySelectorAll('.mqs-field-attention')
+      .forEach(el => el.classList.remove('mqs-field-attention'));
+
+    const target = !emailOk
+      ? state.modalEl?.querySelector('#mqs-email-input')
+      : state.modalEl?.querySelector('#mqs-cgv-checkbox');
+    if (!target) return;
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Sur mobile, focus() ouvrirait le clavier par-dessus la case CGV : on ne
+    // le fait que pour le champ email, où c'est justement ce qu'on veut.
+    if (!emailOk) target.focus({ preventScroll: true });
+    target.classList.add('mqs-field-attention');
+    setTimeout(() => target.classList.remove('mqs-field-attention'), 1600);
+  }
+
   async function onSubmitCheckout() {
-    if (state.submitting) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email)) return;
-    if (!state.cgvAccepted) return;
+    if (!canSubmitNow()) {
+      if (!state.submitting) showPaymentHint();
+      return;
+    }
+    clearPaymentHint();
     // Tracking (best-effort) : a cliqué "Procéder au paiement".
     try { window.mqsTrack && window.mqsTrack('paiement_initie', { plan: state.selectedPlan, hostname: state.selectedHostname }); } catch (e) {}
     state.submitting = true;

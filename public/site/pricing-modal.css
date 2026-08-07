@@ -2988,25 +2988,98 @@
    position de scroll, comme aux étapes 1 et 2. Il reste dans le flux (sticky,
    pas fixed) : il ne peut donc jamais recouvrir le dernier bloc de contenu.
    ============================================================================= */
-.mqs-footer-pay {
-    display: block;
-    /* Contrairement aux étapes 1 et 2, la barre porte DEUX éléments (bouton +
-       mention Stripe) : elle colle à 0 et non en négatif, sinon la mention
-       passe sous le bord de l'écran tant qu'on n'a pas scrollé jusqu'en bas. */
-    bottom: 0;
+/* Les trois étapes partagent EXACTEMENT la même barre : action principale et
+   bouton de retour au même endroit d'un écran à l'autre, sans aucun décalage. */
+
+/* Sans ça, une barre `sticky` ne descend pas quand le contenu tient déjà dans
+   l'écran : elle reste collée à la fin du contenu et laisse un vide en dessous,
+   qui laissait voir le site au travers. `margin-top: auto` la pousse en bas. */
+#mqs-pricing-drawer #mqs-modal {
+    display: flex;
+    flex-direction: column;
 }
-.mqs-footer-pay .mqs-payment-cta {
-    width: 100%;
-    margin: 0;
-}
-.mqs-footer-pay .mqs-payment-fineprint {
-    margin: 8px 0 0;
-    text-align: center;
+#mqs-pricing-drawer #mqs-modal > .mqs-modal-footer {
+    margin-top: auto;
 }
 
-/* La barre de l'étape 2 garde le retour à gauche et la validation à droite. */
-.mqs-footer-stepb .mqs-btn-continue {
-    flex: 0 0 auto;
+/* Le padding bas du modal doit être IDENTIQUE aux trois étapes : la barre s'y
+   ancre par une marge négative, donc 12 px d'écart entre l'étape 3 (20 px) et
+   les étapes 1-2 (32 px) décalaient toute la barre. Les deux sélecteurs sont
+   repris tels quels pour égaler la spécificité des règles d'origine. */
+/* Chaque étape avait son propre padding bas (32 px aux étapes 1-2, 20 px à
+   l'étape 3 via `:has(.mqs-payment-layout)`). Or la barre s'y ancre par une
+   marge négative de -32 px : ces 12 px d'écart décalaient toute la barre d'un
+   écran à l'autre. Les trois sélecteurs sont repris tels quels pour égaler la
+   spécificité des règles d'origine. */
+#mqs-pricing-drawer #mqs-modal,
+#mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal,
+#mqs-pricing-drawer:has(.mqs-payment-layout) #mqs-modal {
+    padding-bottom: 32px;
 }
-/* Sous 600 px, .mqs-footer-stepb passe déjà en `column-reverse` : validation
-   au-dessus, retour en dessous, tous deux pleine largeur. Rien à ajouter. */
+@media (max-width: 700px) {
+    #mqs-pricing-drawer #mqs-modal,
+    #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal,
+    #mqs-pricing-drawer:has(.mqs-payment-layout) #mqs-modal {
+        padding-bottom: 32px;
+    }
+}
+
+/* Même gabarit pour les deux actions principales (« Continuer » et le bouton
+   de paiement, qui tient sur deux lignes) : leurs bords coïncident d'un écran
+   à l'autre. */
+/* Hauteur IDENTIQUE sur les trois écrans — c'est ce qui garantit que les deux
+   boutons tombent au même pixel d'une étape à l'autre. Le sélecteur est préfixé
+   par l'id du drawer pour passer devant les règles de base de chaque bouton. */
+#mqs-pricing-drawer .mqs-footer-stepb .mqs-btn-continue,
+#mqs-pricing-drawer .mqs-footer-stepb .mqs-payment-cta {
+    flex: 0 0 auto;
+    height: 56px;
+    min-height: 0;
+}
+#mqs-pricing-drawer .mqs-footer-pay .mqs-payment-cta {
+    margin: 0;
+    /* Le bouton de paiement porte deux lignes : padding resserré pour tenir
+       dans la même hauteur que les « Continuer » des étapes 1 et 2. */
+    padding: 6px 20px;
+    /* La règle de base le met à `width: 100%`, ce qui, dans une barre en ligne,
+       écrase le bouton de retour et déforme la barre. */
+    width: auto;
+}
+/* Pleine largeur seulement quand la barre est empilée (≤600 px). En ligne, un
+   item à `width: 100%` écrase le bouton de retour et déforme la barre. */
+@media (max-width: 600px) {
+    #mqs-pricing-drawer .mqs-footer-pay .mqs-payment-cta {
+        width: 100%;
+    }
+}
+
+/* Bouton de paiement verrouillé : grisé mais TOUJOURS cliquable, pour pouvoir
+   dire ce qui manque (cf. showPaymentHint dans pricing-modal.js). */
+.mqs-payment-cta.is-locked {
+    opacity: 0.45;
+    cursor: pointer;
+}
+.mqs-payment-cta.is-locked:hover {
+    opacity: 0.55;
+}
+
+.mqs-payment-hint {
+    margin: 10px 0 0;
+    color: #a4451f;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    text-align: center;
+}
+.mqs-payment-hint:empty {
+    display: none;
+}
+
+/* Champ manquant mis en évidence quelques secondes après le clic bloqué. */
+.mqs-field-attention {
+    outline: 2px solid #d9f24e;
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+/* Sous 600 px, .mqs-footer-stepb passe déjà en `column-reverse` : action
+   principale au-dessus, retour en dessous, tous deux pleine largeur. */
