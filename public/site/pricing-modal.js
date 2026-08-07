@@ -84,7 +84,11 @@
   const state = {
     modalEl: null,
     step: 'A',                // 'A' | 'B' | 'C'
-    selectedPlan: null,       // ex 'TWO_YEAR'
+    selectedPlan: null,       // ex 'TWO_YEAR' — formule VALIDÉE (bouton Continuer)
+    // Formule mise en surbrillance à l'étape 2, pas encore validée. Cliquer une
+    // option ne fait plus basculer d'écran : on choisit, puis on confirme. Sans
+    // ça, explorer les prix propulsait à l'étape suivante par accident.
+    pendingPlan: null,
     selectedHostname: null,   // ex 'salonjean.fr'
     selectedHostnameInfo: null, // { hostname, priceEurTtc, isIncluded, supplementEurTtc }
     suggestions: [],          // resultats /api/domain/suggestions/:slug
@@ -241,6 +245,10 @@
 
   // ---------- STEP B : choix de la formule (2e — après le domaine) ----------
   function renderStepB() {
+    // Point d'entrée unique de l'étape : quel que soit le chemin (bouton de
+    // l'étape 1, onglet du haut, retour depuis l'étape 3), une formule est
+    // toujours en surbrillance.
+    syncPendingPlan();
     return `
       <div class="mqs-step-header">
         <span class="mqs-step-eyebrow">Étape 2 / 3</span>
@@ -264,8 +272,11 @@
       <div class="mqs-plan-options">${PLANS.map(renderPlanOption).join('')}</div>
       <p class="mqs-plans-footnote">Vous pouvez tout annuler sous 30 jours, sans frais.</p>
 
-      <div class="mqs-modal-footer mqs-footer-plan">
+      <!-- Même barre collante qu'à l'étape 1 : le bouton de validation reste
+           atteignable quelle que soit la position de scroll. -->
+      <div class="mqs-modal-footer mqs-footer-stepb">
         <button class="mqs-btn-back" type="button" id="mqs-back-btn">← Modifier le domaine</button>
+        <button class="mqs-btn-continue" type="button" id="mqs-plan-continue-btn">Continuer →</button>
       </div>
     `;
   }
@@ -280,8 +291,10 @@
     const off = isFlex
       ? '<span class="mqs-plan-off is-plain">Liberté<br>totale</span>'
       : `<span class="mqs-plan-off">${plan.discount.replace(/^−/, '<span class="mqs-sign">−</span>')}</span>`;
+    const isSelected = state.pendingPlan === plan.key;
     return `
-      <button class="mqs-plan-option${plan.isPopular ? ' is-selected' : ''}" type="button" data-plan-cta="${plan.key}">
+      <button class="mqs-plan-option${isSelected ? ' is-selected' : ''}" type="button"
+        data-plan-cta="${plan.key}" aria-pressed="${isSelected}">
         <span class="mqs-plan-option-main">
           <span class="mqs-plan-option-row">
             <span class="mqs-plan-option-price">${formatEur(plan.monthlyPriceTtc)}</span>
@@ -482,19 +495,25 @@
             </label>
           </div>
 
-          <button class="mqs-payment-cta" type="button" id="mqs-submit-btn" ${submitDisabled}>
-            <!-- Retour à la ligne explicite AVANT le montant : sans lui, le texte
-                 se coupait n'importe où et séparait le nombre de son symbole €
-                 (« 17,90 / € aujourd'hui »). Le montant est insécable. -->
-            <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe<br><span class="mqs-payment-cta-amount">${price} aujourd'hui</span>`}</span>
-            ${state.submitting ? '' : '<span aria-hidden="true">→</span>'}
-          </button>
           ${state.checkoutError ? `<p class="mqs-checkout-error" role="alert">${escapeHtml(state.checkoutError)}</p>` : ''}
-          <p class="mqs-payment-fineprint">Paiement Stripe sécurisé.</p>
         </section>
       </div>
 
       <button class="mqs-btn-back mqs-payment-back" type="button" id="mqs-back-btn">← Modifier ma formule</button>
+
+      <!-- Le bouton de paiement quitte la carte pour la barre collante : il
+           reste sous le pouce quelle que soit la position de scroll, comme aux
+           étapes 1 et 2. -->
+      <div class="mqs-modal-footer mqs-footer-stepb mqs-footer-pay">
+        <button class="mqs-payment-cta" type="button" id="mqs-submit-btn" ${submitDisabled}>
+          <!-- Retour à la ligne explicite AVANT le montant : sans lui, le texte
+               se coupait n'importe où et séparait le nombre de son symbole €
+               (« 17,90 / € aujourd'hui »). Le montant est insécable. -->
+          <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe<br><span class="mqs-payment-cta-amount">${price} aujourd'hui</span>`}</span>
+          ${state.submitting ? '' : '<span aria-hidden="true">→</span>'}
+        </button>
+        <p class="mqs-payment-fineprint">Paiement Stripe sécurisé.</p>
+      </div>
     `;
   }
 
@@ -564,9 +583,23 @@
     // STEP B = choix de la formule (2e)
     if (state.step === 'B') {
       m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('A'));
-      // Chaque option est un <button> entier : un seul handler suffit.
-      m.querySelectorAll('.mqs-plan-option').forEach(btn => {
-        btn.addEventListener('click', () => selectPlanAndGoEmail(btn.dataset.planCta));
+      // Cliquer une option la met en surbrillance, sans changer d'écran : on
+      // met à jour les classes en place plutôt que de re-render, pour ne pas
+      // faire sauter le scroll sous le doigt.
+      const options = m.querySelectorAll('.mqs-plan-option');
+      options.forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.pendingPlan = btn.dataset.planCta;
+          options.forEach(other => {
+            const on = other === btn;
+            other.classList.toggle('is-selected', on);
+            other.setAttribute('aria-pressed', String(on));
+          });
+        });
+      });
+      // C'est le bouton de la barre collante qui valide et fait avancer.
+      m.querySelector('#mqs-plan-continue-btn')?.addEventListener('click', () => {
+        selectPlanAndGoEmail(state.pendingPlan);
       });
     }
 
@@ -616,6 +649,14 @@
   // ===========================================================================
 
   // Le coiffeur a choisi sa formule (étape 2) → écran email/paiement (étape 3).
+  // Surbrillance de départ à l'étape 2 : la formule déjà validée si l'on
+  // revient en arrière, sinon celle mise en avant (« Le plus choisi »).
+  function syncPendingPlan() {
+    if (state.pendingPlan && planByKey(state.pendingPlan)) return;
+    const popular = PLANS.find(p => p.isPopular) || PLANS[0];
+    state.pendingPlan = state.selectedPlan || popular.key;
+  }
+
   function selectPlanAndGoEmail(planKey) {
     const plan = planByKey(planKey);
     if (!plan) return;

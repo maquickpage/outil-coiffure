@@ -1279,24 +1279,6 @@
     justify-content: flex-end;
 }
 
-/* === Footer étape 2 (formule) : retour + ligne de réassurance empilés === */
-.mqs-footer-plan {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    margin-top: 8px;
-    margin-bottom: 4px;
-}
-
-.mqs-footer-plan .mqs-btn-back {
-    align-self: flex-start;
-}
-
-.mqs-footer-plan .mqs-trust {
-    margin: 0;
-}
-
 /* === Rappel du domaine choisi, en tête de l'étape formule === */
 .mqs-step-domain-note {
     margin: 10px 0 0;
@@ -2213,10 +2195,6 @@
     background: #242424;
 }
 
-#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-footer-plan {
-    display: none;
-}
-
 @media (max-width: 700px) {
     #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal { padding: 20px 20px 32px; }
     #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-step-title { font-size: 30px; }
@@ -3003,3 +2981,32 @@
     font-size: 12.5px;
     color: rgba(255, 255, 255, 0.62);
 }
+
+/* =============================================================================
+   ÉTAPE 3 — barre de paiement collante
+   Le bouton sort de la carte pour rester sous le pouce quelle que soit la
+   position de scroll, comme aux étapes 1 et 2. Il reste dans le flux (sticky,
+   pas fixed) : il ne peut donc jamais recouvrir le dernier bloc de contenu.
+   ============================================================================= */
+.mqs-footer-pay {
+    display: block;
+    /* Contrairement aux étapes 1 et 2, la barre porte DEUX éléments (bouton +
+       mention Stripe) : elle colle à 0 et non en négatif, sinon la mention
+       passe sous le bord de l'écran tant qu'on n'a pas scrollé jusqu'en bas. */
+    bottom: 0;
+}
+.mqs-footer-pay .mqs-payment-cta {
+    width: 100%;
+    margin: 0;
+}
+.mqs-footer-pay .mqs-payment-fineprint {
+    margin: 8px 0 0;
+    text-align: center;
+}
+
+/* La barre de l'étape 2 garde le retour à gauche et la validation à droite. */
+.mqs-footer-stepb .mqs-btn-continue {
+    flex: 0 0 auto;
+}
+/* Sous 600 px, .mqs-footer-stepb passe déjà en `column-reverse` : validation
+   au-dessus, retour en dessous, tous deux pleine largeur. Rien à ajouter. */
