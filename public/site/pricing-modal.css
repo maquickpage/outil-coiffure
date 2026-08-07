@@ -2826,3 +2826,180 @@
     .mqs-launch-price strong { font-size: 36px; }
     .mqs-launch-price s { font-size: 18px; }
 }
+
+/* =============================================================================
+   ÉTAPE 2 — options de formule (ligne à deux niveaux)
+   Le prix domine, la durée et le rang commercial passent en 2e ligne, la remise
+   en pastille à droite. Deux niveaux plutôt qu'un seul : en 320 px, tout aligner
+   obligerait à rapetisser le prix — or c'est lui qu'on vient lire.
+   ============================================================================= */
+.mqs-plan-options {
+    display: grid;
+    gap: 10px;
+}
+
+.mqs-plan-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 16px;
+    text-align: left;
+    font: inherit;
+    background: #ffffff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mqs-plan-option:hover { border-color: #c5c7cc; background: #fafafa; }
+.mqs-plan-option.is-selected { border-color: #0a0a0a; border-width: 2px; padding: 13px 15px; }
+
+.mqs-plan-option-main { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.mqs-plan-option-row { display: flex; align-items: baseline; gap: 5px; }
+.mqs-plan-option-price { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; color: #0a0a0a; }
+.mqs-plan-option-per { font-size: 13px; font-weight: 500; color: #6b7280; }
+.mqs-plan-option-sub {
+    font-size: 12px;
+    font-weight: 500;
+    color: #7a7a74;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Graisse 700 et interlettrage positif : en 800 avec un crénage négatif, les
+   deux chiffres de « 66 » se collent et le signe moins vient toucher le
+   premier — illisible dans une pastille de cette taille. */
+.mqs-plan-off {
+    flex: 0 0 auto;
+    min-width: 66px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #0a0a0a;
+    color: #d9f24e;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    white-space: nowrap;
+}
+/* Espace fine entre le signe moins et le nombre. */
+.mqs-plan-off .mqs-sign { margin-right: 0.12em; }
+.mqs-plan-off.is-plain { background: #f1f1ef; color: #5c5c57; font-size: 11px; letter-spacing: 0.03em; }
+
+@media (max-width: 360px) {
+    .mqs-plan-option { padding: 13px; }
+    .mqs-plan-option.is-selected { padding: 12px; }
+    .mqs-plan-off { min-width: 56px; padding: 7px 8px; font-size: 14px; }
+    .mqs-plan-off.is-plain { font-size: 10px; }
+    .mqs-plan-option-sub { font-size: 11px; }
+}
+
+/* Bandeau « installation offerte » ramené à une seule ligne. Il garde la classe
+   .mqs-value-anchor, qui sert de sélecteur contextuel « étape 2 » ailleurs dans
+   ce fichier — d'où ce modificateur qui écrase l'ancienne mise en forme. */
+.mqs-value-anchor.mqs-value-anchor-compact,
+#mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-value-anchor.mqs-value-anchor-compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 13px 18px;
+    border: 1.5px solid #b8dc2b;
+    border-radius: 18px;
+    background: #ebf9a9;
+    text-align: left;
+}
+.mqs-offer-label { font-size: 13.5px; font-weight: 700; color: #33420a; }
+.mqs-offer-price { display: flex; align-items: baseline; gap: 8px; }
+.mqs-offer-price s { color: #7d8b53; font-size: 13px; }
+.mqs-offer-price strong { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: #24310a; }
+
+/* =============================================================================
+   ÉTAPE 3 — ticket de caisse
+   ============================================================================= */
+.mqs-ticket {
+    background: #0f0f0f;
+    color: #f4f4f2;
+    border-radius: 18px;
+    padding: 24px;
+}
+.mqs-ticket-title {
+    margin: 0 0 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+.mqs-ticket-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 0;
+    font-size: 14px;
+}
+/* Le libellé passe à la ligne plutôt que d'être coupé : à 320 px,
+   « Installation et mise en ligne » ne tient pas, et une ellipse ferait perdre
+   l'information au moment précis où le client vérifie ce qu'il paie. */
+.mqs-ticket-line > span:first-child { color: rgba(255, 255, 255, 0.72); min-width: 0; line-height: 1.35; }
+.mqs-ticket-line strong { flex: 0 0 auto; font-weight: 700; color: #ffffff; }
+.mqs-ticket-line s { margin-right: 6px; color: rgba(255, 255, 255, 0.38); font-weight: 400; }
+
+/* Prestations incluses, rattachées à la ligne « Abonnement » qu'elles
+   détaillent. Chaque item porte sa coche et reste insécable : ils se
+   répartissent sur 2 lignes sans jamais se couper au milieu d'un libellé. */
+.mqs-ticket-detail {
+    margin: -2px 0 6px;
+    padding: 0 0 0 1px;
+    list-style: none;
+    font-size: 12px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.55);
+}
+.mqs-ticket-detail li { display: inline-block; margin-right: 12px; white-space: nowrap; }
+.mqs-ticket-detail li::before {
+    content: '✓';
+    margin-right: 5px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 10.5px;
+    font-weight: 700;
+}
+@media (max-width: 360px) {
+    .mqs-ticket { padding: 20px; }
+    .mqs-ticket-detail { font-size: 11px; }
+    .mqs-ticket-detail li { margin-right: 9px; }
+    .mqs-ticket-detail li::before { margin-right: 4px; font-size: 9.5px; }
+}
+
+.mqs-ticket-rule { height: 1px; margin: 12px 0; background: rgba(255, 255, 255, 0.14); }
+
+/* Le montant fait face à DEUX lignes (« Total aujourd'hui » + « puis … /mois ») :
+   il est donc centré sur leur hauteur, et non calé sur la baseline de la
+   première — sinon il paraît remonté. */
+.mqs-ticket-total { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mqs-ticket-total-labels { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mqs-ticket-total-labels > span { font-size: 14px; font-weight: 700; color: #ffffff; }
+.mqs-ticket-total-labels > small { font-size: 12.5px; line-height: 1.35; color: rgba(255, 255, 255, 0.55); }
+.mqs-ticket-total strong {
+    flex: 0 0 auto;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: #cdf24d;
+}
+
+.mqs-ticket-note {
+    margin: 16px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.62);
+}

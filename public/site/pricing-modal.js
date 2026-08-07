@@ -28,6 +28,8 @@
       saving: '458,40 € sur 24 mois',
       note: 'Engagement 24 mois',
       cta: 'Voir le récapitulatif',
+      // 2e ligne de l'option à l'étape 2 : durée + rang commercial.
+      optionSub: '24 mois · le plus bas',
       isPopular: false,
     },
     {
@@ -42,6 +44,7 @@
       saving: '133,20 € sur 12 mois',
       note: 'Engagement 12 mois',
       cta: 'Voir le récapitulatif',
+      optionSub: '12 mois · le plus choisi',
       isPopular: true,
     },
     {
@@ -56,6 +59,7 @@
       saving: 'Aucune durée minimum',
       note: 'Sans engagement',
       cta: 'Voir le récapitulatif',
+      optionSub: 'Résiliable à tout moment',
       isPopular: false,
     },
   ];
@@ -235,67 +239,58 @@
     `;
   }
 
-  function renderPlanCardA(plan) {
-    const classes = ['mqs-plan'];
-    if (plan.isPopular) classes.push('mqs-plan-popular');
-    const flexStatus = plan.key === 'TWO_YEAR'
-      ? '<p class="mqs-plan-flex-status">Résiliable sans frais pendant 30 jours,<br>puis à l’échéance des 24 mois.</p>'
-      : plan.key === 'ONE_YEAR'
-        ? '<p class="mqs-plan-flex-status">Résiliable sans frais pendant 30 jours,<br>puis à l’échéance des 12 mois.</p>'
-        : '<p class="mqs-plan-flex-status">Résiliable à tout moment.</p>';
-    const offerBadge = plan.key === 'FLEX'
-      ? '<span class="mqs-plan-discount mqs-plan-freedom">Liberté totale</span>'
-      : `<span class="mqs-plan-discount">${escapeHtml(plan.discount)}</span>`;
-    return `
-      <div class="${classes.join(' ')}" data-plan="${plan.key}">
-        <div class="mqs-plan-heading">
-          <strong class="mqs-plan-title${plan.key === 'FLEX' ? ' mqs-plan-title-flex' : ''}">${escapeHtml(plan.title)}</strong>
-          ${plan.key === 'FLEX' ? '' : `<span class="mqs-plan-eyebrow">${escapeHtml(plan.eyebrow)}</span>`}
-        </div>
-        <div class="mqs-plan-price-line">
-          <span class="mqs-plan-price">${formatEur(plan.monthlyPriceTtc)}</span>
-          <span class="mqs-plan-period">TTC / mois</span>
-        </div>
-        <div class="mqs-plan-offer">${offerBadge}</div>
-        ${flexStatus}
-        <p class="mqs-plan-description">${escapeHtml(plan.description)}</p>
-        <button class="mqs-plan-cta" type="button" data-plan-cta="${plan.key}">${escapeHtml(plan.cta)}</button>
-      </div>
-    `;
-  }
-
   // ---------- STEP B : choix de la formule (2e — après le domaine) ----------
   function renderStepB() {
-    const plansHtml = PLANS.map(p => renderPlanCardA(p)).join('');
-    const domainNote = state.selectedHostname
-      ? `<p class="mqs-step-domain-note">Votre adresse : <strong>${escapeHtml(state.selectedHostname)}</strong> · offerte</p>`
-      : '';
     return `
       <div class="mqs-step-header">
         <span class="mqs-step-eyebrow">Étape 2 / 3</span>
-        <h2 class="mqs-step-title">Un site en ligne, sans rien gérer vous-même</h2>
+        <h2 class="mqs-step-title">Choisissez votre formule</h2>
         <p class="mqs-step-sub">
-          Nous gérons le domaine, l'hébergement, la maintenance et vos mises à jour.
+          Création du site, domaine, mise en ligne : offerts. Il ne reste que l’abonnement.
         </p>
-        ${domainNote}
       </div>
 
-      <section class="mqs-value-anchor" aria-label="Offre de lancement">
-        <span class="mqs-value-anchor-brand">Offre de lancement</span>
-        <h3>Installation &amp; mise en ligne offertes</h3>
-        <div class="mqs-value-anchor-line"><span>Création et configuration du site</span><strong>600 €</strong></div>
-        <div class="mqs-value-anchor-line"><span>Domaine, connexion et mise en ligne</span><strong>15 €</strong></div>
-        <div class="mqs-value-anchor-total"><span>À payer aujourd'hui pour le lancement</span><span class="mqs-launch-price"><s>615 €</s><strong>0 €</strong></span></div>
+      <!-- La classe .mqs-value-anchor est conservée : le CSS s'en sert comme
+           sélecteur contextuel « je suis à l'étape 2 » (cf. pricing-modal.css,
+           bloc #mqs-pricing-drawer:has(.mqs-value-anchor)). Le modificateur
+           -compact lui donne sa nouvelle forme, une seule ligne. -->
+      <section class="mqs-value-anchor mqs-value-anchor-compact" aria-label="Offre de lancement">
+        <span class="mqs-offer-label">Installation et mise en ligne</span>
+        <span class="mqs-offer-price"><s>615 €</s><strong>0 €</strong></span>
       </section>
 
-      <div class="mqs-plans-heading"><h3>Choisissez votre durée</h3><p>Le service est le même dans les trois formules. Seule la durée d’engagement change — et donc votre remise sur le tarif sans engagement (29 €/mois).</p></div>
+      <div class="mqs-plans-heading"><h3>Combien de temps ?</h3></div>
 
-      <div class="mqs-plans">${plansHtml}</div>
-      <p class="mqs-plans-footnote">Tarifs TTC par mois. Aucun frais de mise en service.</p>
+      <div class="mqs-plan-options">${PLANS.map(renderPlanOption).join('')}</div>
+      <p class="mqs-plans-footnote">Vous pouvez tout annuler sous 30 jours, sans frais.</p>
 
       <div class="mqs-modal-footer mqs-footer-plan">
         <button class="mqs-btn-back" type="button" id="mqs-back-btn">← Modifier le domaine</button>
       </div>
+    `;
+  }
+
+  // Option de formule : prix dominant en haut, durée et rang en dessous, remise
+  // en pastille à droite. Deux niveaux plutôt qu'un seul parce qu'en 320 px,
+  // tout aligner obligerait à rapetisser le prix — or c'est lui qu'on vient lire.
+  function renderPlanOption(plan) {
+    const isFlex = plan.key === 'FLEX';
+    // Le signe moins est isolé pour pouvoir l'espacer du nombre (cf. .mqs-sign) :
+    // collés, « −66 » devient illisible dans une petite pastille.
+    const off = isFlex
+      ? '<span class="mqs-plan-off is-plain">Liberté<br>totale</span>'
+      : `<span class="mqs-plan-off">${plan.discount.replace(/^−/, '<span class="mqs-sign">−</span>')}</span>`;
+    return `
+      <button class="mqs-plan-option${plan.isPopular ? ' is-selected' : ''}" type="button" data-plan-cta="${plan.key}">
+        <span class="mqs-plan-option-main">
+          <span class="mqs-plan-option-row">
+            <span class="mqs-plan-option-price">${formatEur(plan.monthlyPriceTtc)}</span>
+            <span class="mqs-plan-option-per">/mois</span>
+          </span>
+          <span class="mqs-plan-option-sub">${escapeHtml(plan.optionSub)}</span>
+        </span>
+        ${off}
+      </button>
     `;
   }
 
@@ -400,99 +395,63 @@
   }
 
   // ---------- STEP C : email + paiement ----------
+  // Présentation « ticket de caisse » : à cette étape le coiffeur ne veut plus
+  // être convaincu, il veut vérifier un montant. Une colonne de lignes chiffrées
+  // se lit en trois secondes.
   function renderStepC() {
     const plan = planByKey(state.selectedPlan);
     const hostname = state.selectedHostname;
     const cgvUrl = CGV_FILES[state.selectedPlan] || '/legal/cgv-flex.html';
-    const cgvLabel = state.selectedPlan === 'TWO_YEAR'
-      ? 'Conditions Générales de Vente (engagement 2 ans)'
-      : state.selectedPlan === 'ONE_YEAR'
-        ? 'Conditions Générales de Vente (engagement 1 an)'
-        : 'Conditions Générales de Vente (sans engagement)';
+    const price = formatEur(plan.monthlyPriceTtc);
 
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email);
     const submitDisabled = (state.submitting || !emailValid || !state.cgvAccepted) ? 'disabled' : '';
-    const commitmentLabel = state.selectedPlan === 'TWO_YEAR'
-      ? 'Engagement 24 mois'
-      : state.selectedPlan === 'ONE_YEAR'
-        ? 'Engagement 12 mois'
-        : 'Sans engagement';
     const commitmentDuration = state.selectedPlan === 'FLEX'
       ? 'sans engagement'
       : state.selectedPlan === 'TWO_YEAR' ? '24 mois' : '12 mois';
-    const template = currentTemplate();
-    const afterFirstMonth = state.selectedPlan === 'FLEX'
-      ? 'Après ces 30 jours, la formule reste résiliable à tout moment, avec effet à la prochaine échéance mensuelle.'
-      : `Après ces 30 jours, l’engagement de ${commitmentDuration} prévu par la formule s’applique.`;
-    const firstMonthCommitment = state.selectedPlan === 'FLEX'
-      ? 'Aucun prélèvement supplémentaire ne sera effectué.'
-      : `L’engagement de ${commitmentDuration} sera entièrement levé et aucun prélèvement supplémentaire ne sera effectué.`;
+
+    // Prestations incluses : rattachées à la ligne « Abonnement » qu'elles
+    // détaillent, en puces à coche sur 2 lignes plutôt qu'en liste verticale.
+    const includes = [
+      'Site personnalisé déjà créé',
+      '3 designs inclus',
+      'Hébergement et maintenance',
+      'Mises à jour',
+    ];
 
     return `
       <div class="mqs-step-header mqs-payment-header">
         <span class="mqs-step-eyebrow">Étape 3 / 3</span>
-        <h2 class="mqs-step-title">Vérifiez avant de continuer</h2>
-        <p class="mqs-step-sub">
-          Vérifiez votre formule, puis continuez vers le paiement sécurisé Stripe.
-        </p>
+        <h2 class="mqs-step-title">Votre commande</h2>
       </div>
 
       <div class="mqs-payment-layout">
-        <section class="mqs-order-card" aria-label="Récapitulatif de votre abonnement">
-          <div class="mqs-order-topline">
-            <span class="mqs-order-kicker">Votre formule · ${escapeHtml(plan.title)}</span>
-            ${plan.isPopular ? '<span class="mqs-order-popular">Le plus choisi</span>' : ''}
+        <section class="mqs-ticket" aria-label="Récapitulatif de votre abonnement">
+          <p class="mqs-ticket-title">Détail</p>
+          <div class="mqs-ticket-line">
+            <span>Abonnement ${escapeHtml(plan.title)}</span><strong>${price}</strong>
           </div>
-          <div class="mqs-order-price-line">
-            <strong class="mqs-order-price">${formatEur(plan.monthlyPriceTtc)}</strong>
-            <span class="mqs-order-period">TTC / mois</span>
-          </div>
-
-          <div class="mqs-order-domain">
-            <span class="mqs-order-domain-icon" aria-hidden="true">www</span>
-            <span>
-              <small>Votre adresse web</small>
-              <strong>${escapeHtml(hostname)}</strong>
-            </span>
-            <span class="mqs-order-included">Offert</span>
-          </div>
-
-          <ul class="mqs-order-includes">
-            <li><span aria-hidden="true">✓</span> Site personnalisé déjà créé</li>
-            <li><span aria-hidden="true">✓</span> Domaine ${escapeHtml(hostname)}</li>
-            <li><span aria-hidden="true">✓</span> 3 designs inclus</li>
-            <li><span aria-hidden="true">✓</span> Hébergement et maintenance</li>
-            <li><span aria-hidden="true">✓</span> Mises à jour</li>
+          <ul class="mqs-ticket-detail">
+            ${includes.map(i => `<li>${escapeHtml(i)}</li>`).join('')}
           </ul>
-          <div class="mqs-order-installation">
-            <span>
-              <strong>Installation et mise en ligne</strong>
-              <small><s>Valeur 615 €</s></small>
+          <div class="mqs-ticket-line">
+            <span>Domaine ${escapeHtml(hostname)}</span><strong><s>15 €</s>0 €</strong>
+          </div>
+          <div class="mqs-ticket-line">
+            <span>Installation et mise en ligne</span><strong><s>615 €</s>0 €</strong>
+          </div>
+          <div class="mqs-ticket-rule"></div>
+          <div class="mqs-ticket-total">
+            <span class="mqs-ticket-total-labels">
+              <span>Total aujourd’hui</span>
+              <small>puis ${price}/mois</small>
             </span>
-            <span class="mqs-order-installation-price"><strong>0 €</strong></span>
+            <strong>${price}</strong>
           </div>
-          <div class="mqs-order-total-wrap">
-            <p class="mqs-order-total"><span>À régler sur Stripe aujourd'hui</span><strong>${formatEur(plan.monthlyPriceTtc)}</strong></p>
-            <p class="mqs-order-total"><span>Puis</span><strong>${formatEur(plan.monthlyPriceTtc)}/mois</strong></p>
-            ${state.selectedPlan === 'FLEX' ? '<p class="mqs-order-total"><span>Résiliation</span><strong>À tout moment</strong></p>' : ''}
-            <small>Aucun frais d'installation ajouté au paiement · résiliable selon CGV.</small>
-          </div>
-
-          <p class="mqs-first-month-note">
-            <strong>Résiliable pendant le premier mois.</strong>
-            ${escapeHtml(firstMonthCommitment)}
-            <a href="/faq#resiliation" target="_blank" rel="noopener">Voir la FAQ MaQuickPage</a>
-          </p>
+          <p class="mqs-ticket-note">Annulable sans frais sous 30 jours.</p>
         </section>
 
         <section class="mqs-checkout-card" aria-label="Coordonnées et paiement">
-          <div class="mqs-checkout-heading">
-            <span class="mqs-checkout-lock" aria-hidden="true">
-              🔒
-            </span>
-            <span><strong>Paiement sécurisé</strong><small>Le clic ne débite pas immédiatement<br>votre carte.</small></span>
-          </div>
-
           <div class="mqs-email-block">
             <label class="mqs-custom-label" for="mqs-email-input">Email professionnel</label>
             <input
@@ -504,7 +463,7 @@
               autocomplete="email"
               required
             />
-            <p class="mqs-email-help">Le reçu et les accès à votre site seront envoyés à cette adresse.</p>
+            <p class="mqs-email-help">Reçu et accès envoyés à cette adresse.</p>
           </div>
 
           <div class="mqs-cgv-block">
@@ -527,11 +486,11 @@
             <!-- Retour à la ligne explicite AVANT le montant : sans lui, le texte
                  se coupait n'importe où et séparait le nombre de son symbole €
                  (« 17,90 / € aujourd'hui »). Le montant est insécable. -->
-            <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe<br><span class="mqs-payment-cta-amount">${formatEur(plan.monthlyPriceTtc)} aujourd'hui</span>`}</span>
+            <span>${state.submitting ? 'Redirection en cours...' : `Continuer sur Stripe<br><span class="mqs-payment-cta-amount">${price} aujourd'hui</span>`}</span>
             ${state.submitting ? '' : '<span aria-hidden="true">→</span>'}
           </button>
           ${state.checkoutError ? `<p class="mqs-checkout-error" role="alert">${escapeHtml(state.checkoutError)}</p>` : ''}
-          <p class="mqs-payment-fineprint">Paiement sécurisé et chiffré par Stripe.</p>
+          <p class="mqs-payment-fineprint">Paiement Stripe sécurisé.</p>
         </section>
       </div>
 
@@ -605,17 +564,9 @@
     // STEP B = choix de la formule (2e)
     if (state.step === 'B') {
       m.querySelector('#mqs-back-btn')?.addEventListener('click', () => goToStep('A'));
-      m.querySelectorAll('.mqs-plan-cta').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          selectPlanAndGoEmail(btn.dataset.planCta);
-        });
-      });
-      m.querySelectorAll('.mqs-plan').forEach(card => {
-        card.addEventListener('click', (e) => {
-          if (e.target.closest('.mqs-plan-cta')) return;
-          selectPlanAndGoEmail(card.dataset.plan);
-        });
+      // Chaque option est un <button> entier : un seul handler suffit.
+      m.querySelectorAll('.mqs-plan-option').forEach(btn => {
+        btn.addEventListener('click', () => selectPlanAndGoEmail(btn.dataset.planCta));
       });
     }
 
