@@ -2210,11 +2210,6 @@
     #mqs-pricing-drawer:has(.mqs-value-anchor) .mqs-plan { min-height: 0; }
 }
 
-.mqs-domain-section-title span {
-    color: #667b24;
-    font-weight: 700;
-}
-
 .mqs-order-style {
     grid-template-columns: 1fr auto;
 }
@@ -3139,5 +3134,31 @@
     #mqs-pricing-drawer .mqs-checkout-card,
     #mqs-pricing-drawer .mqs-ticket {
         min-height: 0;
+    }
+}
+
+/* Prestations incluses : à partir de la tablette, une ligne par prestation.
+   En flux libre, « Mises à jour » se retrouvait seul en bout de deuxième ligne,
+   détaché du reste. Une colonne supprime tout orphelin possible quelle que soit
+   la largeur de la carte, se lit mieux, et ne coûte rien en hauteur — quatre
+   lignes de texte occupent autant que deux lignes de cellules à deux colonnes,
+   où les libellés longs passaient de toute façon sur deux lignes. */
+@media (min-width: 701px) {
+    #mqs-pricing-drawer .mqs-ticket-detail {
+        display: grid;
+        gap: 1px;
+    }
+    #mqs-pricing-drawer .mqs-ticket-detail li {
+        margin-right: 0;
+        white-space: normal;
+    }
+}
+
+/* Mobile : 2 rangées et demie visibles. La demi-rangée coupée en bas dit à
+   l'œil qu'il y a d'autres domaines en dessous — un compte rond laisse croire
+   que la liste est complète. Et on gagne encore en hauteur. */
+@media (max-width: 700px) {
+    #mqs-pricing-drawer .mqs-domain-list {
+        max-height: calc(var(--mqs-domain-row-h) * 2.5 + var(--mqs-domain-list-gap) * 2);
     }
 }

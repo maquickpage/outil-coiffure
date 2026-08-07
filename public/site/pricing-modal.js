@@ -279,7 +279,7 @@
       </div>
 
       <section class="mqs-domain-section" aria-labelledby="mqs-suggestions-title">
-        <h3 id="mqs-suggestions-title" class="mqs-domain-section-title">Ces adresses web sont disponibles pour vous <span>— En voir plus</span></h3>
+        <h3 id="mqs-suggestions-title" class="mqs-domain-section-title">Ces adresses web sont disponibles pour vous :</h3>
         <div class="mqs-domain-list">
           ${suggestionsHtml}
         </div>
