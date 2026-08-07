@@ -461,10 +461,28 @@ function api(path, opts){
   });
 }
 
-function load(){
-  setBusy(true);
-  api('/overview').then(function(d){ DATA = d; render(); setBusy(false); })
-    .catch(function(e){ toast(t('load_fail') + e.message, true); setBusy(false); });
+// Saisie en cours : bloque le rafraîchissement auto, sinon render() écrase les champs.
+var DIRTY = false;
+document.addEventListener('input', function(e){
+  if (e.target && e.target.closest && e.target.closest('#steps, #mbEditors, #import')) DIRTY = true;
+});
+document.addEventListener('change', function(e){
+  if (e.target && e.target.closest && e.target.closest('#steps, #mbEditors, #import')) DIRTY = true;
+});
+
+// silent = rafraîchissement de fond : ne grise pas les boutons, ne toaste pas.
+function load(silent){
+  if (!silent) setBusy(true);
+  return api('/overview').then(function(d){
+    DATA = d;
+    // finally : si render() casse, BUSY doit quand même retomber, sinon
+    // tous les boutons restent grisés définitivement.
+    try { render(); DIRTY = false; }
+    finally { if (!silent) setBusy(false); }
+  }).catch(function(e){
+    if (silent) return;
+    toast(t('load_fail') + e.message, true); setBusy(false);
+  });
 }
 
 function okNodes(){ return (DATA && DATA.nodes || []).filter(function(n){ return n.ok; }); }
@@ -791,7 +809,12 @@ function pushSuppression(){
 
 applyStatic();
 load();
-setInterval(function(){ if (!BUSY && !document.hidden) load(); }, 90000);
+setInterval(function(){
+  if (BUSY || DIRTY || document.hidden) return;
+  var a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return; // curseur dans un champ
+  load(true);
+}, 90000);
 </script>
 </body>
 </html>
