@@ -535,12 +535,64 @@ async function pollOvhZoneReady(hostname, timeoutMs = 120_000) {
   throw new Error(`OVH zone ${hostname} not ready within ${timeoutMs}ms`);
 }
 
+/**
+ * Force la délégation du domaine sur les serveurs DNS d'OVH.
+ *
+ * Incident du 2026-08-06 (quickpagepro.fr, premier vrai client) : le domaine
+ * est né délégué à des NS externes (ClouDNS, hérités d'un modèle par défaut du
+ * compte OVH utilisé pour la délivrabilité email). L'AFNIC a d'abord publié les
+ * NS OVH — le site a donc marché quelques heures — puis la délégation ClouDNS
+ * est passée en public. ClouDNS n'a aucune zone pour ce domaine : plus aucune
+ * résolution, site injoignable, alors que la zone OVH contenait les bons records.
+ *
+ * Le piège est vicieux parce qu'il ne se voit pas au provisioning : tous les
+ * checks passent au vert et le site tombe plusieurs heures plus tard.
+ *
+ * On compare donc la délégation réelle aux NS de la zone OVH (source de vérité,
+ * `dns1xx.ovh.net` / `ns1xx.ovh.net`) et on la corrige si besoin.
+ * Ne fait rien si la délégation est déjà bonne.
+ */
+async function ensureOvhNameServers(hostname) {
+  try {
+    const detail = await ovhFetch('GET', `/domain/${hostname}`);
+    const current = (detail.nameServers || [])
+      .map(n => (n.nameServer || '').toLowerCase().replace(/\.$/, ''))
+      .filter(Boolean);
+    if (current.length && current.every(h => h.endsWith('.ovh.net'))) return;
+
+    // NS déclarés dans la zone OVH = ceux sur lesquels le domaine doit pointer
+    const ids = await ovhFetch('GET', `/domain/zone/${hostname}/record?fieldType=NS&subDomain=`);
+    const hosts = [];
+    for (const id of ids || []) {
+      const rec = await ovhFetch('GET', `/domain/zone/${hostname}/record/${id}`);
+      if (rec?.target) hosts.push(String(rec.target).replace(/\.$/, ''));
+    }
+    if (hosts.length < 2) {
+      console.warn(`[provisioning] ${hostname} : NS de zone introuvables, délégation laissée telle quelle (${current.join(', ')})`);
+      return;
+    }
+
+    await ovhFetch('POST', `/domain/${hostname}/nameServers/update`, {
+      nameServers: hosts.map(h => ({ host: h })),
+    });
+    console.log(`[provisioning] ${hostname} délégation corrigée : ${current.join(', ') || '(vide)'} → ${hosts.join(', ')}`);
+  } catch (err) {
+    // Non bloquant : si la délégation est déjà bonne (cas nominal) on ne doit
+    // pas faire échouer un provisioning pour ça. Le cas KO est visible en logs.
+    console.error(`[provisioning] ${hostname} vérification délégation NS échouée (non-fatal):`, err.message);
+  }
+}
+
 async function configureOvhDns(hostname, _fallbackOrigin) {
   // V1 : DNS apex + www → A record vers IP Falkenstein.
   // Le _fallbackOrigin (V2 CF for SaaS) est ignoré.
   try {
     // 1. Attendre que la zone DNS soit créée par OVH (timing race)
     await pollOvhZoneReady(hostname);
+
+    // 1 bis. S'assurer que le domaine est bien délégué aux NS OVH, sinon la
+    // zone qu'on configure juste après ne sera jamais interrogée.
+    await ensureOvhNameServers(hostname);
 
     // 2. Supprimer les A/AAAA/CNAME existants sur apex + www
     const recordIds = await ovhFetch('GET', `/domain/zone/${hostname}/record`);
