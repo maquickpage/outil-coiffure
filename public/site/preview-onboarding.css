@@ -233,3 +233,47 @@
     .mqs-pre-edit-btn-label { font-size: 12.5px; }
     .mqs-pre-edit-btn-kicker { font-size: 9px; }
 }
+
+/* ── Desktop : même disposition que sur mobile ──────────────────────────────
+   Le bouton flottait en bas à droite de l'écran, sans rapport avec la grande
+   CTA et presque superposé à « Style du site ». Il vient maintenant se caler
+   sur la MOITIÉ DROITE de la bar, jumeau de la pilule de gauche.
+   Le wording reste celui du desktop (icône + « Modifier mon site », sans le
+   kicker « Personnaliser » de la version mobile) ; seuls l'habillage et le
+   placement changent. */
+@media (min-width: 721px) {
+    .mqs-pre-edit-btn {
+        left: auto;
+        right: calc(50% - var(--mqs-bar-w, min(860px, calc(100vw - 40px))) / 2);
+        bottom: calc(22px + var(--mqs-bar-h, 0px) + 8px);
+        width: calc(var(--mqs-bar-w, min(860px, calc(100vw - 40px))) / 2 - 4px);
+        /* Hauteur commune aux deux pilules, calée sur la plus haute des deux
+           (celle de gauche, qui porte deux lignes plus un texte). */
+        height: 64px;
+        padding: 0 18px;
+        gap: 12px;
+        justify-content: flex-start;
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 14px;
+        /* Même habillage que la grande CTA : les trois éléments se lisent comme
+           un seul ensemble au lieu de trois objets sans rapport. */
+        background: #0f0f0f;
+        color: #f4f4f2;
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, .08) inset,
+            0 18px 44px -14px rgba(0, 0, 0, .6);
+        font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        transition: bottom 220ms ease, opacity .26s, transform .26s, background .15s;
+    }
+    .mqs-pre-edit-btn:hover {
+        transform: none;
+        background: #171717;
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, .08) inset,
+            0 18px 44px -14px rgba(0, 0, 0, .6);
+    }
+    .mqs-pre-edit-btn svg { width: 20px; height: 20px; color: #cdf24d; }
+    .mqs-pre-edit-btn-label { font-size: 15px; font-weight: 700; }
+}

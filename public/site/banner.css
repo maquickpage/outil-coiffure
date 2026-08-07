@@ -220,9 +220,13 @@
   from { opacity: 0; transform: translate(-50%, 16px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
+/* Largeur de la bar, exposée pour que les deux pilules (« Style du site » et
+   « Modifier mon site ») viennent s'aligner exactement sur ses bords. */
+:root { --mqs-bar-w: min(860px, calc(100vw - 40px)); }
+
 .mqs-bar {
   position: relative;
-  width: min(860px, calc(100vw - 40px));
+  width: var(--mqs-bar-w);
   background: #0f0f0f;
   color: #f4f4f2;
   border: 1px solid rgba(255,255,255,.1);

@@ -359,3 +359,52 @@ body.mqs-style-open {
   .mqs-style-trigger strong { font-size: 12.5px; }
   .mqs-style-trigger small { font-size: 9px; }
 }
+
+/* ── Desktop : même disposition que sur mobile ──────────────────────────────
+   La pilule était posée en bas à droite de l'écran, sans rapport avec la grande
+   CTA, et se chevauchait presque avec « Modifier mon site ». Elle vient
+   maintenant se caler sur la MOITIÉ GAUCHE de la bar, comme sur mobile.
+   Le wording reste celui du desktop (texte explicatif conservé) ; seuls
+   l'habillage et le placement changent. */
+@media (min-width: 721px) {
+  #mqs-style-switcher {
+    left: calc(50% - var(--mqs-bar-w, min(860px, calc(100vw - 40px))) / 2);
+    right: auto;
+    width: calc(var(--mqs-bar-w, min(860px, calc(100vw - 40px))) / 2 - 4px);
+    bottom: calc(22px + var(--mqs-bar-h, 0px) + 8px);
+  }
+
+  .mqs-style-trigger {
+    width: 100%;
+    min-width: 0;
+    /* Hauteur commune aux deux pilules, calée sur la plus haute des deux
+       (celle-ci, qui porte deux lignes plus un texte à droite). */
+    min-height: 64px;
+    margin-left: 0;
+    gap: 14px;
+    padding: 10px 16px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 14px;
+    /* Même habillage que la grande CTA : les trois éléments se lisent comme un
+       seul ensemble au lieu de trois objets sans rapport. */
+    background: #0f0f0f;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, .08) inset,
+      0 18px 44px -14px rgba(0, 0, 0, .6);
+    backdrop-filter: none;
+    font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
+  }
+
+  .mqs-style-trigger small { color: rgba(255, 255, 255, .5); }
+  .mqs-style-trigger strong { color: #f4f4f2; font-size: 15px; }
+
+  .mqs-style-trigger-action {
+    width: auto;
+    max-width: none;
+    padding-left: 14px;
+    border-left: 1px solid rgba(255, 255, 255, .14);
+    color: rgba(255, 255, 255, .6);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+}
