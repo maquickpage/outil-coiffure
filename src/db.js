@@ -114,6 +114,9 @@ export function initSchema() {
   // repasser plusieurs fois sur un même salon, le client ne doit le recevoir
   // qu'une fois.
   if (!cols.includes('online_email_sent_at')) db.exec("ALTER TABLE salons ADD COLUMN online_email_sent_at TEXT");
+  // Lien vers la facture Stripe (page hébergée ou PDF), mis dans l'email de
+  // confirmation pour que le client l'obtienne sans avoir à la demander.
+  if (!cols.includes('invoice_url')) db.exec("ALTER TABLE salons ADD COLUMN invoice_url TEXT");
 
   // === Reprise automatique du provisioning (watchdog) ===
   // provisioning_attempts  : nombre de relances déjà tentées (plafonné, cf.

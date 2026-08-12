@@ -1017,6 +1017,16 @@ button {
     .edit-tab-icon { width: 24px; height: 24px; flex: 0 0 24px; }
     .edit-tab-icon svg { width: 22px; height: 22px; }
     .edit-main { padding: 16px; }
+    /* La barre « adresses disponibles » est en position fixe au-dessus du
+       contenu : sur mobile elle recouvrait le bouton « Enregistrer », qui
+       devenait inatteignable puisque la page ne défile pas plus bas.
+       On rend au contenu exactement la hauteur qu'elle occupe.
+       `mqs-bar-active` et `--mqs-bar-h` sont posés par banner.js, lequel ne
+       s'active que sur les démos : un site publié n'a pas cette barre et garde
+       donc son défilement actuel, sans espace vide en bas. */
+    body.mqs-bar-active .edit-main {
+        padding-bottom: calc(16px + var(--mqs-bar-h, 0px) + env(safe-area-inset-bottom, 0px));
+    }
     .edit-section-head h1 { font-size: 1.5rem; }
     .edit-card { padding: 16px; }
     .edit-actions { justify-content: stretch; }

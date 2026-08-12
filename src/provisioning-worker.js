@@ -341,7 +341,7 @@ async function publishOnTempHostname(slug, hostname, planKey) {
   console.log(`[provisioning] ${slug} en ligne sur https://${tempHostname}`);
 
   const row = db.prepare(`
-    SELECT nom_clean, nom, owner_email, plan, signup_session_id, online_email_sent_at
+    SELECT nom_clean, nom, owner_email, plan, signup_session_id, online_email_sent_at, invoice_url
     FROM salons WHERE slug = ?
   `).get(slug);
   if (!row?.owner_email || row.online_email_sent_at) return tempHostname;
@@ -358,6 +358,7 @@ async function publishOnTempHostname(slug, hostname, planKey) {
       finalHostname: hostname,
       plan: row.plan || planKey,
       sessionId: row.signup_session_id,
+      invoiceUrl: row.invoice_url,
       slug,
       setupToken,
     });

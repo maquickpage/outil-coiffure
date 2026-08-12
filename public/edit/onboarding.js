@@ -42,6 +42,17 @@
       placementMobile: 'bottom',   // mobile/tablette : en-dessous (sinon recouvre la sidebar)
     },
     {
+      id: 'booking',
+      // L'onglet lui-même, pas la section : sur mobile il est hors écran au
+      // chargement, positionStep() fait défiler la bande jusqu'à lui.
+      target: '.edit-tab[data-tab="contact"]',
+      title: 'Réservation en ligne',
+      text: 'Par exemple, vous pouvez connecter votre Planity ou autre système de réservation en ligne depuis cet onglet.',
+      next: 'Suivant →',
+      placement: 'right',
+      placementMobile: 'bottom',
+    },
+    {
       id: 'save',
       // resolveVisible() retourne le 1er .btn-save dans la section active
       // (les sections inactives ont display:none → offsetParent null)
@@ -176,7 +187,23 @@
     positionStep();
   }
 
-  function positionStep() {
+  // Recalcule la position une fois le défilement animé terminé, sans quoi le
+  // halo et la bulle restent sur les coordonnées d'avant le scroll.
+  // `scrollend` est le signal exact ; à défaut (Safari), un délai couvre la
+  // durée d'une animation de défilement.
+  let repositionTimer = null;
+  function scheduleReposition() {
+    if (repositionTimer) clearTimeout(repositionTimer);
+    const redo = () => { repositionTimer = null; positionStep({ skipScroll: true }); };
+    if ('onscrollend' in window) {
+      window.addEventListener('scrollend', redo, { once: true });
+      repositionTimer = setTimeout(redo, 700); // filet si l'événement ne vient pas
+    } else {
+      repositionTimer = setTimeout(redo, 450);
+    }
+  }
+
+  function positionStep(opts = {}) {
     const s = STEPS[state.currentStep];
     if (!s || !state.spotlight || !state.popup) return;
 
@@ -209,8 +236,17 @@
       return;
     }
 
-    // Scroll l'élément dans la vue si besoin
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // Amène la cible dans la vue. `inline: 'center'` est indispensable sur
+    // mobile : le menu des sections y est une bande horizontale défilante, et
+    // les derniers onglets (dont « Contact & Réseaux ») sont hors écran au
+    // chargement. Sans ça, on éclairait une zone vide.
+    if (!opts.skipScroll) {
+      el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      // Le défilement est animé, donc les coordonnées mesurées maintenant sont
+      // celles d'AVANT. On pose une première position (utile si rien ne bouge),
+      // puis on repositionne une fois l'animation terminée.
+      scheduleReposition();
+    }
 
     const rect = el.getBoundingClientRect();
     const padding = 8;

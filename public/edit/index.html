@@ -6,7 +6,7 @@
     <title>Modifier mon site</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
-    <link rel="stylesheet" href="/edit-app/edit.css?v=2">
+    <link rel="stylesheet" href="/edit-app/edit.css?v=3">
     <link rel="stylesheet" href="/edit-app/onboarding.css?v=4">
     <!-- Bannière promo + modal pricing (réutilisées depuis /preview/{slug}) -->
     <link rel="stylesheet" href="/_assets/banner.css?v=15">
@@ -343,6 +343,23 @@
                 <p>Vos informations de contact et vos liens sociaux.</p>
             </div>
 
+            <!-- En premier et dans son propre volet : c'est le réglage qui
+                 transforme le site en outil de prise de rendez-vous, il ne doit
+                 pas rester noyé en bas de la fiche contact. -->
+            <details class="accordion" open>
+                <summary class="accordion-summary">
+                    <span class="accordion-chevron"></span>
+                    <span class="accordion-title">Réservation en ligne</span>
+                </summary>
+                <div class="accordion-body">
+                    <label class="edit-field">
+                        <span class="edit-label">Lien de réservation (optionnel)</span>
+                        <input type="url" id="contact-booking-url" placeholder="Ex : https://www.planity.com/votre-salon" maxlength="250">
+                        <span class="edit-help">Si vous avez Planity, Booksy, Treatwell, etc. : collez votre lien de réservation. Le bouton « Réserver » du site dirigera directement vos clients vers votre planning.</span>
+                    </label>
+                </div>
+            </details>
+
             <details class="accordion">
                 <summary class="accordion-summary">
                     <span class="accordion-chevron"></span>
@@ -391,11 +408,6 @@
                     <label class="edit-field">
                         <span class="edit-label">Email</span>
                         <input type="email" id="contact-email" placeholder="Ex : contact@monsalon.fr" maxlength="100">
-                    </label>
-                    <label class="edit-field">
-                        <span class="edit-label">Réservation en ligne (optionnel)</span>
-                        <input type="url" id="contact-booking-url" placeholder="Ex : https://www.planity.com/votre-salon" maxlength="250">
-                        <span class="edit-help">Si vous avez Planity, Booksy, Treatwell, etc. : collez votre lien de réservation. Le bouton « Réserver » du site dirigera directement vos clients vers votre planning.</span>
                     </label>
                 </div>
             </details>
@@ -495,7 +507,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="/_assets/template-config.js?v=1"></script>
 <script src="/edit-app/edit.js?v=6"></script>
-<script src="/edit-app/onboarding.js?v=7" defer></script>
+<script src="/edit-app/onboarding.js?v=8" defer></script>
 <!-- Bannière commerciale (s'affiche dès l'ouverture du menu d'édition, mêmes
      règles close/reappear qu'en /preview). La modal pricing est chargée en
      premier pour que window.MqsPricingModal soit dispo au click CTA. -->

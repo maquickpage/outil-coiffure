@@ -140,7 +140,7 @@ const PLAN_LABELS = {
  * affichées au checkout : ce que le client a lu avant de payer doit être ce
  * qu'il relit dans sa boîte mail.
  */
-export async function sendSiteOnlineEmail({ to, salonName, tempHostname, finalHostname, plan, sessionId, slug, setupToken }) {
+export async function sendSiteOnlineEmail({ to, salonName, tempHostname, finalHostname, plan, sessionId, slug, setupToken, invoiceUrl }) {
   const planLabel = PLAN_LABELS[plan] || plan || '';
   const ref = sessionId ? sessionId.slice(-8).toUpperCase() : null;
   const siteUrl = `https://${tempHostname}`;
@@ -204,7 +204,9 @@ export async function sendSiteOnlineEmail({ to, salonName, tempHostname, finalHo
           </p>
 
           <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">
-            Besoin d'une facture ou d'une modification ? Répondez directement à cet email, nous vous répondons personnellement.
+            ${invoiceUrl
+              ? `<a href="${invoiceUrl}" style="color: #0a0a0a; font-weight: 600;">Télécharger ma facture</a> · Une question ? Répondez à cet email.`
+              : `Une question ? Répondez directement à cet email, nous vous répondons personnellement.`}
           </p>`;
 
   const text = `Merci ${salonName}, votre site est en ligne.
@@ -234,7 +236,8 @@ Votre abonnement comprend votre site personnalisé, 3 designs au choix, le nom d
 offert la première année, l'hébergement en Allemagne et la maintenance, les mises à jour,
 l'installation et la mise en ligne.
 
-Besoin d'une facture ou d'une modification ? Répondez directement à cet email.
+${invoiceUrl ? `Votre facture : ${invoiceUrl}
+` : ''}Une question ? Répondez directement à cet email.
 
 MaQuickPage — KAISER CO · KAISER JOHANN, Entrepreneur individuel · SIREN 791 069 610
 CGV : https://maquickpage.fr/legal/cgv.html`;
@@ -273,10 +276,6 @@ export async function sendProvisioningDelayEmail({ to, salonName, hostname, temp
           <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
             Dès que l'adresse nous est livrée, la bascule se fait toute seule et vous recevez un email.
           </p>
-          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
-            Si vous préférez ne pas attendre, répondez à cet email : nous pouvons vous proposer une autre
-            adresse disponible immédiatement, ou vous rembourser.
-          </p>
           <p style="font-size: 15px; color: #6b7280; line-height: 1.6; margin: 0;">
             Désolé pour ce contretemps.
           </p>`;
@@ -290,9 +289,6 @@ d'OVHcloud, l'organisme qui attribue les noms de domaine, pas de votre commande 
 bien enregistrée chez eux et nous les relançons.
 
 Dès que l'adresse nous est livrée, la bascule se fait toute seule et vous recevez un email.
-
-Si vous préférez ne pas attendre, répondez à cet email : nous pouvons vous proposer une
-autre adresse disponible immédiatement, ou vous rembourser.
 
 Désolé pour ce contretemps.
 

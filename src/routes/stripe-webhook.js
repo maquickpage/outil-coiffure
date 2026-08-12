@@ -135,6 +135,26 @@ async function onCheckoutCompleted(session) {
     WHERE slug = ?
   `).run(slug);
 
+  // Facture : Stripe en émet déjà une, numérotée et au format PDF, pour chaque
+  // paiement d'abonnement. On récupère son lien pour le mettre dans l'email de
+  // confirmation — le client l'a en un clic au lieu de devoir nous la demander.
+  // Best-effort : une facture indisponible ne doit pas faire échouer le
+  // webhook, sans quoi Stripe rejouerait l'event et relancerait un provisioning.
+  try {
+    const invoiceId = session.invoice;
+    if (invoiceId) {
+      const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' });
+      const invoice = await stripeClient.invoices.retrieve(invoiceId);
+      const url = invoice?.hosted_invoice_url || invoice?.invoice_pdf || null;
+      if (url) {
+        db.prepare('UPDATE salons SET invoice_url = ? WHERE slug = ?').run(url, slug);
+        console.log(`[stripe-webhook] ${slug} facture ${invoice.number} rattachée`);
+      }
+    }
+  } catch (err) {
+    console.error('[stripe-webhook] récupération facture échouée (non-fatal):', err.message);
+  }
+
   // L'email de confirmation n'est pas envoyé ici mais par le worker, juste
   // après la mise en ligne sur l'adresse provisoire : il annonce un site déjà
   // en ligne, il ne doit donc partir qu'une fois que c'est vrai.
