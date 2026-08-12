@@ -1050,18 +1050,13 @@
     restoreFunnelState();
 
     state.openSource = source || 'unknown';
-    state.presentation = window.location.pathname.indexOf('/preview/') === 0 ? 'drawer' : 'modal';
 
     const div = document.createElement('div');
-    div.id = state.presentation === 'drawer' ? 'mqs-pricing-drawer' : 'mqs-modal-backdrop';
+    div.id = 'mqs-pricing-drawer';
     div.setAttribute('role', 'dialog');
     div.setAttribute('aria-label', 'Choisir un domaine, une formule et mettre le site en ligne');
     div.setAttribute('aria-modal', 'true');
-    if (state.presentation === 'drawer') {
-      div.innerHTML = `<button class="mqs-drawer-scrim" type="button" aria-label="Fermer les formules"></button><div id="mqs-modal" tabindex="-1"></div>`;
-    } else {
-      div.innerHTML = `<div id="mqs-modal" tabindex="-1"></div>`;
-    }
+    div.innerHTML = `<button class="mqs-drawer-scrim" type="button" aria-label="Fermer les formules"></button><div id="mqs-modal" tabindex="-1"></div>`;
     document.body.appendChild(div);
     state.modalEl = div;
     document.body.style.overflow = 'hidden';
@@ -1096,7 +1091,6 @@
         state.modalEl.parentNode.removeChild(state.modalEl);
       }
       state.modalEl = null;
-      state.presentation = null;
     }, 300);
     // Notifie le banner qu'il peut ré-apparaître
     window.dispatchEvent(new CustomEvent('mqs-pricing-modal-close'));

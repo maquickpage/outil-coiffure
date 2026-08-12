@@ -141,6 +141,29 @@ app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now(), mode: TENA
 // ce temps — c'est-à-dire au moment précis où il découvre son site.
 const ACTIVE_STATUSES = new Set(['live', 'active', 'trialing', 'provisioning']);
 
+// L'éditeur charge la même chrome de vente que les démos (bandeau + tunnel),
+// mais son HTML est un fichier statique avec ses propres `?v=` écrits à la
+// main. Ils avaient dérivé de dizaines de versions, si bien que le coiffeur
+// pouvait tomber sur une variante figée du tunnel selon ce qui traînait dans
+// les caches. On réaligne les versions sur celles de public/site/index.html,
+// qui fait référence — même mécanisme que pour les templates alternatifs.
+const EDIT_INDEX_PATH = join(__dirname, 'public/edit/index.html');
+let editAppHtmlCache = null;
+function renderEditApp() {
+  if (editAppHtmlCache) return editAppHtmlCache;
+  const siteIndex = readFileSync(join(SITE_DIR, 'index.html'), 'utf8');
+  const html = readFileSync(EDIT_INDEX_PATH, 'utf8')
+    .replace(/\/_assets\/([a-z0-9-]+\.(?:js|css))(\?v=[\w.-]+)?/gi, (whole, file) => {
+      const m = siteIndex.match(new RegExp(`/_assets/${file.replace('.', '\\.')}(\\?v=[\\w.-]+)`));
+      return `/_assets/${file}${m ? m[1] : ''}`;
+    });
+  editAppHtmlCache = html;
+  return html;
+}
+function sendEditApp(res, statusCode = 200) {
+  return res.status(statusCode).type('html').send(renderEditApp());
+}
+
 function lookupSalonByHost(req) {
   // Ordre de résolution :
   //   1. live_hostname EXACT match (ex: salon-jean.fr)
@@ -469,7 +492,7 @@ app.get('/admin/:slug', (req, res, next) => {
     // 1. Cookie valide ?
     const cookieSlug = readSessionCookie(req);
     if (cookieSlug === slug) {
-      return res.status(200).sendFile(join(__dirname, 'public/edit/index.html'));
+      return sendEditApp(res, 200);
     }
 
     // 2. Magic link (token query param ou session_token legacy) → single-use
@@ -484,7 +507,7 @@ app.get('/admin/:slug', (req, res, next) => {
 
     // 3. Aucune auth (cookie expiré, lien périmé/consommé) → 401, l'UI
     //    affiche le form "Saisissez votre email" pour recevoir un nouveau lien.
-    return res.status(401).sendFile(join(__dirname, 'public/edit/index.html'));
+    return sendEditApp(res, 401);
   }
 
   // === Sites DÉMO (Helsinki) : token URL uniquement (= comportement actuel) =
@@ -500,7 +523,7 @@ app.get('/admin/:slug', (req, res, next) => {
       statusCode = 401;
     }
   }
-  res.status(statusCode).sendFile(join(__dirname, 'public/edit/index.html'));
+  sendEditApp(res, statusCode);
 });
 
 // === Magic link recovery sur Falkenstein ================================

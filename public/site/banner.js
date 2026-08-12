@@ -230,7 +230,7 @@
 
   function mountBar() {
     if (sheetShown || sheetDismissed) return;
-    if (isPreview && !domainLookupFinished) {
+    if (!domainLookupFinished) {
       if (!mountPending) {
         mountPending = true;
         mountWaitTimer = setTimeout(() => { mountPending = false; mountBarNow(); }, DOMAIN_WAIT_MS);
@@ -284,7 +284,11 @@
   }
 
   async function loadAvailableDomains() {
-    if (!isPreview || domainLookupFinished) return;
+    // Aussi dans l'éditeur : sans ces suggestions, la barre du bas reste
+    // bloquée sur son repli (« Trouvez l'adresse idéale… ») au lieu d'afficher
+    // les adresses disponibles comme sur la démo. C'est ce qui donnait
+    // l'impression de deux versions différentes du même composant.
+    if (domainLookupFinished) return;
     const slug = path.split('/')[2];
     if (!slug) return;
     try {

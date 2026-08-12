@@ -5,34 +5,6 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap');
 
-#mqs-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(10, 10, 10, 0.55);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-    font-family: 'Schibsted Grotesk', -apple-system, system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.01em;
-}
-
-#mqs-modal-backdrop.mqs-modal-open {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-#mqs-modal-backdrop[hidden] {
-    display: none;
-}
-
 /* Preview : panneau latéral. Le site reste visible à gauche pendant que le
    visiteur parcourt le domaine, les formules et le paiement. */
 #mqs-pricing-drawer {
@@ -50,9 +22,7 @@
 }
 
 #mqs-pricing-drawer,
-#mqs-pricing-drawer *,
-#mqs-modal-backdrop,
-#mqs-modal-backdrop * {
+#mqs-pricing-drawer * {
     box-sizing: border-box;
 }
 
@@ -116,14 +86,7 @@
     padding: 44px 44px 34px;
 }
 
-#mqs-modal-backdrop.mqs-modal-open #mqs-modal {
-    transform: translateY(0) scale(1);
-}
-
 @media (max-width: 600px) {
-    #mqs-modal-backdrop {
-        padding: 12px;
-    }
     #mqs-modal {
         padding: 22px 16px 16px;
         border-radius: 16px;
