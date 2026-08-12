@@ -244,16 +244,19 @@ export async function sendProvisioningDelayEmail({ to, salonName, hostname }) {
   const body = `
           <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Bonjour ${escapeHtml(salonName)},</h1>
           <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
-            La mise en ligne de votre site prend un peu plus de temps que prévu.
+            <strong style="color:#1a1a1a;">Votre site est prêt de notre côté.</strong>
+            Ce qui prend du temps, c'est l'enregistrement de votre adresse
+            <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong> : il est effectué par
+            OVHcloud, l'organisme auprès de qui les noms de domaine sont réservés,
+            et leurs délais sont plus longs que d'habitude aujourd'hui.
           </p>
           <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
-            La commande de votre adresse <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong> a bien été
-            passée auprès de notre fournisseur : c'est sa livraison qui est plus longue que d'habitude.
-            Votre paiement est bien enregistré et votre site est prêt.
+            Votre commande chez eux est bien passée et votre paiement est bien enregistré.
+            Il n'y a rien d'anormal, et rien à refaire de votre côté.
           </p>
           <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
-            Vous n'avez rien à faire : vous recevrez un email dès qu'il est en ligne,
-            en général dans l'heure.
+            Dès qu'ils nous livrent l'adresse, votre site est mis en ligne automatiquement
+            et vous recevez un email. En général dans l'heure.
           </p>
           <p style="font-size: 15px; color: #6b7280; line-height: 1.6; margin: 0;">
             Désolé pour l'attente.
@@ -261,13 +264,15 @@ export async function sendProvisioningDelayEmail({ to, salonName, hostname }) {
 
   const text = `Bonjour ${salonName},
 
-La mise en ligne de votre site prend un peu plus de temps que prévu.
+Votre site est prêt de notre côté. Ce qui prend du temps, c'est l'enregistrement de votre
+adresse ${hostname} : il est effectué par OVHcloud, l'organisme auprès de qui les noms de
+domaine sont réservés, et leurs délais sont plus longs que d'habitude aujourd'hui.
 
-La commande de votre adresse ${hostname} a bien été passée auprès de notre fournisseur :
-c'est sa livraison qui est plus longue que d'habitude. Votre paiement est bien enregistré
-et votre site est prêt.
+Votre commande chez eux est bien passée et votre paiement est bien enregistré.
+Il n'y a rien d'anormal, et rien à refaire de votre côté.
 
-Vous n'avez rien à faire : vous recevrez un email dès qu'il est en ligne, en général dans l'heure.
+Dès qu'ils nous livrent l'adresse, votre site est mis en ligne automatiquement et vous
+recevez un email. En général dans l'heure.
 
 Désolé pour l'attente.
 
