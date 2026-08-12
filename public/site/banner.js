@@ -413,6 +413,9 @@
     if (mounted) return;
 
     if (isAdmin) {
+      // Même recherche de domaines que sur la démo : sans elle, la barre de
+      // l'éditeur reste sur son repli et n'a pas l'allure de celle du site.
+      loadAvailableDomains();
       setTimeout(tryShow, 300);
       return;
     }
