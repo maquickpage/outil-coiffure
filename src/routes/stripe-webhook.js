@@ -127,6 +127,12 @@ async function onCheckoutCompleted(session) {
     throw new Error(`salon introuvable pour checkout.session.completed (${slug})`);
   }
 
+  // Nouveau signup = compteurs du watchdog remis à zéro : les relances et
+  // l'email "retard" de la commande précédente ne doivent pas bloquer celle-ci.
+  db.prepare(`
+    UPDATE salons SET provisioning_attempts = 0, delay_notified_at = NULL WHERE slug = ?
+  `).run(slug);
+
   // Accusé de réception du paiement, envoyé tout de suite : entre ce moment et
   // la mise en ligne il peut s'écouler jusqu'à 45 min (délai registrar), et le
   // client vient de débiter sa carte sans rien avoir reçu.

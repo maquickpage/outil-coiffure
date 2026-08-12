@@ -104,6 +104,17 @@ export function initSchema() {
   if (!cols.includes('signed_up_at')) db.exec("ALTER TABLE salons ADD COLUMN signed_up_at TEXT");
   if (!cols.includes('cancelled_at')) db.exec("ALTER TABLE salons ADD COLUMN cancelled_at TEXT");
 
+  // === Reprise automatique du provisioning (watchdog) ===
+  // provisioning_attempts  : nombre de relances déjà tentées (plafonné, cf.
+  //                          provisioning-watchdog.js) pour ne pas boucler
+  //                          indéfiniment sur un salon réellement cassé.
+  // delay_notified_at      : ISO datetime de l'envoi de l'email "retard" au
+  //                          client. Persisté en DB (et pas seulement en
+  //                          mémoire du job) sinon chaque relance du worker
+  //                          renverrait le même email au client.
+  if (!cols.includes('provisioning_attempts')) db.exec("ALTER TABLE salons ADD COLUMN provisioning_attempts INTEGER DEFAULT 0");
+  if (!cols.includes('delay_notified_at')) db.exec("ALTER TABLE salons ADD COLUMN delay_notified_at TEXT");
+
   // === Acceptation des CGV (preuve horodatée — exigence légale FR/RGPD) ===
   // cgv_accepted_at : ISO datetime UTC de la coche utilisateur
   // cgv_version     : version textuelle du contrat accepté (ex: '1.0')

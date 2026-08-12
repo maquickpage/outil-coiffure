@@ -314,9 +314,17 @@ async function notifyCustomerOfRegistrarDelay(slug, hostname) {
   if (!slug) return;
   try {
     const row = db.prepare(`
-      SELECT nom_clean, nom, owner_email FROM salons WHERE slug = ?
+      SELECT nom_clean, nom, owner_email, delay_notified_at FROM salons WHERE slug = ?
     `).get(slug);
     if (!row?.owner_email) return;
+    // Une seule fois par signup, pas une fois par relance du worker : le
+    // watchdog peut relancer le provisioning plusieurs fois pour un même
+    // salon, et le client n'a pas à recevoir le même mail à chaque tour.
+    if (row.delay_notified_at) {
+      console.log(`[provisioning] ${slug} email retard déjà envoyé le ${row.delay_notified_at}, skip`);
+      return;
+    }
+    db.prepare(`UPDATE salons SET delay_notified_at = datetime('now') WHERE slug = ?`).run(slug);
     const result = await sendProvisioningDelayEmail({
       to: row.owner_email,
       salonName: row.nom_clean || row.nom || 'votre salon',
@@ -333,7 +341,8 @@ async function notifyCustomerOfRegistrarDelay(slug, hostname) {
         salonName: row.nom_clean || row.nom || slug,
         slug,
         hostname,
-        errorMessage: `Retard registrar : OVH n'a pas livré ${hostname} en ${Math.round(OVH_DELAY_NOTICE_MS / 60000)} min. Le worker continue d'attendre (timeout ${Math.round(OVH_POLL_TIMEOUT_MS / 60000)} min). Le client a été prévenu par email.`,
+        subject: `[INFO] Retard registrar sur ${row.nom_clean || row.nom || slug} (${hostname})`,
+        errorMessage: `OVH n'a pas livré ${hostname} en ${Math.round(OVH_DELAY_NOTICE_MS / 60000)} min. Rien n'est cassé : le worker attend, et le watchdog relance tant que le domaine n'est pas livré. Le client a été prévenu par email.`,
       });
     }
   } catch (err) {
@@ -465,17 +474,27 @@ async function ovhRegisterDomain(hostname, years = 1) {
 // client par email (il a probablement fermé l'onglet) et on marque le job pour
 // que l'écran d'attente affiche un message adapté au lieu d'une erreur.
 const OVH_DELAY_NOTICE_MS = Number(process.env.OVH_DELAY_NOTICE_MS || 8 * 60 * 1000);
-// Timeout dur. Mesuré le 2026-08-06 : OVH a livré un .fr en 26 min. L'ancienne
-// valeur (5 min) faisait échouer des provisionings qui se seraient terminés
-// seuls. 45 min laisse de la marge sans bloquer un vrai incident indéfiniment.
-const OVH_POLL_TIMEOUT_MS = Number(process.env.OVH_POLL_TIMEOUT_MS || 45 * 60 * 1000);
+// Timeout d'un cycle d'attente, pas un abandon : le watchdog relance derrière
+// tant que le signup est dans sa fenêtre de reprise.
+// Mesures réelles : 26 min le 2026-08-06, 18 h 40 le 2026-08-10. Aucune valeur
+// raisonnable ne couvre ça — d'où la reprise automatique
+// (cf. provisioning-watchdog.js). 2 h évite juste de garder un job en mémoire
+// pendant une journée entière.
+const OVH_POLL_TIMEOUT_MS = Number(process.env.OVH_POLL_TIMEOUT_MS || 2 * 60 * 60 * 1000);
 
 async function pollOvhDomainReady(hostname, options = {}) {
   const timeoutMs = options.timeoutMs || OVH_POLL_TIMEOUT_MS;
-  const intervalMs = options.intervalMs || 5000;
   const { job, slug } = options;
   const start = Date.now();
   let delayNotified = false;
+
+  // Cadence adaptative : réactif sur le cas nominal (livraison en 1-2 min),
+  // économe ensuite. Une livraison OVH peut prendre des heures (18 h mesurées
+  // le 2026-08-10) et le watchdog relance en boucle : à 5 s fixes on taperait
+  // l'API des milliers de fois pour rien.
+  const fastIntervalMs = options.intervalMs || 5000;
+  const slowIntervalMs = 30000;
+  const intervalFor = elapsed => (elapsed < 2 * 60 * 1000 ? fastIntervalMs : slowIntervalMs);
 
   while (Date.now() - start < timeoutMs) {
     // Le registrar traîne : on rassure le client par email, une seule fois.
@@ -497,7 +516,7 @@ async function pollOvhDomainReady(hostname, options = {}) {
     } catch (err) {
       // Non-fatal : retry
     }
-    await new Promise(r => setTimeout(r, intervalMs));
+    await new Promise(r => setTimeout(r, intervalFor(Date.now() - start)));
   }
   throw new Error(`OVH domain ${hostname} not ready within ${timeoutMs}ms`);
 }
@@ -552,7 +571,7 @@ async function pollOvhZoneReady(hostname, timeoutMs = 120_000) {
  * `dns1xx.ovh.net` / `ns1xx.ovh.net`) et on la corrige si besoin.
  * Ne fait rien si la délégation est déjà bonne.
  */
-async function ensureOvhNameServers(hostname) {
+export async function ensureOvhNameServers(hostname) {
   try {
     const detail = await ovhFetch('GET', `/domain/${hostname}`);
     const current = (detail.nameServers || [])

@@ -668,4 +668,13 @@ app.listen(PORT, () => {
   if (!TENANT_ONLY) {
     console.log(`  Agency admin   : http://localhost:${PORT}/admin (login)`);
   }
+
+  // Watchdog : reprend les provisionings interrompus (redémarrage, timeout
+  // registrar) et surveille la délégation DNS des sites en ligne.
+  // Helsinki uniquement : c'est lui qui porte le signup et les clés OVH.
+  if (!TENANT_ONLY) {
+    import('./src/provisioning-watchdog.js')
+      .then(({ startWatchdog }) => startWatchdog())
+      .catch(err => console.error('[watchdog] démarrage impossible:', err.message));
+  }
 });

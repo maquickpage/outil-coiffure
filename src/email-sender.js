@@ -456,8 +456,10 @@ MaQuickPage — contact@maquickpage.fr`;
 /**
  * Email envoyé si le provisioning échoue (admin alerte).
  */
-export async function sendProvisioningErrorEmail({ adminEmail, salonName, slug, hostname, errorMessage }) {
-  const subject = `[ALERTE] Provisioning échoué pour ${salonName} (${hostname})`;
+export async function sendProvisioningErrorEmail({ adminEmail, salonName, slug, hostname, errorMessage, subject: customSubject }) {
+  // `subject` surchargeable : le watchdog s'en sert pour signaler un simple
+  // retard, qui ne doit pas arriver avec l'objet d'un provisioning échoué.
+  const subject = customSubject || `[ALERTE] Provisioning échoué pour ${salonName} (${hostname})`;
   const adminUrl = `https://outil.maquickpage.fr/admin/salons/${slug}`;
   const html = `<!DOCTYPE html>
 <html><body style="font-family: -apple-system, system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 30px;">
