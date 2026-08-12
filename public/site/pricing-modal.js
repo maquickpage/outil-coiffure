@@ -520,7 +520,11 @@
             </span>
             <strong>${price}</strong>
           </div>
-          <p class="mqs-ticket-note">Annulable sans frais sous 30 jours.</p>
+          <p class="mqs-ticket-note">Site en ligne dès le paiement. ${
+            state.selectedPlan === 'FLEX'
+              ? 'Résiliable à tout moment.'
+              : 'Annulable sans frais sous 30 jours.'
+          }</p>
         </section>
 
         <section class="mqs-checkout-card" aria-label="Coordonnées et paiement">
