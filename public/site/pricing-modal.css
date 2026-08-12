@@ -2984,11 +2984,20 @@
    marge négative de -32 px : ces 12 px d'écart décalaient toute la barre d'un
    écran à l'autre. Les trois sélecteurs sont repris tels quels pour égaler la
    spécificité des règles d'origine. */
+/* 44 px = la marge négative dont la barre d'actions se sert pour se coller aux
+   bords (`.mqs-footer-stepb { margin: 24px -44px -44px }`). Avec 32 px, elle
+   dépassait de 12 px sous la zone de contenu : le panneau affichait une barre
+   de défilement sur les trois étapes alors que tout tenait à l'écran, et le
+   moindre coup de molette faisait bouger l'ensemble, barre d'actions comprise.
+   Les deux valeurs doivent rester égales. */
 #mqs-pricing-drawer #mqs-modal,
 #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal,
 #mqs-pricing-drawer:has(.mqs-payment-layout) #mqs-modal {
-    padding-bottom: 32px;
+    padding-bottom: 44px;
 }
+/* En dessous de 700 px la barre change de gabarit
+   (`.mqs-footer-stepb { margin: 22px -20px -32px }`) : le padding suit sa
+   marge négative à elle, sinon on rouvre un vide de 12 px sous la barre. */
 @media (max-width: 700px) {
     #mqs-pricing-drawer #mqs-modal,
     #mqs-pricing-drawer:has(.mqs-value-anchor) #mqs-modal,
