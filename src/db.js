@@ -104,6 +104,17 @@ export function initSchema() {
   if (!cols.includes('signed_up_at')) db.exec("ALTER TABLE salons ADD COLUMN signed_up_at TEXT");
   if (!cols.includes('cancelled_at')) db.exec("ALTER TABLE salons ADD COLUMN cancelled_at TEXT");
 
+  // === Adresse provisoire (mise en ligne immédiate au paiement) ===
+  // temp_hostname : sous-domaine sur lequel le site vit entre le paiement et la
+  // livraison du domaine par le registrar (ex: quickpagefrance.maquickpage.fr).
+  // Conservé après la bascule : c'est lui qui porte la redirection permanente
+  // vers l'adresse définitive, pour les liens déjà partagés par le coiffeur.
+  if (!cols.includes('temp_hostname')) db.exec("ALTER TABLE salons ADD COLUMN temp_hostname TEXT");
+  // Verrou d'envoi de l'email « votre site est en ligne » : le watchdog peut
+  // repasser plusieurs fois sur un même salon, le client ne doit le recevoir
+  // qu'une fois.
+  if (!cols.includes('online_email_sent_at')) db.exec("ALTER TABLE salons ADD COLUMN online_email_sent_at TEXT");
+
   // === Reprise automatique du provisioning (watchdog) ===
   // provisioning_attempts  : nombre de relances déjà tentées (plafonné, cf.
   //                          provisioning-watchdog.js) pour ne pas boucler

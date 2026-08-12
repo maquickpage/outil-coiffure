@@ -19,7 +19,7 @@
 
 import express from 'express';
 import db from '../db.js';
-import { sendSignupSuccessEmail } from '../email-sender.js';
+// (l'envoi du lien de démo se fait via sendDemoLinkEmail, défini plus bas)
 import { logEvent, clientIp } from './tracking.js';
 
 const router = express.Router();
@@ -203,8 +203,7 @@ router.post('/landing/check', express.json({ limit: '10kb' }), async (req, res) 
     const salonName = salon.nom_clean || salon.nom;
 
     // On RE-envoie l'email avec le lien démo (utile si le coiffeur l'avait perdu).
-    // Réutilise le template sendSignupSuccessEmail mais sans le edit_token (pas
-    // pertinent pour un démo non payé). On adapte le template pour ce cas.
+    // Template dédié, sans edit_token : le salon n'est pas payé.
     sendDemoLinkEmail({
       to: email,
       salonName,

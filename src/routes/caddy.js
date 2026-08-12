@@ -10,6 +10,9 @@
  *   - customers.maquickpage.fr (= notre fallback FQDN actuel)
  *   - customers.monsitehq.com (= legacy, conservé tant que des sites pointent dessus)
  *   - n'importe quel hostname présent en DB avec subscription_status in (live, active, trialing)
+ *   - l'adresse provisoire d'un salon (temp_hostname, ex: salonjean.maquickpage.fr),
+ *     sur laquelle son site vit dès le paiement en attendant la livraison du
+ *     domaine par le registrar
  *
  * Sécurité :
  *   - Lecture seule (pas de modif)
@@ -72,11 +75,11 @@ router.get('/check-hostname', (req, res) => {
   let salon;
   try {
     salon = db.prepare(`
-      SELECT slug, subscription_status, live_hostname
+      SELECT slug, subscription_status, live_hostname, temp_hostname
       FROM salons
-      WHERE live_hostname = ?
+      WHERE live_hostname = ? OR temp_hostname = ?
       LIMIT 1
-    `).get(apex);
+    `).get(apex, apex);
   } catch (err) {
     console.error('[caddy/check-hostname] DB error:', err.message);
     return res.status(500).send('db_error');

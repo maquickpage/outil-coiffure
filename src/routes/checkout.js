@@ -463,12 +463,12 @@ router.get('/signup/status', (req, res) => {
   let row;
   if (slug) {
     row = db.prepare(`
-      SELECT slug, subscription_status, live_hostname, owner_email, plan, signed_up_at
+      SELECT slug, subscription_status, live_hostname, temp_hostname, owner_email, plan, signed_up_at
       FROM salons WHERE slug = ?
     `).get(slug);
   } else {
     row = db.prepare(`
-      SELECT slug, subscription_status, live_hostname, owner_email, plan, signed_up_at
+      SELECT slug, subscription_status, live_hostname, temp_hostname, owner_email, plan, signed_up_at
       FROM salons WHERE signup_session_id = ?
     `).get(sessionId);
   }
@@ -494,6 +494,10 @@ router.get('/signup/status', (req, res) => {
     // un spinner muet. Le provisioning, lui, continue.
     registrarDelay: !!job?.registrarDelay,
     liveHostname: row.live_hostname,
+    // Adresse sur laquelle le site est déjà visible, en attendant que le
+    // registrar livre le domaine définitif. C'est elle que l'écran de retour
+    // Stripe propose d'ouvrir.
+    tempHostname: row.temp_hostname,
     plan: row.plan,
     signedUpAt: row.signed_up_at,
   });

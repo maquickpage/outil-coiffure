@@ -27,10 +27,12 @@
 import db from './db.js';
 import { ovhFetch } from './ovh-client.js';
 import {
-  sendSignupSuccessEmail,
+  sendSiteOnlineEmail,
+  sendDomainActiveEmail,
   sendProvisioningErrorEmail,
   sendProvisioningDelayEmail,
 } from './email-sender.js';
+import { ensureTempHostname } from './temp-hostname.js';
 import { generateRecoveryToken } from './routes/admin-recover.js';
 
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
@@ -148,6 +150,20 @@ async function runProvisioning(job, params) {
     console.log(`[provisioning] ${slug} DRY_RUN DONE in ${(job.finishedAt - job.startedAt) / 1000}s`);
     return;
   }
+
+  // === ÉTAPE 0 : mise en ligne immédiate sur l'adresse provisoire ===
+  //
+  // Le coiffeur vient de payer : son site doit être visible maintenant, pas
+  // quand le registrar aura fini son travail (mesuré jusqu'à 18 h 40). On le
+  // publie sur un sous-domaine de maquickpage.fr, servi par Falkenstein comme
+  // n'importe quel site client, et la réservation du domaine se poursuit en
+  // arrière-plan. C'est ce qui transforme une attente subie en simple
+  // changement d'adresse à venir.
+  //
+  // Idempotent : une reprise du watchdog repasse ici sans rien casser ni
+  // renvoyer l'email (verrou en base).
+  job.step = 'instant_online';
+  await publishOnTempHostname(slug, hostname, planKey);
 
   // === PRODUCTION FLOW V1 (Caddy on-demand TLS sur Falkenstein) ===
   // Pas de Cloudflare for SaaS (chicken-and-egg HTTP-01). DNS A direct →
@@ -303,6 +319,60 @@ async function notifyAdminOfError(slug, hostname, errorMessage) {
 }
 
 /**
+ * Publie le site sur son adresse provisoire et prévient le client.
+ *
+ * Trois choses, dans cet ordre, parce qu'il n'a de sens que complet :
+ *   1. calculer l'adresse provisoire et la persister,
+ *   2. pousser le salon vers Falkenstein — sans quoi le premier visiteur
+ *      tombe sur un 404 et Caddy refuse même d'émettre le certificat,
+ *   3. envoyer l'email annonçant que le site est en ligne.
+ *
+ * L'email ne part qu'une fois par signup (verrou `online_email_sent_at`) : le
+ * watchdog peut repasser ici plusieurs fois pour un même salon.
+ */
+async function publishOnTempHostname(slug, hostname, planKey) {
+  const tempHostname = ensureTempHostname(slug, hostname);
+  if (!tempHostname) {
+    console.warn(`[provisioning] ${slug} pas d'adresse provisoire calculable, on continue sans`);
+    return null;
+  }
+
+  await syncSalonToFalkenstein(slug);
+  console.log(`[provisioning] ${slug} en ligne sur https://${tempHostname}`);
+
+  const row = db.prepare(`
+    SELECT nom_clean, nom, owner_email, plan, signup_session_id, online_email_sent_at
+    FROM salons WHERE slug = ?
+  `).get(slug);
+  if (!row?.owner_email || row.online_email_sent_at) return tempHostname;
+
+  try {
+    // Magic link 24 h : le coiffeur peut modifier son site tout de suite, et
+    // ses modifications survivront à la bascule (cf. src/routes/sync.js).
+    const setupToken = generateRecoveryToken(slug, 24 * 60);
+    await syncSalonToFalkenstein(slug); // le token doit exister côté Falkenstein
+    const result = await sendSiteOnlineEmail({
+      to: row.owner_email,
+      salonName: row.nom_clean || row.nom || 'votre salon',
+      tempHostname,
+      finalHostname: hostname,
+      plan: row.plan || planKey,
+      sessionId: row.signup_session_id,
+      slug,
+      setupToken,
+    });
+    if (result.ok) {
+      db.prepare("UPDATE salons SET online_email_sent_at = datetime('now') WHERE slug = ?").run(slug);
+      console.log(`[provisioning] ${slug} email "site en ligne" envoyé → ${row.owner_email}`);
+    }
+  } catch (err) {
+    // Non bloquant : le site est en ligne, c'est le principal.
+    console.error(`[provisioning] ${slug} email "site en ligne" échoué (non-fatal):`, err.message);
+  }
+  return tempHostname;
+}
+
+/**
  * Le registrar (OVH) met plus longtemps que prévu à livrer le domaine.
  *
  * Le client a payé, on lui a annoncé "moins de 5 minutes", et il a
@@ -314,7 +384,7 @@ async function notifyCustomerOfRegistrarDelay(slug, hostname) {
   if (!slug) return;
   try {
     const row = db.prepare(`
-      SELECT nom_clean, nom, owner_email, delay_notified_at FROM salons WHERE slug = ?
+      SELECT nom_clean, nom, owner_email, delay_notified_at, temp_hostname FROM salons WHERE slug = ?
     `).get(slug);
     if (!row?.owner_email) return;
     // Une seule fois par signup, pas une fois par relance du worker : le
@@ -329,6 +399,7 @@ async function notifyCustomerOfRegistrarDelay(slug, hostname) {
       to: row.owner_email,
       salonName: row.nom_clean || row.nom || 'votre salon',
       hostname,
+      tempHostname: row.temp_hostname,
     });
     if (result.ok) {
       console.log(`[provisioning] ${slug} email "délai registrar" envoyé → ${row.owner_email}`);
@@ -353,7 +424,7 @@ async function notifyCustomerOfRegistrarDelay(slug, hostname) {
 async function sendSignupConfirmation(slug, hostname) {
   try {
     const row = db.prepare(`
-      SELECT slug, nom_clean, nom, owner_email, plan
+      SELECT slug, nom_clean, nom, owner_email, plan, temp_hostname
       FROM salons WHERE slug = ?
     `).get(slug);
     if (!row || !row.owner_email) {
@@ -369,16 +440,17 @@ async function sendSignupConfirmation(slug, hostname) {
     // sur le lien du mail → Falkenstein ne connaît pas le token → 401 → form
     // "entrez votre email" au lieu de l'accès direct à l'éditeur.
     await syncSalonToFalkenstein(slug);
-    const result = await sendSignupSuccessEmail({
+    const result = await sendDomainActiveEmail({
       to: row.owner_email,
       salonName: row.nom_clean || row.nom || 'votre salon',
       liveHostname: hostname,
+      tempHostname: row.temp_hostname,
       plan: row.plan,
       slug,
       setupToken,
     });
     if (result.ok) {
-      console.log(`[provisioning] ${slug} confirmation email sent → ${row.owner_email}`);
+      console.log(`[provisioning] ${slug} email "adresse définitive active" envoyé → ${row.owner_email}`);
     }
   } catch (err) {
     // Email failure is non-fatal — le site est LIVE
@@ -470,10 +542,13 @@ async function ovhRegisterDomain(hostname, years = 1) {
   };
 }
 
-// Délai au-delà duquel on considère que le registrar traîne : on prévient le
-// client par email (il a probablement fermé l'onglet) et on marque le job pour
-// que l'écran d'attente affiche un message adapté au lieu d'une erreur.
-const OVH_DELAY_NOTICE_MS = Number(process.env.OVH_DELAY_NOTICE_MS || 8 * 60 * 1000);
+// Délai au-delà duquel on prévient le client que son adresse définitive tarde.
+//
+// 24 h, c'est-à-dire le délai annoncé dans l'email de mise en ligne — et non
+// plus quelques minutes : le site tourne déjà sur son adresse provisoire, donc
+// un registrar lent n'est plus un incident dont il faut s'excuser, seulement un
+// changement d'adresse différé. Écrire avant serait inquiéter pour rien.
+const OVH_DELAY_NOTICE_MS = Number(process.env.OVH_DELAY_NOTICE_MS || 24 * 60 * 60 * 1000);
 // Timeout d'un cycle d'attente, pas un abandon : le watchdog relance derrière
 // tant que le signup est dans sa fenêtre de reprise.
 // Mesures réelles : 26 min le 2026-08-06, 18 h 40 le 2026-08-10. Aucune valeur

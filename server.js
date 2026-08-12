@@ -11,7 +11,7 @@ import apiRouter from './src/routes/api.js';
 import editRouter from './src/routes/edit.js';
 import unsubscribeRouter from './src/routes/unsubscribe.js';
 import { buildSalonView } from './src/defaults.js';
-import { renderSalonHtml, renderRobotsTxt, renderSitemap, isMainDomainHost } from './src/ssr.js';
+import { renderSalonHtml, renderRobotsTxt, renderSitemap, isMainDomainHost, isPaidStatus } from './src/ssr.js';
 import { isTemplateId, TEMPLATES } from './src/templates.js';
 
 // === TENANT_ONLY mode ===
@@ -134,18 +134,29 @@ app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now(), mode: TENA
 //   - 'trialing'                   → période d'essai (devrait pas arriver mais safe)
 // Tous les autres (past_due, unpaid, canceled, incomplete, suspended, ...) → page 'site suspendu'.
 // =============================================================================
-const ACTIVE_STATUSES = new Set(['live', 'active', 'trialing']);
+// 'provisioning' est actif : depuis la mise en ligne immédiate, le site du
+// coiffeur est servi dès le paiement sur son adresse provisoire, alors que son
+// domaine définitif est encore en cours de réservation. Sans ce statut ici, la
+// gate de suspension lui renvoie « site temporairement suspendu » pendant tout
+// ce temps — c'est-à-dire au moment précis où il découvre son site.
+const ACTIVE_STATUSES = new Set(['live', 'active', 'trialing', 'provisioning']);
 
 function lookupSalonByHost(req) {
   // Ordre de résolution :
   //   1. live_hostname EXACT match (ex: salon-jean.fr)
-  //   2. fallback : si pas trouvé, on retourne null → 404 ailleurs
+  //   2. temp_hostname EXACT match (ex: salonjean.maquickpage.fr) — l'adresse
+  //      provisoire sur laquelle le site vit dès le paiement, en attendant que
+  //      le registrar livre le domaine définitif. Elle reste résolvable après
+  //      la bascule, pour rediriger les liens déjà partagés.
+  //   3. fallback : si pas trouvé, on retourne null → 404 ailleurs
   try {
     const host = (req.hostname || '').toLowerCase();
     if (!host) return null;
-    return db.prepare(
-      'SELECT slug, subscription_status, suspended_at, suspended_reason, live_hostname FROM salons WHERE live_hostname = ?'
-    ).get(host);
+    return db.prepare(`
+      SELECT slug, subscription_status, suspended_at, suspended_reason,
+             live_hostname, temp_hostname
+      FROM salons WHERE live_hostname = ? OR temp_hostname = ?
+    `).get(host, host);
   } catch {
     return null;
   }
@@ -184,6 +195,28 @@ function serveSuspendedPage(res) {
 //   - une seule URL canonique (SEO : pas de contenu dupliqué)
 //   - le SSR et les liens internes sont construits sur l'apex
 // Placé AVANT la gate de suspension pour rediriger même un site suspendu.
+// Bascule : une fois le domaine définitif en service, l'adresse provisoire
+// redirige vers lui de façon permanente.
+//
+// Le coiffeur a pu diffuser son adresse provisoire pendant les heures (ou la
+// journée) qu'a pris le registrar : ces liens doivent continuer de fonctionner,
+// et pointer vers l'adresse définitive plutôt que servir un doublon du site.
+// Le 301 transmet aussi l'antériorité au domaine final côté moteurs.
+//
+// On ne redirige que sur `live` : c'est le seul statut qui garantit que le
+// domaine résout et que son certificat est délivré (posé après la vérification
+// HTTPS de bout en bout du provisioning). Rediriger plus tôt enverrait le
+// visiteur sur une erreur DNS.
+if (TENANT_ONLY) {
+  app.use((req, res, next) => {
+    const host = (req.hostname || '').toLowerCase();
+    const salon = lookupSalonByHost({ hostname: host });
+    if (!salon || !salon.temp_hostname || host !== salon.temp_hostname) return next();
+    if (!salon.live_hostname || salon.subscription_status !== 'live') return next();
+    return res.redirect(301, `https://${salon.live_hostname}${req.originalUrl}`);
+  });
+}
+
 if (TENANT_ONLY) {
   app.use((req, res, next) => {
     const host = (req.hostname || '').toLowerCase();
@@ -569,7 +602,12 @@ app.get('/preview/:slug', (req, res) => {
   const siteUrl = onMainDomain ? `https://${host}/preview/${encodeURIComponent(slug)}` : `https://${host}`;
 
   try {
-    const html = renderSalonHtml(view, { canonicalUrl, siteUrl, noindex });
+    // Le coiffeur qui a payé revient parfois sur l'URL de démo qu'il connaît :
+    // il ne doit plus y voir le bandeau qui lui propose d'acheter son site.
+    const html = renderSalonHtml(view, {
+      canonicalUrl, siteUrl, noindex,
+      salesChrome: !isPaidStatus(salon.subscription_status),
+    });
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err) {
@@ -613,19 +651,28 @@ if (TENANT_ONLY) {
     const host = (req.hostname || '').toLowerCase();
     let salon;
     try {
-      salon = db.prepare('SELECT * FROM salons WHERE live_hostname = ?').get(host);
+      salon = db.prepare(
+        'SELECT * FROM salons WHERE live_hostname = ? OR temp_hostname = ?'
+      ).get(host, host);
     } catch (err) {
       console.error('[Falkenstein /] DB error:', err);
       return res.status(500).send('Erreur serveur');
     }
     if (!salon) return res.status(404).send('Aucun salon associé à ' + host);
 
+    // Servi sur l'adresse provisoire : on n'indexe pas. Le site sera indexé
+    // sur son domaine définitif, et le 301 posé à la bascule y transmettra
+    // l'antériorité. Indexer les deux créerait un doublon qui se ferait
+    // concurrence au moment précis où le vrai domaine démarre.
+    const onTempHost = !!salon.temp_hostname && host === salon.temp_hostname;
+
     const view = buildSalonView(salon);
     try {
       const html = renderSalonHtml(view, {
         canonicalUrl: `https://${host}/`,
         siteUrl: `https://${host}`,
-        noindex: false,
+        noindex: onTempHost,
+        salesChrome: !isPaidStatus(salon.subscription_status),
       });
       res.set('Content-Type', 'text/html; charset=utf-8');
       res.send(html);

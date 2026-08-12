@@ -76,7 +76,7 @@ router.post('/sync/:slug', express.json({ limit: '2mb' }), requireSyncAuth, (req
     'owner_email', 'plan',
     'stripe_customer_id', 'stripe_subscription_id',
     'commitment_months', 'commitment_until',
-    'subscription_status', 'live_hostname', 'cloudflare_hostname_id',
+    'subscription_status', 'live_hostname', 'temp_hostname', 'cloudflare_hostname_id',
     'signup_session_id', 'signed_up_at', 'cancelled_at',
     'domain_suggestions_json', 'domain_suggestions_at',
     'cgv_accepted_at', 'cgv_version', 'cgv_accepted_ip',
@@ -85,6 +85,7 @@ router.post('/sync/:slug', express.json({ limit: '2mb' }), requireSyncAuth, (req
     // l'email "site en ligne" (généré par Helsinki) est inconnu de Falkenstein
     // → coiffeur tombe sur le form "entrez votre email" au lieu d'accès direct.
     'recovery_token', 'recovery_token_expires_at',
+    'online_email_sent_at', 'delay_notified_at', 'provisioning_attempts',
     'created_at', 'updated_at',
   ];
 

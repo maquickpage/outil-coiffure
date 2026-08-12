@@ -126,97 +126,113 @@ const PLAN_LABELS = {
 };
 
 /**
- * Email #1 du parcours : envoyé dès la confirmation du paiement Stripe,
- * AVANT que le site soit en ligne.
+ * Email #1 du parcours : envoyé dès que le site est en ligne sur son adresse
+ * provisoire, quelques secondes après le paiement.
  *
- * Raison d'être : entre le paiement et la mise en ligne il peut s'écouler
- * plusieurs dizaines de minutes (enregistrement du domaine chez le registrar).
- * Le client vient de débiter sa carte et n'a encore rien reçu — ce mail est la
- * preuve écrite que sa commande est passée.
+ * C'est le message le plus important du parcours. Il ne dit plus « votre
+ * commande est en cours de traitement » mais « c'est fait » : le coiffeur vient
+ * de payer, il obtient immédiatement un site qu'il peut voir, montrer et
+ * modifier. La réservation de son nom de domaine devient une formalité qui se
+ * règle en arrière-plan, et non plus une attente qu'il subit.
  *
- * Contenu calé sur les standards de l'email de confirmation de commande :
- * référence, récapitulatif de ce qui est acheté, moyen de paiement, ce qui se
- * passe ensuite avec un délai annoncé, et un contact. Le récap reprend mot pour
- * mot les lignes affichées au checkout (pricing-modal.js) : ce que le client a
- * lu avant de payer doit être ce qu'il relit dans sa boîte mail.
+ * Il sert aussi de confirmation de commande — référence, récapitulatif de ce
+ * qui est acheté, moyen de paiement, contact — repris mot pour mot des lignes
+ * affichées au checkout : ce que le client a lu avant de payer doit être ce
+ * qu'il relit dans sa boîte mail.
  */
-export async function sendPaymentReceivedEmail({ to, salonName, hostname, plan, sessionId }) {
+export async function sendSiteOnlineEmail({ to, salonName, tempHostname, finalHostname, plan, sessionId, slug, setupToken }) {
   const planLabel = PLAN_LABELS[plan] || plan || '';
   const ref = sessionId ? sessionId.slice(-8).toUpperCase() : null;
-  const subject = 'Commande confirmée — votre site est en création';
+  const siteUrl = `https://${tempHostname}`;
+  const adminUrl = setupToken
+    ? `https://${tempHostname}/admin/${encodeURIComponent(slug)}?token=${encodeURIComponent(setupToken)}`
+    : `https://${tempHostname}/admin/${encodeURIComponent(slug)}`;
+  const subject = 'Votre site est en ligne';
 
   const body = `
-          <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Merci ${escapeHtml(salonName)}, votre commande est confirmée.</h1>
-          <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin: 0 0 16px;">
-            Votre paiement a bien été reçu. Nous créons votre site en ce moment même —
-            <strong>vous n'avez rien à faire</strong>, vous recevrez un second email dès qu'il est en ligne.
+          <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Merci ${escapeHtml(salonName)}, votre site est en ligne.</h1>
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
+            Il est accessible dès maintenant, et vous pouvez déjà le modifier.
           </p>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px; margin: 24px 0;">
             <tr><td style="padding: 20px;">
-              <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Récapitulatif</p>
-              <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.9;">
-                Adresse de votre site : <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong> (offerte la 1<sup>re</sup> année)<br>
-                Formule : <strong style="color:#1a1a1a;">${escapeHtml(planLabel)}</strong><br>
-                Paiement : carte bancaire via Stripe<br>
-                ${ref ? `Référence : <strong style="color:#1a1a1a;">${escapeHtml(ref)}</strong>` : ''}
+              <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Votre site</p>
+              <p style="margin: 0 0 16px; font-size: 18px; font-weight: 600;">
+                <a href="${siteUrl}" style="color: #0a0a0a; text-decoration: none;">${escapeHtml(tempHostname)}</a>
               </p>
-            </td></tr>
-          </table>
-
-          <p style="margin: 0 0 10px; font-size: 15px; font-weight: 600; color:#1a1a1a;">Ce qui se passe maintenant</p>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 24px;">
-            <tr><td style="padding: 6px 0; font-size: 14px; color: #4b5563; line-height: 1.5;">
-              <strong style="color:#1a1a1a;">1. Réservation de votre adresse</strong><br>
-              Nous enregistrons ${escapeHtml(hostname)} à votre nom. Cette étape dépend du registrar :
-              elle prend en général quelques minutes, parfois jusqu'à 45 minutes.
-            </td></tr>
-            <tr><td style="padding: 6px 0; font-size: 14px; color: #4b5563; line-height: 1.5;">
-              <strong style="color:#1a1a1a;">2. Configuration et sécurisation</strong><br>
-              Mise en place technique et certificat HTTPS. Automatique, de notre côté.
-            </td></tr>
-            <tr><td style="padding: 6px 0; font-size: 14px; color: #4b5563; line-height: 1.5;">
-              <strong style="color:#1a1a1a;">3. Mise en ligne</strong><br>
-              Vous recevez un email avec l'adresse de votre site et votre accès pour le modifier
-              (textes, photos, prestations, horaires).
+              <a href="${siteUrl}" style="display: inline-block; background: #0a0a0a; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 999px; font-weight: 600; font-size: 14px;">Voir mon site →</a>
             </td></tr>
           </table>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #FAF6EC; border-left: 4px solid #F4A300; border-radius: 0 8px 8px 0; margin: 0 0 24px;">
             <tr><td style="padding: 18px 20px;">
-              <p style="margin: 0 0 8px; font-size: 13px; color: #002FA7; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Compris dans votre abonnement</p>
-              <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.8;">
-                Votre site personnalisé · 3 designs au choix · nom de domaine offert la 1<sup>re</sup> année ·
-                hébergement en Allemagne (UE) et maintenance · mises à jour ·
-                installation et mise en ligne offertes.
+              <p style="margin: 0 0 8px; font-size: 13px; color: #002FA7; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Votre adresse définitive arrive</p>
+              <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.6;">
+                <strong style="color:#1a1a1a;">${escapeHtml(finalHostname)}</strong> est en cours de réservation auprès
+                des organismes officiels des noms de domaine. Leur délai va de quelques minutes à 24 heures.
+                Dès que l'adresse est disponible, votre site bascule dessus automatiquement et vous recevez un email.
+                <strong style="color:#1a1a1a;">Vous n'avez rien à faire</strong>, et votre site reste accessible sans interruption.
               </p>
             </td></tr>
           </table>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px; margin: 0 0 24px;">
+            <tr><td style="padding: 20px;">
+              <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Modifier votre site</p>
+              <p style="margin: 0 0 12px; font-size: 14px; color: #4b5563; line-height: 1.5;">
+                Textes, photos, prestations, horaires : tout se modifie depuis votre espace.
+                Vos modifications sont conservées lors du passage à votre adresse définitive.
+                Le lien ci-dessous est valable <strong>24 heures</strong> ; ensuite vous restez connecté(e) 30 jours.
+              </p>
+              <a href="${adminUrl}" style="display: inline-block; background: #0a0a0a; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 999px; font-weight: 600; font-size: 14px;">Accéder à mon espace →</a>
+            </td></tr>
+          </table>
+
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.9; margin: 0 0 16px;">
+            <strong style="color:#1a1a1a;">Récapitulatif</strong><br>
+            Adresse définitive : ${escapeHtml(finalHostname)} — offerte la 1<sup>re</sup> année<br>
+            Adresse actuelle : ${escapeHtml(tempHostname)}<br>
+            Formule : ${escapeHtml(planLabel)}<br>
+            Paiement : carte bancaire via Stripe${ref ? `<br>Référence : ${escapeHtml(ref)}` : ''}
+          </p>
+
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 16px;">
+            Votre abonnement comprend votre site personnalisé, 3 designs au choix, le nom de domaine
+            offert la première année, l'hébergement en Allemagne et la maintenance, les mises à jour,
+            l'installation et la mise en ligne.
+          </p>
 
           <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">
             Besoin d'une facture ou d'une modification ? Répondez directement à cet email, nous vous répondons personnellement.
           </p>`;
 
-  const text = `Merci ${salonName}, votre commande est confirmée.
+  const text = `Merci ${salonName}, votre site est en ligne.
 
-Votre paiement a bien été reçu. Nous créons votre site en ce moment même.
-Vous n'avez rien à faire : vous recevrez un second email dès qu'il est en ligne.
+Il est accessible dès maintenant, et vous pouvez déjà le modifier.
+
+VOTRE SITE
+${siteUrl}
+
+VOTRE ADRESSE DÉFINITIVE ARRIVE
+${finalHostname} est en cours de réservation auprès des organismes officiels des noms de
+domaine. Leur délai va de quelques minutes à 24 heures. Dès que l'adresse est disponible,
+votre site bascule dessus automatiquement et vous recevez un email. Vous n'avez rien à
+faire, et votre site reste accessible sans interruption.
+
+MODIFIER VOTRE SITE (lien valable 24 h)
+${adminUrl}
+Vos modifications sont conservées lors du passage à votre adresse définitive.
 
 RÉCAPITULATIF
-Adresse de votre site : ${hostname} (offerte la 1re année)
+Adresse définitive : ${finalHostname} (offerte la 1re année)
+Adresse actuelle : ${tempHostname}
 Formule : ${planLabel}
 Paiement : carte bancaire via Stripe${ref ? `\nRéférence : ${ref}` : ''}
 
-CE QUI SE PASSE MAINTENANT
-1. Réservation de votre adresse — nous enregistrons ${hostname} à votre nom.
-   Cette étape dépend du registrar : quelques minutes en général, parfois jusqu'à 45 minutes.
-2. Configuration et sécurisation — mise en place technique et certificat HTTPS, automatique.
-3. Mise en ligne — vous recevez un email avec l'adresse de votre site et votre accès
-   pour le modifier (textes, photos, prestations, horaires).
-
-COMPRIS DANS VOTRE ABONNEMENT
-Votre site personnalisé, 3 designs au choix, nom de domaine offert la 1re année,
-hébergement en Allemagne (UE) et maintenance, mises à jour, installation et mise en ligne offertes.
+Votre abonnement comprend votre site personnalisé, 3 designs au choix, le nom de domaine
+offert la première année, l'hébergement en Allemagne et la maintenance, les mises à jour,
+l'installation et la mise en ligne.
 
 Besoin d'une facture ou d'une modification ? Répondez directement à cet email.
 
@@ -238,43 +254,47 @@ CGV : https://maquickpage.fr/legal/cgv.html`;
  * détailler la cause technique — le client a juste besoin de savoir que sa
  * commande est bien passée et qu'il n'a rien à faire.
  */
-export async function sendProvisioningDelayEmail({ to, salonName, hostname }) {
-  const subject = 'Votre site prend un peu plus de temps que prévu';
+export async function sendProvisioningDelayEmail({ to, salonName, hostname, tempHostname }) {
+  const subject = 'Votre adresse définitive prend du retard';
+  const siteUrl = tempHostname ? `https://${tempHostname}` : null;
 
   const body = `
           <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Bonjour ${escapeHtml(salonName)},</h1>
           <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
-            <strong style="color:#1a1a1a;">Votre site est prêt de notre côté.</strong>
-            Ce qui prend du temps, c'est l'enregistrement de votre adresse
-            <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong> : il est effectué par
-            OVHcloud, l'organisme auprès de qui les noms de domaine sont réservés,
-            et leurs délais sont plus longs que d'habitude aujourd'hui.
+            ${siteUrl
+              ? `Votre site fonctionne normalement sur <a href="${siteUrl}" style="color:#1a1a1a;"><strong>${escapeHtml(tempHostname)}</strong></a>, et il n'y a rien à faire de votre côté.`
+              : `Votre site fonctionne normalement, et il n'y a rien à faire de votre côté.`}
           </p>
           <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
-            Votre commande chez eux est bien passée et votre paiement est bien enregistré.
-            Il n'y a rien d'anormal, et rien à refaire de votre côté.
+            En revanche, la réservation de <strong style="color:#1a1a1a;">${escapeHtml(hostname)}</strong> dépasse
+            le délai annoncé. Le retard vient d'OVHcloud, l'organisme qui attribue les noms de domaine,
+            pas de votre commande : elle est bien enregistrée chez eux et nous les relançons.
           </p>
           <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
-            Dès qu'ils nous livrent l'adresse, votre site est mis en ligne automatiquement
-            et vous recevez un email. En général dans l'heure.
+            Dès que l'adresse nous est livrée, la bascule se fait toute seule et vous recevez un email.
+          </p>
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
+            Si vous préférez ne pas attendre, répondez à cet email : nous pouvons vous proposer une autre
+            adresse disponible immédiatement, ou vous rembourser.
           </p>
           <p style="font-size: 15px; color: #6b7280; line-height: 1.6; margin: 0;">
-            Désolé pour l'attente.
+            Désolé pour ce contretemps.
           </p>`;
 
   const text = `Bonjour ${salonName},
 
-Votre site est prêt de notre côté. Ce qui prend du temps, c'est l'enregistrement de votre
-adresse ${hostname} : il est effectué par OVHcloud, l'organisme auprès de qui les noms de
-domaine sont réservés, et leurs délais sont plus longs que d'habitude aujourd'hui.
+Votre site fonctionne normalement${tempHostname ? ` sur ${tempHostname}` : ''}, et il n'y a rien à faire de votre côté.
 
-Votre commande chez eux est bien passée et votre paiement est bien enregistré.
-Il n'y a rien d'anormal, et rien à refaire de votre côté.
+En revanche, la réservation de ${hostname} dépasse le délai annoncé. Le retard vient
+d'OVHcloud, l'organisme qui attribue les noms de domaine, pas de votre commande : elle est
+bien enregistrée chez eux et nous les relançons.
 
-Dès qu'ils nous livrent l'adresse, votre site est mis en ligne automatiquement et vous
-recevez un email. En général dans l'heure.
+Dès que l'adresse nous est livrée, la bascule se fait toute seule et vous recevez un email.
 
-Désolé pour l'attente.
+Si vous préférez ne pas attendre, répondez à cet email : nous pouvons vous proposer une
+autre adresse disponible immédiatement, ou vous rembourser.
+
+Désolé pour ce contretemps.
 
 MaQuickPage — contact@maquickpage.fr`;
 
@@ -282,7 +302,12 @@ MaQuickPage — contact@maquickpage.fr`;
 }
 
 /**
- * Email envoyé après que le site est passé LIVE (provisioning OK).
+ * Email #2 : le domaine définitif est livré et le site a basculé dessus.
+ *
+ * Le site n'est plus une nouveauté — il tourne depuis le paiement sur son
+ * adresse provisoire. Ce qui change ici, c'est l'adresse : le message doit donc
+ * dire quoi en faire (la communiquer, la mettre sur les cartes de visite) et
+ * rassurer sur les liens déjà partagés, qui redirigent automatiquement.
  *
  * Modèle Magic Link Only :
  *   - setupToken : token unique single-use valide 24 h, posé en DB par le
@@ -293,7 +318,7 @@ MaQuickPage — contact@maquickpage.fr`;
  *     de son site et reçoit un nouveau magic link par email (auto-service).
  *   - Aucune valeur permanente dans l'URL.
  */
-export async function sendSignupSuccessEmail({ to, salonName, liveHostname, plan, slug, setupToken }) {
+export async function sendDomainActiveEmail({ to, salonName, liveHostname, tempHostname, plan, slug, setupToken }) {
   const planLabels = { TWO_YEAR: '9,90 € TTC/mois (engagement 24 mois)', ONE_YEAR: '17,90 € TTC/mois (engagement 12 mois)', FLEX: '29 € TTC/mois (sans engagement)' };
   const planLabel = planLabels[plan] || plan;
   const liveUrl = `https://${liveHostname}`;
@@ -303,7 +328,7 @@ export async function sendSignupSuccessEmail({ to, salonName, liveHostname, plan
     : `https://${liveHostname}/admin/${encodeURIComponent(slug)}`;
   const recoverPageUrl = `https://${liveHostname}/admin/${encodeURIComponent(slug)}`;
 
-  const subject = `${salonName} — votre site est en ligne sur ${liveHostname}`;
+  const subject = `C'est fait : votre site est sur ${liveHostname}`;
 
   // Template HTML avec wrapper <table> = standard email (Stripe, Linear, etc.).
   // Évite que Gmail/Outlook "détachent" la signature logo du contenu.
@@ -321,8 +346,15 @@ export async function sendSignupSuccessEmail({ to, salonName, liveHostname, plan
         <tr><td>
 
           <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">Bonjour ${escapeHtml(salonName)},</h1>
-          <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin: 0 0 16px;">
-            Votre site est maintenant <strong>en ligne</strong>. Bienvenue sur MaQuickPage.
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
+            Votre adresse définitive est active : votre site est désormais sur
+            <strong>${escapeHtml(liveHostname)}</strong>.
+          </p>
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 16px;">
+            C'est cette adresse qu'il faut donner à vos clientes, mettre sur vos cartes de visite,
+            votre vitrine et vos réseaux sociaux.${tempHostname ? `
+            L'adresse provisoire que vous aviez reçue continue de fonctionner et renvoie vers celle-ci :
+            personne ne se perdra, y compris ceux à qui vous l'auriez déjà transmise.` : ''}
           </p>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px; margin: 24px 0;">
@@ -390,7 +422,12 @@ export async function sendSignupSuccessEmail({ to, salonName, liveHostname, plan
 
   const text = `Bonjour ${salonName},
 
-Votre site est maintenant en ligne. Bienvenue sur MaQuickPage.
+Votre adresse définitive est active : votre site est désormais sur ${liveHostname}.
+
+C'est cette adresse qu'il faut donner à vos clientes, mettre sur vos cartes de visite,
+votre vitrine et vos réseaux sociaux.${tempHostname ? `
+L'adresse provisoire que vous aviez reçue continue de fonctionner et renvoie vers celle-ci :
+personne ne se perdra, y compris ceux à qui vous l'auriez déjà transmise.` : ''}
 
 ADRESSE DE VOTRE SITE
 ${liveUrl}
@@ -481,9 +518,9 @@ export async function sendProvisioningErrorEmail({ adminEmail, salonName, slug, 
 
 export default {
   isEnabled,
-  sendPaymentReceivedEmail,
+  sendSiteOnlineEmail,
   sendProvisioningDelayEmail,
-  sendSignupSuccessEmail,
+  sendDomainActiveEmail,
   sendProvisioningErrorEmail,
   sendRecoveryEmail,
 };

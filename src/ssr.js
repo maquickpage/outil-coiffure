@@ -186,8 +186,28 @@ function replaceElementByIdHtml(html, id, newInnerHtml) {
  * @param {boolean} options.noindex - injecte <meta robots noindex,nofollow>
  * @returns {string} HTML rendu
  */
+// Statuts pour lesquels le coiffeur a payé : son site ne doit plus rien montrer
+// qui serve à le lui vendre.
+const PAID_STATUSES = new Set(['provisioning', 'live', 'active', 'trialing']);
+export function isPaidStatus(status) {
+  return PAID_STATUSES.has((status || '').toLowerCase());
+}
+
+// Éléments qui n'existent que pour vendre la démo : bandeau d'achat, modale de
+// prix, sélecteur de design et visite guidée. Une fois le client payé, son site
+// doit avoir exactement l'apparence du site définitif — y compris sur l'adresse
+// provisoire, qu'il montre déjà à ses clientes.
+const SALES_ASSETS = ['banner', 'pricing-modal', 'style-switcher', 'preview-onboarding'];
+
+function stripSalesChrome(html) {
+  const names = SALES_ASSETS.join('|');
+  return html
+    .replace(new RegExp(`\\s*<link[^>]*/_assets/(?:${names})\\.css[^>]*>`, 'gi'), '')
+    .replace(new RegExp(`\\s*<script[^>]*/_assets/(?:${names})\\.js[^>]*>\\s*</script>`, 'gi'), '');
+}
+
 export function renderSalonHtml(view, options = {}) {
-  const { canonicalUrl, siteUrl, noindex = false } = options;
+  const { canonicalUrl, siteUrl, noindex = false, salesChrome = true } = options;
   // Template choisi par salon (colonne salons.template, exposée dans la view
   // par buildSalonView). Inconnu/absent → 'classic' (site historique).
   let html = loadTemplate(view.template);
@@ -300,6 +320,11 @@ export function renderSalonHtml(view, options = {}) {
   const safeView = JSON.stringify(view).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e');
   const viewScript = `<script>window.__SALON_VIEW__=${safeView};</script>`;
   html = html.replace(/<\/head>/i, `${viewScript}</head>`);
+
+  // Fait en dernier, sur le HTML final : la chrome de vente arrive soit du
+  // template classic (balises en dur), soit de l'injection faite pour les
+  // templates alternatifs. Un seul nettoyage couvre les deux.
+  if (!salesChrome) html = stripSalesChrome(html);
 
   return html;
 }
