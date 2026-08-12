@@ -125,6 +125,8 @@ export function initSchema() {
   //                          renverrait le même email au client.
   if (!cols.includes('provisioning_attempts')) db.exec("ALTER TABLE salons ADD COLUMN provisioning_attempts INTEGER DEFAULT 0");
   if (!cols.includes('delay_notified_at')) db.exec("ALTER TABLE salons ADD COLUMN delay_notified_at TEXT");
+  // Alerte admin envoyée à 12 h, avant le mot au client à 24 h.
+  if (!cols.includes('admin_delay_notified_at')) db.exec("ALTER TABLE salons ADD COLUMN admin_delay_notified_at TEXT");
 
   // === Acceptation des CGV (preuve horodatée — exigence légale FR/RGPD) ===
   // cgv_accepted_at : ISO datetime UTC de la coche utilisateur

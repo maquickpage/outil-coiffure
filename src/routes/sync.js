@@ -85,7 +85,8 @@ router.post('/sync/:slug', express.json({ limit: '2mb' }), requireSyncAuth, (req
     // l'email "site en ligne" (généré par Helsinki) est inconnu de Falkenstein
     // → coiffeur tombe sur le form "entrez votre email" au lieu d'accès direct.
     'recovery_token', 'recovery_token_expires_at',
-    'online_email_sent_at', 'delay_notified_at', 'provisioning_attempts',
+    'online_email_sent_at', 'delay_notified_at', 'admin_delay_notified_at',
+    'provisioning_attempts',
     'created_at', 'updated_at',
   ];
 

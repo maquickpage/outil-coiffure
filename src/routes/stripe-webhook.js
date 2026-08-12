@@ -130,7 +130,8 @@ async function onCheckoutCompleted(session) {
   // l'email "retard" de la commande précédente ne doivent pas bloquer celle-ci.
   db.prepare(`
     UPDATE salons
-    SET provisioning_attempts = 0, delay_notified_at = NULL, online_email_sent_at = NULL
+    SET provisioning_attempts = 0, delay_notified_at = NULL,
+        admin_delay_notified_at = NULL, online_email_sent_at = NULL
     WHERE slug = ?
   `).run(slug);
 

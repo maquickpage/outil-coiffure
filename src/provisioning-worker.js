@@ -373,6 +373,56 @@ async function publishOnTempHostname(slug, hostname, planKey) {
 }
 
 /**
+ * Temps écoulé depuis le paiement, en millisecondes.
+ * `signed_up_at` est écrit par SQLite en UTC ('YYYY-MM-DD HH:MM:SS').
+ */
+function msSinceSignup(slug) {
+  if (!slug) return 0;
+  const row = db.prepare('SELECT signed_up_at FROM salons WHERE slug = ?').get(slug);
+  if (!row?.signed_up_at) return 0;
+  const t = Date.parse(String(row.signed_up_at).replace(' ', 'T') + 'Z');
+  return Number.isFinite(t) ? Math.max(0, Date.now() - t) : 0;
+}
+
+/**
+ * Prévient l'admin qu'un domaine tarde, avant que le client s'en aperçoive.
+ *
+ * Envoyé une seule fois par signup (`admin_delay_notified_at`) : à 12 h il
+ * reste une demi-journée pour relancer OVH ou proposer un autre nom avant que
+ * le délai annoncé au client (24 h) soit dépassé.
+ */
+async function alertAdminOfSlowRegistrar(slug, hostname, elapsedMs) {
+  const adminEmail = process.env.RESEND_REPLY_TO || process.env.ADMIN_EMAIL;
+  if (!adminEmail || !slug) return;
+  try {
+    const row = db.prepare(`
+      SELECT nom_clean, nom, temp_hostname, admin_delay_notified_at
+      FROM salons WHERE slug = ?
+    `).get(slug);
+    if (!row || row.admin_delay_notified_at) return;
+    db.prepare("UPDATE salons SET admin_delay_notified_at = datetime('now') WHERE slug = ?").run(slug);
+
+    const hours = Math.round(elapsedMs / 3600000);
+    const salonName = row.nom_clean || row.nom || slug;
+    await sendProvisioningErrorEmail({
+      adminEmail,
+      salonName,
+      slug,
+      hostname,
+      subject: `[INFO] ${hours} h sans livraison OVH — ${salonName} (${hostname})`,
+      errorMessage: `OVH n'a toujours pas livré ${hostname}, ${hours} h après le paiement.\n\n`
+        + `Le client ne subit rien : son site tourne sur ${row.temp_hostname || 'son adresse provisoire'} `
+        + `et le watchdog basculera tout seul à la livraison.\n\n`
+        + `Il sera prévenu automatiquement à 24 h si rien n'a bougé d'ici là. `
+        + `C'est le moment de relancer OVH ou de lui proposer un autre nom.`,
+    });
+    console.log(`[provisioning] ${slug} alerte admin "registrar lent" envoyée (${hours} h)`);
+  } catch (err) {
+    console.error(`[provisioning] ${slug} alerte admin échouée (non-fatal):`, err.message);
+  }
+}
+
+/**
  * Le registrar (OVH) met plus longtemps que prévu à livrer le domaine.
  *
  * Le client a payé, on lui a annoncé "moins de 5 minutes", et il a
@@ -549,6 +599,11 @@ async function ovhRegisterDomain(hostname, years = 1) {
 // un registrar lent n'est plus un incident dont il faut s'excuser, seulement un
 // changement d'adresse différé. Écrire avant serait inquiéter pour rien.
 const OVH_DELAY_NOTICE_MS = Number(process.env.OVH_DELAY_NOTICE_MS || 24 * 60 * 60 * 1000);
+
+// Alerte admin, plus tôt que le mot au client : à 12 h on veut pouvoir se
+// retourner (relancer OVH, proposer un autre nom) AVANT que le délai annoncé
+// au client soit dépassé, pas en même temps.
+const ADMIN_DELAY_NOTICE_MS = Number(process.env.ADMIN_DELAY_NOTICE_MS || 12 * 60 * 60 * 1000);
 // Timeout d'un cycle d'attente, pas un abandon : le watchdog relance derrière
 // tant que le signup est dans sa fenêtre de reprise.
 // Mesures réelles : 26 min le 2026-08-06, 18 h 40 le 2026-08-10. Aucune valeur
@@ -561,7 +616,6 @@ async function pollOvhDomainReady(hostname, options = {}) {
   const timeoutMs = options.timeoutMs || OVH_POLL_TIMEOUT_MS;
   const { job, slug } = options;
   const start = Date.now();
-  let delayNotified = false;
 
   // Cadence adaptative : réactif sur le cas nominal (livraison en 1-2 min),
   // économe ensuite. Une livraison OVH peut prendre des heures (18 h mesurées
@@ -572,9 +626,16 @@ async function pollOvhDomainReady(hostname, options = {}) {
   const intervalFor = elapsed => (elapsed < 2 * 60 * 1000 ? fastIntervalMs : slowIntervalMs);
 
   while (Date.now() - start < timeoutMs) {
-    // Le registrar traîne : on rassure le client par email, une seule fois.
-    if (!delayNotified && Date.now() - start > OVH_DELAY_NOTICE_MS) {
-      delayNotified = true;
+    // Les seuils se comptent depuis le PAIEMENT, pas depuis le début de ce
+    // cycle d'attente : le watchdog relance le provisioning toutes les
+    // ~2 h (OVH_POLL_TIMEOUT_MS), donc un compteur local ne franchirait jamais
+    // 12 h ni 24 h et aucune notification ne partirait.
+    const sinceSignup = msSinceSignup(slug);
+    if (sinceSignup > ADMIN_DELAY_NOTICE_MS) {
+      if (job) job.registrarDelay = true;
+      alertAdminOfSlowRegistrar(slug, hostname, sinceSignup).catch(() => {});
+    }
+    if (sinceSignup > OVH_DELAY_NOTICE_MS) {
       if (job) job.registrarDelay = true;
       notifyCustomerOfRegistrarDelay(slug, hostname).catch(() => {});
     }
