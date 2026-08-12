@@ -32,7 +32,19 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 WORKDIR /app
 
 COPY package.json ./
-RUN npm install --omit=dev
+
+# bcrypt est un module natif : il télécharge normalement un binaire déjà compilé
+# depuis GitHub, et ne compile depuis les sources qu'en secours. Le jour où
+# GitHub ne répond pas (arrivé le 2026-08-12), ce secours échouait sur
+# « not found: make » et TOUT déploiement devenait impossible.
+# On installe donc la chaîne de compilation, on installe les dépendances, puis
+# on la retire dans la même couche : le build ne dépend plus d'un service
+# extérieur, et l'image finale ne grossit pas.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential python3 \
+    && npm install --omit=dev \
+    && apt-get purge -y --auto-remove build-essential python3 \
+    && rm -rf /var/lib/apt/lists/* /root/.npm/_cacache
 
 COPY . .
 
