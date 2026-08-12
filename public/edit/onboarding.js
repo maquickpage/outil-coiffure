@@ -241,10 +241,14 @@
     // les derniers onglets (dont « Contact & Réseaux ») sont hors écran au
     // chargement. Sans ça, on éclairait une zone vide.
     if (!opts.skipScroll) {
-      el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-      // Le défilement est animé, donc les coordonnées mesurées maintenant sont
-      // celles d'AVANT. On pose une première position (utile si rien ne bouge),
-      // puis on repositionne une fois l'animation terminée.
+      // Défilement instantané et non animé : le halo doit se poser d'emblée au
+      // bon endroit. Avec une animation, on mesure les coordonnées d'avant le
+      // scroll et l'encadré apparaît sur une zone vide avant de sauter —
+      // particulièrement visible sur mobile, où la bande des sections doit
+      // défiler pour atteindre « Contact & Réseaux ».
+      el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' });
+      // Filet : si un conteneur parent défile encore (élan tactile, ancrage
+      // différé), on repositionne juste après.
       scheduleReposition();
     }
 
