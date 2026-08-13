@@ -14,8 +14,8 @@ const router = express.Router();
 router.use(express.json({ limit: '20mb' }));
 
 const NODE_TIMEOUT_MS = 45000; // Apps Script peut être lent (cold start + Sheets)
-const NODE_RETRIES = 3;        // relances sur échec de transport uniquement
-const RETRY_BASE_MS = 1200;    // attente croissante entre deux essais
+const NODE_RETRIES = 4;        // relances sur échec de transport uniquement
+const RETRY_BASE_MS = 2000;    // base du backoff exponentiel entre deux essais
 
 // Actions autorisées côté nœud — tout le reste est refusé avant de sortir du portail.
 const NODE_ACTIONS = new Set(['health', 'dashboard', 'uploadCsv', 'saveSteps',
@@ -68,8 +68,10 @@ async function callNodeOnce(node, payload) {
 
 // Apps Script est instable par nature : démarrages à froid, quotas, 404 passagers sur
 // l'URL /exec. Sans relance, une opération parfaitement valide échoue au hasard et
-// l'opérateur croit à une panne. On réessaie donc les échecs de transport, avec une
-// attente croissante et un peu d'aléa pour ne pas retomber en rafale sur le même creux.
+// l'opérateur croit à une panne. Mesuré le 2026-08-13 depuis ce VPS : les 404 arrivent
+// en RAFALES de 10–30 s (3+ échecs consécutifs) qui frappent n'importe quel nœud, puis
+// se dissipent. L'enveloppe de relance doit donc dépasser la rafale : backoff exponentiel
+// (2 s, 6 s, 18 s ± aléa) au lieu d'une attente linéaire de ~4 s qui restait dedans.
 async function callNode(node, payload, { essais = NODE_RETRIES } = {}) {
   if (!NODE_ACTIONS.has(payload.action)) return { ok: false, error: 'action refusée: ' + payload.action };
   let dernier;
@@ -77,7 +79,7 @@ async function callNode(node, payload, { essais = NODE_RETRIES } = {}) {
     dernier = await callNodeOnce(node, payload);
     if (!dernier.__transport) return essai > 1 ? { ...dernier, essais: essai } : dernier;
     if (essai < essais) {
-      const attente = RETRY_BASE_MS * essai + Math.floor(Math.random() * 500);
+      const attente = RETRY_BASE_MS * Math.pow(3, essai - 1) + Math.floor(Math.random() * 1000);
       await new Promise(r => setTimeout(r, attente));
     }
   }
