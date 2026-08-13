@@ -42,9 +42,17 @@ router.use(express.json({ limit: '2mb' }));
 const PHOTOS_BASE_WHERE = `s.google_id IS NOT NULL AND s.google_id != ''
   AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)`;
 
-function salonFilter(q = {}) {
+function salonFilter(q = {}, seqSlugs = null) {
   const conds = [];
   const params = [];
+  // Restriction par statut de lead séquenceur (queued, active, replied…) :
+  // la liste de slugs est résolue en amont par resolveSeqSlugs() car ces
+  // statuts vivent sur les nœuds, pas en base. json_each évite un IN (?,?,…)
+  // de plusieurs milliers de paramètres.
+  if (seqSlugs) {
+    conds.push('s.slug IN (SELECT value FROM json_each(?))');
+    params.push(JSON.stringify(seqSlugs));
+  }
   const gid = (q.group_id == null ? '' : String(q.group_id)).trim();
   if (gid === 'manuel') conds.push("s.csv_source = 'manuel'");
   else if (gid === 'none') conds.push('s.group_id IS NULL');
@@ -70,7 +78,31 @@ function filterFromQuery(src = {}) {
   return {
     group_id: src.group_id, csv_source: src.csv_source,
     search: src.search, contact_status: src.contact_status,
+    seq_status: src.seq_status,
   };
+}
+
+// Slugs des salons dont le lead séquenceur a ce statut. Renvoie null si aucun
+// statut n'est demandé (= pas de restriction). `nodes_ok < nodes_total` signale
+// une liste partielle : un nœud injoignable cache ses leads.
+async function resolveSeqSlugs(filter) {
+  if (filter.contact_status !== 'sequenced' || !filter.seq_status) return null;
+  const { statutsLeadsParEmail } = await import('./sequencer.js');
+  const { map, nodes_ok, nodes_total } = await statutsLeadsParEmail();
+  const rows = db.prepare("SELECT email, salon_slug FROM sequencer_leads WHERE salon_slug IS NOT NULL AND salon_slug != ''").all();
+  const slugs = [];
+  for (const r of rows) {
+    if (map.get(String(r.email || '').trim().toLowerCase()) === filter.seq_status) slugs.push(r.salon_slug);
+  }
+  return { slugs, nodes_ok, nodes_total };
+}
+
+// Prépare filtre + restriction séquenceur en un appel (utilisé par toutes les routes).
+async function prepareFilter(query) {
+  const filter = filterFromQuery(query);
+  const seq = await resolveSeqSlugs(filter);
+  const f = salonFilter(filter, seq ? seq.slugs : null);
+  return { filter, seq, f };
 }
 
 // --- Static renditions (authé car monté après requireAuth dans admin.js) ---
@@ -191,8 +223,7 @@ router.put('/api/picker/criteria', (req, res) => {
 const batchJobs = new Map();
 
 // Salons jamais scorés (sans erreur) qui matchent le filtre courant.
-function unscoredSalons(filter, limit) {
-  const f = salonFilter(filter);
+function unscoredSalons(f, limit) {
   return db.prepare(`
     SELECT s.slug, s.google_id, COALESCE(NULLIF(TRIM(s.nom_clean), ''), s.nom) AS nom, s.ville
     FROM salons s
@@ -204,8 +235,10 @@ function unscoredSalons(filter, limit) {
 }
 
 // Combien de salons le filtre courant sélectionne, et combien restent à scorer.
-router.get('/api/picker/scope', (req, res) => {
-  const f = salonFilter(filterFromQuery(req.query));
+router.get('/api/picker/scope', async (req, res) => {
+  let f, seq;
+  try { ({ f, seq } = await prepareFilter(req.query)); }
+  catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
   const salons = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${PHOTOS_BASE_WHERE}${f.sql}`).get(...f.params).c;
   const unscored = db.prepare(`
     SELECT COUNT(*) AS c FROM salons s
@@ -216,10 +249,13 @@ router.get('/api/picker/scope', (req, res) => {
     SELECT COUNT(*) AS c FROM salons s
     WHERE ${PHOTOS_BASE_WHERE}${f.sql} AND s.overrides_json LIKE '%backgroundImage%'
   `).get(...f.params).c;
-  res.json({ salons, unscored, hero_applied: hero });
+  res.json({
+    salons, unscored, hero_applied: hero,
+    seq_nodes: seq ? { ok: seq.nodes_ok, total: seq.nodes_total } : null,
+  });
 });
 
-router.post('/api/picker/batch', (req, res) => {
+router.post('/api/picker/batch', async (req, res) => {
   if (!isPickerAiConfigured()) {
     return res.status(503).json({ error: 'Azure OpenAI non configuré (AZURE_OPENAI_KEY manquante)' });
   }
@@ -230,9 +266,11 @@ router.post('/api/picker/batch', (req, res) => {
   // Filtre optionnel (barre de sélection des salons) : si présent, le batch ne
   // score QUE des salons de ce périmètre, dans l'ordre. Sinon, comportement
   // historique = pickNextUnscoredSalon() (tous les salons en BDD).
-  const filter = filterFromQuery(req.query);
+  let filter, f;
+  try { ({ filter, f } = await prepareFilter(req.query)); }
+  catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
   const scoped = Object.values(filter).some((v) => v != null && v !== '' && v !== 'all');
-  const queue = scoped ? unscoredSalons(filter, size) : null;
+  const queue = scoped ? unscoredSalons(f, size) : null;
   const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const job = {
     id: jobId, size,
@@ -300,7 +338,9 @@ router.get('/api/picker/results', async (req, res) => {
 
   // Même périmètre de salons que la barre de sélection (région, source,
   // recherche, statut de contact) : le feed ne montre que ces salons-là.
-  const f = salonFilter(filterFromQuery(req.query));
+  let f;
+  try { ({ f } = await prepareFilter(req.query)); }
+  catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
   if (f.sql) {
     where += ` AND EXISTS (SELECT 1 FROM salons s WHERE s.google_id = sc.google_id AND ${PHOTOS_BASE_WHERE}${f.sql})`;
   }
@@ -557,8 +597,9 @@ router.get('/api/picker/groups', (req, res) => {
 router.get('/api/picker/manual-salons', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '8', 10), 24);
   const offset = parseInt(req.query.offset || '0', 10);
-  const filter = filterFromQuery(req.query);
-  const f = salonFilter(filter);
+  let filter, f;
+  try { ({ filter, f } = await prepareFilter(req.query)); }
+  catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
   const baseWhere = `${PHOTOS_BASE_WHERE}${f.sql}`;
 
   const total = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${baseWhere}`).get(...f.params).c;

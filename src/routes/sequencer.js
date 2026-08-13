@@ -86,8 +86,8 @@ async function callNode(node, payload, { essais = NODE_RETRIES } = {}) {
 }
 
 // Fan-out parallèle vers plusieurs nœuds → [{node_id, mailbox, ...réponse}]
-async function callNodes(nodes, payload) {
-  const results = await Promise.all(nodes.map(n => callNode(n, payload)));
+async function callNodes(nodes, payload, opts) {
+  const results = await Promise.all(nodes.map(n => callNode(n, payload, opts)));
   return nodes.map((n, i) => ({ node_id: n.id, mailbox: n.mailbox, ...results[i] }));
 }
 
@@ -394,5 +394,34 @@ router.post('/api/sequencer/import', async (req, res) => {
   res.json({ results: sortie, filtres });
 });
 
-export { listNodes, callNodes };
+// Statut de chaque lead (queued/active/replied/…), par e-mail normalisé.
+// Le portail ne stocke PAS ces statuts : ils vivent sur les nœuds, qu'il faut
+// donc interroger. Apps Script étant lent (cold start + retries), le résultat
+// est mis en cache — un statut vieux de deux minutes suffit largement pour
+// choisir des salons à traiter en photo.
+let cacheStatuts = { at: 0, data: null };
+const STATUTS_TTL_MS = 120000;
+
+async function statutsLeadsParEmail({ maxAgeMs = STATUTS_TTL_MS } = {}) {
+  if (cacheStatuts.data && Date.now() - cacheStatuts.at < maxAgeMs) return cacheStatuts.data;
+  const nodes = listNodes(true);
+  // Une seule tentative : ici on remplit un filtre d'écran, pas une opération
+  // d'envoi. Un nœud à terre doit coûter un timeout, pas trois.
+  const results = await callNodes(nodes, { action: 'dashboard' }, { essais: 1 });
+  const map = new Map();
+  let ok = 0;
+  for (const r of results) {
+    if (!r.ok) continue;
+    ok++;
+    for (const l of (r.leads || [])) {
+      const email = normaliserEmail(l.email);
+      if (email && l.status) map.set(email, l.status);
+    }
+  }
+  const data = { map, nodes_ok: ok, nodes_total: results.length };
+  cacheStatuts = { at: Date.now(), data };
+  return data;
+}
+
+export { listNodes, callNodes, statutsLeadsParEmail };
 export default router;

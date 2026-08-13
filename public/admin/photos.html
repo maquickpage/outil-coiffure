@@ -212,7 +212,7 @@ var M_LIMIT=8;
 // Sélection des salons — mêmes critères que le tableau de bord, partagée par
 // les deux vues (IA + manuelle). Persistée entre les visites.
 var FLT_KEY='picker-salon-filter';
-var flt={group_id:'',csv_source:'',search:'',contact_status:''};
+var flt={group_id:'',csv_source:'',search:'',contact_status:'',seq_status:''};
 try{var _s=JSON.parse(localStorage.getItem(FLT_KEY)||'null');if(_s)flt=Object.assign(flt,_s);}catch(e){}
 var fmeta={groups:null,csv_sources:[],total_salons:0};
 function fltSave(){try{localStorage.setItem(FLT_KEY,JSON.stringify(flt));}catch(e){}}
@@ -222,6 +222,8 @@ function fltQs(){
   ['group_id','csv_source','search','contact_status'].forEach(function(k){
     if(flt[k])p.push(k+'='+encodeURIComponent(flt[k]));
   });
+  // Le statut de lead n'a de sens que dans le périmètre séquenceur
+  if(flt.contact_status==='sequenced'&&flt.seq_status)p.push('seq_status='+encodeURIComponent(flt.seq_status));
   return p.join('&');
 }
 function cap(s){return s?String(s).charAt(0).toUpperCase()+String(s).slice(1):s;}
@@ -251,6 +253,16 @@ function fltBarHtml(){
     +'<option value="contacted">Déjà contactés</option>'
     +'<option value="sequenced">Confiés au séquenceur</option>'
     +'</select>'
+    +'<select class="pos" id="f-seq" style="min-width:210px;display:none">'
+    +'<option value="">Séquenceur : tous statuts</option>'
+    +'<option value="queued">queued — pas encore envoyé</option>'
+    +'<option value="active">active — séquence en cours</option>'
+    +'<option value="replied">replied — a répondu</option>'
+    +'<option value="stopped">stopped — arrêté</option>'
+    +'<option value="unsubscribed">unsubscribed — désinscrit</option>'
+    +'<option value="failed">failed — en erreur</option>'
+    +'<option value="completed">completed — séquence finie</option>'
+    +'</select>'
     +'<input id="f-q" class="pos" style="min-width:190px" placeholder="Rechercher (nom, ville…)">'
     +'<button class="btn sm" id="f-reset">Réinitialiser</button>'
     +'<span id="f-count" style="font-size:12.5px;color:var(--muted)"></span>'
@@ -259,8 +271,10 @@ function fltBarHtml(){
 // Remplit les listes déroulantes, câble les événements, met à jour le compteur.
 // onChange() est rappelé à chaque modification du filtre.
 function bindFltBar(onChange){
-  var g=$('f-group'), sr=$('f-src'), ct=$('f-contact'), q=$('f-q'), rs=$('f-reset');
+  var g=$('f-group'), sr=$('f-src'), ct=$('f-contact'), sq=$('f-seq'), q=$('f-q'), rs=$('f-reset');
   if(!g)return;
+  // Le sélecteur de statut de lead n'apparaît que dans le périmètre séquenceur
+  function syncSeqVisible(){sq.style.display=(ct.value==='sequenced')?'':'none';}
   function fill(){
     g.innerHTML='<option value="">Toutes les régions'+(fmeta.total_salons?' ('+fmeta.total_salons+')':'')+'</option>'
       +(fmeta.groups||[]).map(function(x){return '<option value="'+esc(x.group_id)+'">'+esc(x.name)+' ('+x.salons+')</option>';}).join('');
@@ -268,7 +282,7 @@ function bindFltBar(onChange){
       +(fmeta.csv_sources||[]).map(function(x){return '<option value="'+esc(x.csv_source)+'">'+esc(x.csv_source)+' ('+x.n+')</option>';}).join('');
     g.value=flt.group_id||''; sr.value=flt.csv_source||'';
   }
-  ct.value=flt.contact_status||''; q.value=flt.search||'';
+  ct.value=flt.contact_status||''; sq.value=flt.seq_status||''; q.value=flt.search||''; syncSeqVisible();
   if(!fmeta.groups){
     api('/admin/api/picker/groups').then(function(j){
       fmeta.groups=j.groups||[]; fmeta.csv_sources=j.csv_sources||[]; fmeta.total_salons=j.total_salons||0;
@@ -277,33 +291,38 @@ function bindFltBar(onChange){
   } else fill();
   function changed(){
     flt.group_id=g.value; flt.csv_source=sr.value; flt.contact_status=ct.value; flt.search=q.value.trim();
+    flt.seq_status=(ct.value==='sequenced')?sq.value:'';
+    syncSeqVisible();
     fltSave(); refreshScope(); onChange();
   }
-  g.onchange=sr.onchange=ct.onchange=changed;
+  g.onchange=sr.onchange=ct.onchange=sq.onchange=changed;
   var deb=null;
   q.oninput=function(){clearTimeout(deb);deb=setTimeout(changed,450);};
   q.onkeydown=function(e){if(e.key==='Enter'){clearTimeout(deb);changed();}};
   rs.onclick=function(){
-    flt={group_id:'',csv_source:'',search:'',contact_status:''};
-    fltSave(); g.value='';sr.value='';ct.value='';q.value='';
+    flt={group_id:'',csv_source:'',search:'',contact_status:'',seq_status:''};
+    fltSave(); g.value='';sr.value='';ct.value='';sq.value='';q.value=''; syncSeqVisible();
     refreshScope(); onChange();
   };
   refreshScope();
 }
 // Compteur « N salons · M à scorer » + libellé des boutons de scoring.
 function refreshScope(){
-  var el=$('f-count'); if(el)el.textContent='…';
+  var el=$('f-count');
+  if(el)el.textContent=flt.seq_status?'Interrogation des nœuds du séquenceur…':'…';
   return api('/admin/api/picker/scope'+(fltQs()?'?'+fltQs():'')).then(function(j){
     var e=$('f-count');
     if(e)e.textContent=j.salons.toLocaleString('fr-FR')+' salon'+(j.salons>1?'s':'')+' avec photos · '
       +j.unscored.toLocaleString('fr-FR')+' pas encore scoré'+(j.unscored>1?'s':'')+' · '
-      +j.hero_applied.toLocaleString('fr-FR')+' avec héros perso';
+      +j.hero_applied.toLocaleString('fr-FR')+' avec héros perso'
+      +((j.seq_nodes&&j.seq_nodes.ok<j.seq_nodes.total)
+        ? ' · ⚠ '+(j.seq_nodes.total-j.seq_nodes.ok)+' nœud(s) injoignable(s), liste partielle':'');
     var s=$('scope-note');
     if(s)s.textContent=fltActive()
       ? 'Le scoring ne portera que sur les '+j.unscored.toLocaleString('fr-FR')+' salon(s) non scorés de cette sélection.'
       : 'Aucun filtre : priorité aux salons présents en BDD jamais scorés.';
     return j;
-  }).catch(function(){var e=$('f-count');if(e)e.textContent='';});
+  }).catch(function(err){var e=$('f-count');if(e)e.textContent=err&&err.message?('⚠ '+err.message):'';});
 }
 
 // ============ RENDER ============
