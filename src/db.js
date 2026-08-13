@@ -146,9 +146,13 @@ export function initSchema() {
   if (!cols.includes('suspended_reason')) db.exec("ALTER TABLE salons ADD COLUMN suspended_reason TEXT");
 
   // === Template du site salon (design kit templates/) ===
-  // 'classic' (défaut = site historique public/site) | 'contrast' | 'drama'.
+  // 'classic' (site historique public/site) | 'contrast' | 'drama' (défaut).
   // Choisi via l'éditeur admin (/admin/{slug}) ; lu par ssr.js au rendu.
-  if (!cols.includes('template')) db.exec("ALTER TABLE salons ADD COLUMN template TEXT DEFAULT 'classic'");
+  // Le DEFAULT ci-dessous ne vaut que pour une base neuve : sur une base déjà
+  // migrée, SQLite ne permet pas de changer le défaut d'une colonne existante,
+  // donc les deux chemins d'insertion (salon-creator, csv-importer) écrivent
+  // DEFAULT_TEMPLATE_ID explicitement.
+  if (!cols.includes('template')) db.exec("ALTER TABLE salons ADD COLUMN template TEXT DEFAULT 'drama'");
 
   // === Récupération d'accès admin (magic link via /recover) ===
   // Le coiffeur entre son email sur maquickpage.fr/recover, on génère un token

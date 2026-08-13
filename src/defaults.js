@@ -1,6 +1,8 @@
 // Valeurs par defaut + services standards de coiffure
 // Tout est ecrasable par les overrides du coiffeur
 
+import { DEFAULT_TEMPLATE_ID } from './templates.js';
+
 // Galerie par défaut : 9 images triées pour rester homogène en mode "grid"
 // (vignettes carrées, défaut). L'alternance portrait/paysage et les 3 portraits
 // "humains" (barbier, mariage, couleur argent) en positions accrocheuses
@@ -255,7 +257,7 @@ export function buildSalonView(salonRow) {
     slug: salonRow.slug,
     nom: displayName,
     nom_original: salonRow.nom,
-    template: salonRow.template || 'classic',
+    template: salonRow.template || DEFAULT_TEMPLATE_ID,
     ville: salonRow.ville,
     note_avis: salonRow.note_avis,
     nb_avis: salonRow.nb_avis,

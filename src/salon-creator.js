@@ -5,6 +5,7 @@ import db from './db.js';
 import { generateSlug } from './slug-generator.js';
 import { generateEditToken } from './token-generator.js';
 import { captureSalon } from './screenshot-worker.js';
+import { DEFAULT_TEMPLATE_ID } from './templates.js';
 
 // Nettoie le libellé Google (souvent « Nom - coiffeur Ville ») en nom d'affichage propre.
 // Garde le 1er segment ; retire les segments « filler SEO » (coiffeur/coiffure/salon/ville).
@@ -31,13 +32,13 @@ const insertSalon = db.prepare(`
     latitude, longitude, types, note_avis, nb_avis, heures_ouverture,
     lien_facebook, lien_instagram, lien_tiktok, lien_youtube, lien_google_maps,
     meta_image, titre_site, meta_description, site_internet_original,
-    google_id, data_json, csv_source, edit_token, group_id
+    google_id, data_json, csv_source, edit_token, group_id, template
   ) VALUES (
     @slug, @nom, @nom_clean, @ville, @code_postal, @adresse, @telephone, @email,
     @latitude, @longitude, @types, @note_avis, @nb_avis, @heures_ouverture,
     @lien_facebook, @lien_instagram, @lien_tiktok, @lien_youtube, @lien_google_maps,
     @meta_image, @titre_site, @meta_description, @site_internet_original,
-    @google_id, @data_json, @csv_source, @edit_token, @group_id
+    @google_id, @data_json, @csv_source, @edit_token, @group_id, @template
   )
 `);
 
@@ -80,6 +81,7 @@ export function createSalon(data, { csvSource = 'manuel', groupId = null } = {})
     csv_source: csvSource,
     edit_token,
     group_id: groupId,
+    template: DEFAULT_TEMPLATE_ID,
   };
   const info = insertSalon.run(row);
   captureSalon(slug).catch((e) => console.warn(`[salon-creator] screenshot ${slug} fail: ${e.message}`));

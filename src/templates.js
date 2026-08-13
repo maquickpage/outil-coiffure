@@ -1,5 +1,10 @@
 export const TEMPLATE_IDS = ['classic', 'contrast', 'drama'];
 
+// Template posé sur tout nouveau salon et servi quand la colonne salons.template
+// est vide ou inconnue. Le coiffeur peut en changer depuis l'éditeur ; ce n'est
+// qu'un point de départ, pas une contrainte.
+export const DEFAULT_TEMPLATE_ID = 'drama';
+
 export const TEMPLATES = [
   {
     id: 'classic',
@@ -30,7 +35,7 @@ export const TEMPLATE_LABELS = Object.fromEntries(
 
 const TEMPLATE_ID_SET = new Set(TEMPLATE_IDS);
 
-export function normalizeTemplateId(value, fallback = 'classic') {
+export function normalizeTemplateId(value, fallback = DEFAULT_TEMPLATE_ID) {
   return TEMPLATE_ID_SET.has(value) ? value : fallback;
 }
 

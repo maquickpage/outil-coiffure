@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import db from './db.js';
 import { generateSlug } from './slug-generator.js';
 import { generateEditToken } from './token-generator.js';
+import { DEFAULT_TEMPLATE_ID } from './templates.js';
 
 function detectDelimiter(firstLine) {
   const tabs = (firstLine.match(/\t/g) || []).length;
@@ -125,13 +126,13 @@ export function importCsvFile(filePath, csvSourceName, groupId = null) {
       latitude, longitude, types, note_avis, nb_avis, heures_ouverture,
       lien_facebook, lien_instagram, lien_tiktok, lien_youtube, lien_google_maps,
       meta_image, titre_site, meta_description, site_internet_original,
-      data_json, csv_source, edit_token, group_id
+      data_json, csv_source, edit_token, group_id, template
     ) VALUES (
       @slug, @nom, @nom, @ville, @code_postal, @adresse, @telephone, @email,
       @latitude, @longitude, @types, @note_avis, @nb_avis, @heures_ouverture,
       @lien_facebook, @lien_instagram, @lien_tiktok, @lien_youtube, @lien_google_maps,
       @meta_image, @titre_site, @meta_description, @site_internet_original,
-      @data_json, @csv_source, @edit_token, @group_id
+      @data_json, @csv_source, @edit_token, @group_id, @template
     )
   `);
 
@@ -189,7 +190,8 @@ export function importCsvFile(filePath, csvSourceName, groupId = null) {
           data_json: JSON.stringify({ ...data, original_row: row }),
           csv_source: csvSourceName,
           edit_token: generateEditToken(),
-          group_id: groupId
+          group_id: groupId,
+          template: DEFAULT_TEMPLATE_ID
         });
         imported++;
         importedSlugs.push(slug);
