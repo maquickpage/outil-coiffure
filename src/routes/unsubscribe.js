@@ -11,7 +11,7 @@
 import express from 'express';
 import crypto from 'node:crypto';
 import db from '../db.js';
-import { listNodes, callNodes } from './sequencer.js';
+import { listNodes, callNodes, invaliderDashboard } from './sequencer.js';
 
 const router = express.Router();
 
@@ -65,7 +65,10 @@ async function applyUnsubscribe(email, source) {
     .run(email, source);
   try {
     const nodes = listNodes(true);
-    if (nodes.length) await callNodes(nodes, { action: 'addSuppression', emails: [email] });
+    if (nodes.length) {
+      await callNodes(nodes, { action: 'addSuppression', emails: [email] });
+      invaliderDashboard(); // le dashboard en cache ne reflète plus la file
+    }
   } catch (e) {
     // L'opposition est déjà enregistrée côté portail : on ne renvoie pas d'erreur au
     // destinataire pour un échec de propagation. Le tick de chaque nœud re-vérifie.

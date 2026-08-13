@@ -85,22 +85,23 @@ function filterFromQuery(src = {}) {
 // Slugs des salons dont le lead séquenceur a ce statut. Renvoie null si aucun
 // statut n'est demandé (= pas de restriction). `nodes_ok < nodes_total` signale
 // une liste partielle : un nœud injoignable cache ses leads.
-async function resolveSeqSlugs(filter) {
+async function resolveSeqSlugs(filter, opts = {}) {
   if (filter.contact_status !== 'sequenced' || !filter.seq_status) return null;
   const { statutsLeadsParEmail } = await import('./sequencer.js');
-  const { map, nodes_ok, nodes_total } = await statutsLeadsParEmail();
+  const { map, nodes_ok, nodes_total, nodes } = await statutsLeadsParEmail(opts);
   const rows = db.prepare("SELECT email, salon_slug FROM sequencer_leads WHERE salon_slug IS NOT NULL AND salon_slug != ''").all();
   const slugs = [];
   for (const r of rows) {
     if (map.get(String(r.email || '').trim().toLowerCase()) === filter.seq_status) slugs.push(r.salon_slug);
   }
-  return { slugs, nodes_ok, nodes_total };
+  return { slugs, nodes_ok, nodes_total, nodes };
 }
 
 // Prépare filtre + restriction séquenceur en un appel (utilisé par toutes les routes).
+// `seq_retry=1` en query → relance les nœuds tombés sans attendre l'expiration du cache.
 async function prepareFilter(query) {
   const filter = filterFromQuery(query);
-  const seq = await resolveSeqSlugs(filter);
+  const seq = await resolveSeqSlugs(filter, { retryFailed: query.seq_retry === '1' });
   const f = salonFilter(filter, seq ? seq.slugs : null);
   return { filter, seq, f };
 }
@@ -251,7 +252,7 @@ router.get('/api/picker/scope', async (req, res) => {
   `).get(...f.params).c;
   res.json({
     salons, unscored, hero_applied: hero,
-    seq_nodes: seq ? { ok: seq.nodes_ok, total: seq.nodes_total } : null,
+    seq_nodes: seq ? { ok: seq.nodes_ok, total: seq.nodes_total, nodes: seq.nodes } : null,
   });
 });
 

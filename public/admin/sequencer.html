@@ -88,6 +88,7 @@
   <span id="campPill" class="pill">…</span>
   <span class="grow"></span>
   <span class="muted" id="clock"></span>
+  <span class="muted" id="dataAge" title="Les données des nœuds sont mises en cache côté portail : changer d'onglet ne les recharge pas."></span>
   <button class="btn" id="refreshBtn" onclick="reloadManual()">↻ <span id="t-refresh">Actualiser</span></button>
 </div>
 <nav class="seq-tabs">
@@ -269,6 +270,8 @@ var T = {
     setup_pending: "⚠ Setup en attente",
     setup_missing: "Aucun nœud pour {mb} — déployer le projet Apps Script sous ce compte (clasp), lancer setup() + installTrigger() + initApiToken(), déployer la web app en accès « Anyone », puis l'enregistrer dans l'onglet Nœuds.",
     setup_down: "Nœud {mb} injoignable : ",
+    data_age: "données de {h}", data_live: "données à l'instant",
+    retry_down: "↻ Réessayer les nœuds injoignables",
     campaign_set: "Campagne {st} sur tous les nœuds", node_set: "Nœud → {st}",
     fail_on: "Échec sur : ", lead_stopped: "Lead stoppé",
     stop_confirm: "Stopper ce lead ? Il ne recevra plus aucun envoi.",
@@ -332,6 +335,8 @@ var T = {
     setup_pending: "⚠ Setup pending",
     setup_missing: "No node for {mb} — deploy the Apps Script project under this account (clasp), run setup() + installTrigger() + initApiToken(), deploy the web app with “Anyone” access, then register it in the Nodes tab.",
     setup_down: "Node {mb} unreachable: ",
+    data_age: "data from {h}", data_live: "data just fetched",
+    retry_down: "↻ Retry unreachable nodes",
     campaign_set: "Campaign {st} on all nodes", node_set: "Node → {st}",
     fail_on: "Failed on: ", lead_stopped: "Lead stopped",
     stop_confirm: "Stop this lead? It will never be emailed again.",
@@ -395,6 +400,8 @@ var T = {
     setup_pending: "⚠ 待完成的设置",
     setup_missing: "{mb} 尚无节点 — 用该账号部署 Apps Script 项目（clasp），运行 setup() + installTrigger() + initApiToken()，以 “Anyone” 权限部署 web app，然后在「节点」页登记。",
     setup_down: "节点 {mb} 不可达：",
+    data_age: "数据时间 {h}", data_live: "刚刚获取的数据",
+    retry_down: "↻ 重试不可达节点",
     campaign_set: "全部节点 campaign 已设为 {st}", node_set: "节点 → {st}",
     fail_on: "失败节点：", lead_stopped: "线索已停止",
     stop_confirm: "停止该线索？之后不会再向其发送任何邮件。",
@@ -502,13 +509,22 @@ function showUnsaved(){
 function reloadManual(){
   if (anyDirty() && !confirm(t('refresh_confirm'))) return;
   DIRTY_STEPS = false; DIRTY_MB = false; showUnsaved();
-  load();
+  load(false, { refresh: 1 });
+}
+
+// Relance des seuls nœuds tombés, sans réinterroger ceux qui répondent.
+function retryDownNodes(){
+  load(false, { retry_failed: 1 });
 }
 
 // silent = rafraîchissement de fond : ne grise pas les boutons, ne toaste pas.
-function load(silent){
+// Les réponses des nœuds sont mises en cache côté portail : par défaut on les
+// réutilise (naviguer entre onglets ne doit pas repayer un aller-retour Apps
+// Script), `opts` permet de forcer une relance.
+function load(silent, opts){
   if (!silent) setBusy(true);
-  return api('/overview').then(function(d){
+  var qs = Object.keys(opts || {}).map(function(k){ return k + '=' + opts[k]; }).join('&');
+  return api('/overview' + (qs ? '?' + qs : '')).then(function(d){
     DATA = d;
     // finally : si render() casse, BUSY doit quand même retomber, sinon
     // tous les boutons restent grisés définitivement.
@@ -539,13 +555,32 @@ function renderBanner(){
   var byMb = {}; reg.forEach(function(n){ byMb[n.mailbox] = n; });
   var missing = EXPECTED_MAILBOXES.filter(function(m){ return !byMb[m]; });
   var down = (DATA.nodes || []).filter(function(n){ return !n.ok; });
+  renderDataAge();
   var el = document.getElementById('setupBanner');
   if (!missing.length && !down.length) { el.classList.add('hide'); return; }
   var html = '<b>' + t('setup_pending') + '</b><ul>';
   missing.forEach(function(m){ html += '<li>' + t('setup_missing', { mb: '<b>' + esc(m) + '</b>' }) + '</li>'; });
-  down.forEach(function(n){ html += '<li>' + t('setup_down', { mb: '<b>' + esc(n.mailbox) + '</b>' }) + esc(n.error || '') + '</li>'; });
+  down.forEach(function(n){
+    html += '<li>' + t('setup_down', { mb: '<b>' + esc(n.mailbox) + '</b>' }) + esc(n.error || '')
+      + (n.fetched_at ? ' <span class="muted">(' + esc(n.fetched_at.slice(11, 19)) + ' UTC)</span>' : '') + '</li>';
+  });
   html += '</ul>';
+  // Relancer les seuls nœuds tombés : les nœuds sains gardent leurs données en cache.
+  if (down.length) html += '<button class="btn small" onclick="retryDownNodes()">' + t('retry_down') + '</button>';
   el.innerHTML = html; el.classList.remove('hide');
+}
+
+// Âge des données affichées : le portail sert le cache des nœuds tant qu'aucune
+// écriture ne l'invalide, il faut donc dire clairement de quand elles datent.
+function renderDataAge(){
+  var el = document.getElementById('dataAge');
+  if (!el) return;
+  var stamps = (DATA.nodes || []).map(function(n){ return n.fetched_at; }).filter(Boolean).sort();
+  if (!stamps.length) { el.textContent = ''; return; }
+  var vieux = new Date(stamps[0]);
+  var ageS = Math.round((Date.now() - vieux.getTime()) / 1000);
+  el.textContent = ageS < 20 ? t('data_live')
+    : t('data_age', { h: vieux.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) });
 }
 
 // --- vue d'ensemble ---

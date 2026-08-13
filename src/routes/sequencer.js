@@ -121,6 +121,7 @@ router.post('/api/sequencer/nodes', (req, res) => {
     db.prepare(`UPDATE sequencer_nodes SET mailbox=?, label=?, exec_url=?, api_token=?, enabled=?, updated_at=datetime('now') WHERE id=?`)
       .run(mailbox.toLowerCase().trim(), label || '', exec_url.trim(),
            api_token ? api_token.trim() : existing.api_token, enabled ? 1 : 0, id);
+    invaliderDashboard(id);
     return res.json({ ok: true, id });
   }
   if (!api_token) return res.status(400).json({ error: 'api_token requis (initApiToken() dans l\'éditeur Apps Script)' });
@@ -135,6 +136,7 @@ router.post('/api/sequencer/nodes', (req, res) => {
 
 router.delete('/api/sequencer/nodes/:id', (req, res) => {
   db.prepare('DELETE FROM sequencer_nodes WHERE id = ?').run(req.params.id);
+  invaliderDashboard(req.params.id);
   res.json({ ok: true });
 });
 
@@ -149,7 +151,13 @@ router.post('/api/sequencer/nodes/:id/health', async (req, res) => {
 // ---------- Vue agrégée ----------
 router.get('/api/sequencer/overview', async (req, res) => {
   const nodes = listNodes(true);
-  const results = await callNodes(nodes, { action: 'dashboard' });
+  // Servi du cache par défaut (voir dashboardNodes plus bas) : passer d'un onglet
+  // admin à l'autre ne doit pas réinterroger Apps Script. `?refresh=1` (bouton ↻)
+  // force la relance ; toute écriture invalide le cache.
+  const results = await dashboardNodes({
+    force: req.query.refresh === '1',
+    retryFailed: req.query.retry_failed === '1',
+  });
   // Les nœuds renvoient leur séquence signée ; l'admin doit revoir le modèle commun.
   for (let i = 0; i < results.length; i++) {
     if (results[i].ok && Array.isArray(results[i].steps)) {
@@ -201,7 +209,9 @@ router.post('/api/sequencer/campaign', async (req, res) => {
     ? [db.prepare('SELECT * FROM sequencer_nodes WHERE id = ?').get(req.body.nodeId)].filter(Boolean)
     : listNodes(true);
   if (!targets.length) return res.status(400).json({ error: 'aucun nœud actif' });
-  res.json({ results: await callNodes(targets, { action: 'setCampaign', status }) });
+  const out = await callNodes(targets, { action: 'setCampaign', status });
+  invaliderDashboard(targets.map(n => n.id));
+  res.json({ results: out });
 });
 
 router.post('/api/sequencer/steps', async (req, res) => {
@@ -211,18 +221,23 @@ router.post('/api/sequencer/steps', async (req, res) => {
     ? [db.prepare('SELECT * FROM sequencer_nodes WHERE id = ?').get(nodeId)].filter(Boolean)
     : listNodes(true);
   if (!targets.length) return res.status(400).json({ error: 'aucun nœud actif' });
-  res.json({ results: await callNodesEach(targets,
-    n => ({ action: 'saveSteps', steps: resoudreSignature(steps, n) })) });
+  const out = await callNodesEach(targets, n => ({ action: 'saveSteps', steps: resoudreSignature(steps, n) }));
+  invaliderDashboard(targets.map(n => n.id));
+  res.json({ results: out });
 });
 
 router.post('/api/sequencer/mailbox', async (req, res) => {
   const n = nodeOr404(req, res); if (!n) return;
-  res.json(await callNode(n, { action: 'saveMailbox', mailbox: req.body.mailbox || {} }));
+  const out = await callNode(n, { action: 'saveMailbox', mailbox: req.body.mailbox || {} });
+  invaliderDashboard(n.id);
+  res.json(out);
 });
 
 router.post('/api/sequencer/lead-stop', async (req, res) => {
   const n = nodeOr404(req, res); if (!n) return;
-  res.json(await callNode(n, { action: 'stopLead', leadId: req.body.leadId }));
+  const out = await callNode(n, { action: 'stopLead', leadId: req.body.leadId });
+  invaliderDashboard(n.id);
+  res.json(out);
 });
 
 router.post('/api/sequencer/suppression', async (req, res) => {
@@ -239,7 +254,9 @@ router.post('/api/sequencer/suppression', async (req, res) => {
     for (const e of liste) req2.run(e);
   });
   memoriser(emails);
-  res.json({ results: await callNodes(targets, { action: 'addSuppression', emails }), memorises: emails.length });
+  const out = await callNodes(targets, { action: 'addSuppression', emails });
+  invaliderDashboard();
+  res.json({ results: out, memorises: emails.length });
 });
 
 // ---------- Envoi de test ----------
@@ -305,6 +322,7 @@ router.post('/api/sequencer/suppression/remove', async (req, res) => {
   const requeue = req.body.requeue !== false;   // par défaut on remet les leads en file
 
   const results = await callNodes(nodes, { action: 'removeSuppression', emails, requeue });
+  invaliderDashboard();
   // Le portail doit oublier l'opposition en même temps que les nœuds, sinon le filtre
   // d'import continuerait d'écarter ces adresses et le retrait n'aurait servi à rien.
   const oublier = db.transaction(liste => {
@@ -369,6 +387,7 @@ router.post('/api/sequencer/import', async (req, res) => {
     let r = await callNode(n, { action: 'uploadCsv', csv: stringify([COLONNES_IMPORT, ...lignes]) });
     if (estUnRejeuIdentique(r, lignes.length)) r = { ok: true, imported: 0, rejeu: true };
     if (r.ok) enregistrerLot(retenus, n);
+    invaliderDashboard();
     return res.json({ ...r, rows_sent: lignes.length, filtres });
   }
 
@@ -391,37 +410,85 @@ router.post('/api/sequencer/import', async (req, res) => {
     return { node_id: n.id, mailbox: n.mailbox, rows_sent: paniers[i].length, ...r };
   });
 
+  invaliderDashboard();
   res.json({ results: sortie, filtres });
 });
 
 // Statut de chaque lead (queued/active/replied/…), par e-mail normalisé.
 // Le portail ne stocke PAS ces statuts : ils vivent sur les nœuds, qu'il faut
-// donc interroger. Apps Script étant lent (cold start + retries), le résultat
-// est mis en cache — un statut vieux de deux minutes suffit largement pour
-// choisir des salons à traiter en photo.
-let cacheStatuts = { at: 0, data: null };
-const STATUTS_TTL_MS = 120000;
+// donc interroger. Un aller-retour Apps Script coûte plusieurs secondes, et
+// naviguer d'un onglet admin à l'autre ne doit pas le repayer à chaque fois :
+// le dashboard de chaque nœud est donc gardé en mémoire côté portail.
+//
+// Le cache est tenu PAR NŒUD, pour deux raisons : une relance ne réinterroge
+// que les nœuds tombés, et les données des nœuds sains restent affichées
+// pendant ce temps. Toute action qui modifie l'état d'un nœud (campagne,
+// séquence, boîte, stop, import, suppression) l'invalide — la fraîcheur est
+// pilotée par les écritures, pas par un minuteur court.
+const cacheDashboard = new Map(); // node_id → { at, mailbox, label, res }
+const DASHBOARD_TTL_MS = 900000; // 15 min
 
-async function statutsLeadsParEmail({ maxAgeMs = STATUTS_TTL_MS } = {}) {
-  if (cacheStatuts.data && Date.now() - cacheStatuts.at < maxAgeMs) return cacheStatuts.data;
-  const nodes = listNodes(true);
-  // Une seule tentative : ici on remplit un filtre d'écran, pas une opération
-  // d'envoi. Un nœud à terre doit coûter un timeout, pas trois.
-  const results = await callNodes(nodes, { action: 'dashboard' }, { essais: 1 });
-  const map = new Map();
-  let ok = 0;
-  for (const r of results) {
-    if (!r.ok) continue;
-    ok++;
-    for (const l of (r.leads || [])) {
-      const email = normaliserEmail(l.email);
-      if (email && l.status) map.set(email, l.status);
-    }
-  }
-  const data = { map, nodes_ok: ok, nodes_total: results.length };
-  cacheStatuts = { at: Date.now(), data };
-  return data;
+function invaliderDashboard(nodeIds) {
+  if (!nodeIds) cacheDashboard.clear();
+  else for (const id of [].concat(nodeIds)) cacheDashboard.delete(Number(id));
 }
 
-export { listNodes, callNodes, statutsLeadsParEmail };
+/**
+ * Dashboard de chaque nœud actif, servi du cache quand c'est possible.
+ * @param {object} [opts]
+ * @param {number} [opts.maxAgeMs]     âge maximal accepté pour une entrée en cache
+ * @param {boolean} [opts.retryFailed] réinterroge les nœuds en échec, même récents
+ * @param {boolean} [opts.force]       réinterroge tous les nœuds
+ */
+async function dashboardNodes({ maxAgeMs = DASHBOARD_TTL_MS, retryFailed = false, force = false } = {}) {
+  const nodes = listNodes(true);
+  const now = Date.now();
+  const aInterroger = nodes.filter((n) => {
+    const c = cacheDashboard.get(n.id);
+    if (force || !c) return true;
+    if (retryFailed && !c.res.ok) return true;
+    return now - c.at >= maxAgeMs;
+  });
+
+  if (aInterroger.length) {
+    // Relances complètes seulement sur demande explicite de l'opérateur : un
+    // remplissage de cache ne doit pas coûter 3 × 45 s par nœud à terre.
+    const results = await callNodes(aInterroger, { action: 'dashboard' }, { essais: force ? NODE_RETRIES : 1 });
+    results.forEach((r, i) => {
+      const n = aInterroger[i];
+      cacheDashboard.set(n.id, { at: Date.now(), mailbox: n.mailbox, label: n.label || null, res: r });
+    });
+  }
+
+  return nodes.map((n) => {
+    const c = cacheDashboard.get(n.id);
+    return { ...c.res, node_id: n.id, mailbox: n.mailbox, fetched_at: new Date(c.at).toISOString() };
+  });
+}
+
+async function statutsLeadsParEmail(opts = {}) {
+  const results = await dashboardNodes(opts);
+  const map = new Map();
+  const detail = [];
+  let ok = 0;
+  for (const r of results) {
+    let leads = 0;
+    if (r.ok) {
+      ok++;
+      for (const l of (r.leads || [])) {
+        const email = normaliserEmail(l.email);
+        if (email && l.status) { map.set(email, l.status); leads++; }
+      }
+    }
+    const n = cacheDashboard.get(r.node_id);
+    detail.push({
+      node_id: r.node_id, mailbox: r.mailbox, label: n ? n.label : null, ok: !!r.ok,
+      error: r.ok ? null : (r.error || 'nœud injoignable'),
+      leads, checked_at: r.fetched_at,
+    });
+  }
+  return { map, nodes_ok: ok, nodes_total: results.length, nodes: detail };
+}
+
+export { listNodes, callNodes, statutsLeadsParEmail, dashboardNodes, invaliderDashboard };
 export default router;

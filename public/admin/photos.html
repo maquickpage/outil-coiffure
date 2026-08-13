@@ -266,11 +266,13 @@ function fltBarHtml(){
     +'<input id="f-q" class="pos" style="min-width:190px" placeholder="Rechercher (nom, ville…)">'
     +'<button class="btn sm" id="f-reset">Réinitialiser</button>'
     +'<span id="f-count" style="font-size:12.5px;color:var(--muted)"></span>'
-    +'</div></div>';
+    +'</div><div id="f-nodes"></div></div>';
 }
 // Remplit les listes déroulantes, câble les événements, met à jour le compteur.
 // onChange() est rappelé à chaque modification du filtre.
+var fltOnChange=null;
 function bindFltBar(onChange){
+  fltOnChange=onChange;
   var g=$('f-group'), sr=$('f-src'), ct=$('f-contact'), sq=$('f-seq'), q=$('f-q'), rs=$('f-reset');
   if(!g)return;
   // Le sélecteur de statut de lead n'apparaît que dans le périmètre séquenceur
@@ -306,11 +308,43 @@ function bindFltBar(onChange){
   };
   refreshScope();
 }
+// État des nœuds du séquenceur : n'apparaît que si au moins un nœud est tombé,
+// avec le détail par boîte et un bouton pour relancer les seuls nœuds ratés.
+function renderNodes(sn){
+  var el=$('f-nodes'); if(!el)return;
+  if(!sn||!sn.nodes||sn.ok>=sn.total){el.innerHTML='';return;}
+  var ko=sn.nodes.filter(function(n){return !n.ok;});
+  var h='<div style="margin-top:10px;padding:10px 12px;border:1px solid #e7c9c4;background:#fdf3f2;border-radius:10px;font-size:12.5px">'
+    +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+    +'<b style="color:var(--hot)">⚠ '+ko.length+' nœud(s) sur '+sn.total+' injoignable(s)</b>'
+    +'<span style="color:var(--cool)">leurs leads sont absents de la liste — le filtre est donc incomplet</span>'
+    +'<button class="btn sm" id="f-retry">↻ Réessayer ces nœuds</button></div>'
+    +'<ul style="margin:8px 0 0;padding-left:18px;color:var(--cool)">';
+  sn.nodes.forEach(function(n){
+    h+='<li style="margin-bottom:3px">'+(n.ok?'✅':'❌')+' <b>'+esc(n.mailbox||('nœud '+n.node_id))+'</b>'
+      +(n.label?' <span style="color:var(--muted)">('+esc(n.label)+')</span>':'')
+      +(n.ok?(' — '+n.leads+' lead(s)'):(' — '+esc(n.error||'injoignable')))
+      +' <span style="color:var(--muted)">· vérifié '+esc((n.checked_at||'').slice(11,19))+' UTC</span></li>';
+  });
+  h+='</ul></div>';
+  el.innerHTML=h;
+  var b=$('f-retry');
+  if(b)b.onclick=function(){
+    b.disabled=true;b.textContent='Relance en cours…';
+    refreshScope({retry:true}).then(function(j){
+      if(j&&j.seq_nodes&&j.seq_nodes.ok>=j.seq_nodes.total)toast('Tous les nœuds répondent ✓ — liste complète');
+      else toast('Toujours injoignable — voir le détail ci-dessus');
+      if(fltOnChange)fltOnChange(); // recharge la liste : des salons ont pu réapparaître
+    });
+  };
+}
 // Compteur « N salons · M à scorer » + libellé des boutons de scoring.
-function refreshScope(){
+function refreshScope(opts){
   var el=$('f-count');
   if(el)el.textContent=flt.seq_status?'Interrogation des nœuds du séquenceur…':'…';
-  return api('/admin/api/picker/scope'+(fltQs()?'?'+fltQs():'')).then(function(j){
+  var qs=fltQs()+((opts&&opts.retry)?(fltQs()?'&':'')+'seq_retry=1':'');
+  return api('/admin/api/picker/scope'+(qs?'?'+qs:'')).then(function(j){
+    renderNodes(j.seq_nodes);
     var e=$('f-count');
     if(e)e.textContent=j.salons.toLocaleString('fr-FR')+' salon'+(j.salons>1?'s':'')+' avec photos · '
       +j.unscored.toLocaleString('fr-FR')+' pas encore scoré'+(j.unscored>1?'s':'')+' · '
@@ -322,7 +356,10 @@ function refreshScope(){
       ? 'Le scoring ne portera que sur les '+j.unscored.toLocaleString('fr-FR')+' salon(s) non scorés de cette sélection.'
       : 'Aucun filtre : priorité aux salons présents en BDD jamais scorés.';
     return j;
-  }).catch(function(err){var e=$('f-count');if(e)e.textContent=err&&err.message?('⚠ '+err.message):'';});
+  }).catch(function(err){
+    var e=$('f-count');if(e)e.textContent=err&&err.message?('⚠ '+err.message):'';
+    var b=$('f-retry');if(b){b.disabled=false;b.textContent='↻ Réessayer ces nœuds';}
+  });
 }
 
 // ============ RENDER ============
