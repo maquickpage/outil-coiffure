@@ -65,6 +65,8 @@
 
   const CHECK_ICON = `<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="#10B981" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+  const CLOCK_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#4b5563" stroke-width="2" fill="none"/><path d="M12 7v5.2l3.2 2" stroke="#4b5563" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
   /**
    * @param {string} hostname   adresse à ouvrir
    * @param {string|null} finalHostname  domaine définitif encore en cours de
@@ -81,13 +83,18 @@
         Il est accessible dès maintenant à l'adresse <strong>${escapeHtml(hostname)}</strong>.
       </p>
       <a href="https://${escapeHtml(hostname)}" class="mqs-waiting-cta">Voir mon site →</a>
-      <p class="mqs-waiting-note">
-        ${pending
-          ? `Votre adresse définitive <strong>${escapeHtml(finalHostname)}</strong> est en cours de
-             réservation : comptez de quelques minutes à 24 heures. Votre site basculera dessus
-             automatiquement, vous n'avez rien à faire. Un email de confirmation vient de vous être envoyé.`
-          : `Un email de confirmation vient de vous être envoyé.`}
-      </p>
+      ${pending
+        ? `<div class="mqs-domain-pending">
+             <span class="mqs-domain-pending-icon">${CLOCK_ICON}</span>
+             <p class="mqs-domain-pending-text">
+               <strong>Commande envoyée pour ${escapeHtml(finalHostname)}.</strong>
+               Le temps que l'organisme officiel l'enregistre, de quelques minutes à 24 heures,
+               votre site reste accessible à l'adresse ci-dessus. Rien à faire de votre côté,
+               la bascule se fait toute seule.
+             </p>
+           </div>`
+        : ''}
+      <p class="mqs-waiting-note">Un email de confirmation vient de vous être envoyé.</p>
     `;
   }
 

@@ -164,6 +164,49 @@
     margin: 0;
 }
 
+/* === Domaine définitif en attente ===
+   L'information la plus lue de cet écran après le titre : le client vient de
+   payer pour une adresse qu'il ne voit pas encore. Elle sort donc de la note
+   grise et prend un encadré à part, en gris foncé et non en gris pâle. */
+.mqs-domain-pending {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    text-align: left;
+    background: #f6f7f9;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin: 22px 0 14px;
+}
+
+.mqs-domain-pending-icon {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+}
+
+.mqs-domain-pending-icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+.mqs-domain-pending-text {
+    margin: 0;
+    color: #374151;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.mqs-domain-pending-text strong {
+    display: block;
+    color: #0a0a0a;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
 /* === Success state (final) === */
 .mqs-success-icon {
     width: 80px;
