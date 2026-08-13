@@ -207,8 +207,23 @@ var $=function(id){return document.getElementById(id);};
 var stats=null, criteria=null, filter='feedback_pending', rows=[], total=0, offset=0, LIMIT=15;
 var jobTimer=null, currentJob=null;
 var view='ia';
-var mState={groups:null, groupId:null, total:0, offset:0, salons:[], sel:{}, autoGallery:true};
+var mState={total:0, offset:0, salons:[], sel:{}, autoGallery:true};
 var M_LIMIT=8;
+// Sélection des salons — mêmes critères que le tableau de bord, partagée par
+// les deux vues (IA + manuelle). Persistée entre les visites.
+var FLT_KEY='picker-salon-filter';
+var flt={group_id:'',csv_source:'',search:'',contact_status:''};
+try{var _s=JSON.parse(localStorage.getItem(FLT_KEY)||'null');if(_s)flt=Object.assign(flt,_s);}catch(e){}
+var fmeta={groups:null,csv_sources:[],total_salons:0};
+function fltSave(){try{localStorage.setItem(FLT_KEY,JSON.stringify(flt));}catch(e){}}
+function fltActive(){return !!(flt.group_id||flt.csv_source||flt.search||flt.contact_status);}
+function fltQs(){
+  var p=[];
+  ['group_id','csv_source','search','contact_status'].forEach(function(k){
+    if(flt[k])p.push(k+'='+encodeURIComponent(flt[k]));
+  });
+  return p.join('&');
+}
 function cap(s){return s?String(s).charAt(0).toUpperCase()+String(s).slice(1):s;}
 
 function esc(s){return s==null?'':String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -222,6 +237,73 @@ function api(path,opts){
 
 function authMsg(){
   $('content').innerHTML='<div class="msg">Connecte-toi d\'abord à l\'admin, puis recharge cette page.<br><br><a href="/admin/login">→ Se connecter</a></div>';
+}
+
+// ============ BARRE DE SÉLECTION DES SALONS (commune IA + manuelle) ============
+function fltBarHtml(){
+  return '<div class="panel"><h3>🎯 Salons à traiter</h3>'
+    +'<div class="mbar">'
+    +'<select class="pos" id="f-group" style="min-width:200px"><option value="">Toutes les régions</option></select>'
+    +'<select class="pos" id="f-src" style="min-width:150px"><option value="">Toutes les sources</option></select>'
+    +'<select class="pos" id="f-contact" style="min-width:190px">'
+    +'<option value="">Contact : tous</option>'
+    +'<option value="never">Jamais contactés</option>'
+    +'<option value="contacted">Déjà contactés</option>'
+    +'<option value="sequenced">Confiés au séquenceur</option>'
+    +'</select>'
+    +'<input id="f-q" class="pos" style="min-width:190px" placeholder="Rechercher (nom, ville…)">'
+    +'<button class="btn sm" id="f-reset">Réinitialiser</button>'
+    +'<span id="f-count" style="font-size:12.5px;color:var(--muted)"></span>'
+    +'</div></div>';
+}
+// Remplit les listes déroulantes, câble les événements, met à jour le compteur.
+// onChange() est rappelé à chaque modification du filtre.
+function bindFltBar(onChange){
+  var g=$('f-group'), sr=$('f-src'), ct=$('f-contact'), q=$('f-q'), rs=$('f-reset');
+  if(!g)return;
+  function fill(){
+    g.innerHTML='<option value="">Toutes les régions'+(fmeta.total_salons?' ('+fmeta.total_salons+')':'')+'</option>'
+      +(fmeta.groups||[]).map(function(x){return '<option value="'+esc(x.group_id)+'">'+esc(x.name)+' ('+x.salons+')</option>';}).join('');
+    sr.innerHTML='<option value="">Toutes les sources</option>'
+      +(fmeta.csv_sources||[]).map(function(x){return '<option value="'+esc(x.csv_source)+'">'+esc(x.csv_source)+' ('+x.n+')</option>';}).join('');
+    g.value=flt.group_id||''; sr.value=flt.csv_source||'';
+  }
+  ct.value=flt.contact_status||''; q.value=flt.search||'';
+  if(!fmeta.groups){
+    api('/admin/api/picker/groups').then(function(j){
+      fmeta.groups=j.groups||[]; fmeta.csv_sources=j.csv_sources||[]; fmeta.total_salons=j.total_salons||0;
+      fill();
+    }).catch(function(e){toast('Erreur : '+e.message);});
+  } else fill();
+  function changed(){
+    flt.group_id=g.value; flt.csv_source=sr.value; flt.contact_status=ct.value; flt.search=q.value.trim();
+    fltSave(); refreshScope(); onChange();
+  }
+  g.onchange=sr.onchange=ct.onchange=changed;
+  var deb=null;
+  q.oninput=function(){clearTimeout(deb);deb=setTimeout(changed,450);};
+  q.onkeydown=function(e){if(e.key==='Enter'){clearTimeout(deb);changed();}};
+  rs.onclick=function(){
+    flt={group_id:'',csv_source:'',search:'',contact_status:''};
+    fltSave(); g.value='';sr.value='';ct.value='';q.value='';
+    refreshScope(); onChange();
+  };
+  refreshScope();
+}
+// Compteur « N salons · M à scorer » + libellé des boutons de scoring.
+function refreshScope(){
+  var el=$('f-count'); if(el)el.textContent='…';
+  return api('/admin/api/picker/scope'+(fltQs()?'?'+fltQs():'')).then(function(j){
+    var e=$('f-count');
+    if(e)e.textContent=j.salons.toLocaleString('fr-FR')+' salon'+(j.salons>1?'s':'')+' avec photos · '
+      +j.unscored.toLocaleString('fr-FR')+' pas encore scoré'+(j.unscored>1?'s':'')+' · '
+      +j.hero_applied.toLocaleString('fr-FR')+' avec héros perso';
+    var s=$('scope-note');
+    if(s)s.textContent=fltActive()
+      ? 'Le scoring ne portera que sur les '+j.unscored.toLocaleString('fr-FR')+' salon(s) non scorés de cette sélection.'
+      : 'Aucun filtre : priorité aux salons présents en BDD jamais scorés.';
+    return j;
+  }).catch(function(){var e=$('f-count');if(e)e.textContent='';});
 }
 
 // ============ RENDER ============
@@ -247,12 +329,15 @@ function renderShell(){
     h+='<div class="panel"><b>Aucune photo indexée.</b> L\'upload des renditions est peut-être encore en cours. <button class="btn sm" id="btn-import">Importer l\'index maintenant</button></div>';
   }
 
+  // Sélection des salons (filtres identiques au tableau de bord)
+  h+=fltBarHtml();
+
   // Batch
   h+='<div class="panel"><h3>Scorer des salons (IA choisit le meilleur héro)</h3><div class="batchrow">';
   h+='<button class="btn primary" data-batch="1">Scorer 1 salon</button>';
   h+='<button class="btn" data-batch="10">Scorer 10</button>';
   h+='<button class="btn" data-batch="100">Scorer 100</button>';
-  h+='<span style="font-size:12.5px;color:var(--muted)">~0,01-0,02 €/salon · priorité aux salons présents en BDD jamais scorés</span>';
+  h+='<span style="font-size:12.5px;color:var(--muted)">~0,01-0,02 €/salon · <span id="scope-note"></span></span>';
   h+='</div><div class="jobbar" id="jobbar"><span id="jobtxt"></span><div class="prog"><i id="jobprog" style="width:0%"></i></div></div></div>';
 
   // Critères
@@ -267,6 +352,9 @@ function renderShell(){
 
   renderCriteria();
   renderResults(true);
+
+  // Un changement de filtre recharge le feed (et le compteur de périmètre)
+  bindFltBar(function(){offset=0;rows=[];loadResults().then(renderResults).catch(function(){});});
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-batch]'),function(b){
     b.onclick=function(){launchBatch(parseInt(b.getAttribute('data-batch'),10));};
@@ -418,7 +506,8 @@ function sendFeedback(sid,rating,comment,card){
 
 // ============ DATA ============
 function loadResults(){
-  return api('/admin/api/picker/results?filter='+filter+'&limit='+LIMIT+'&offset='+offset).then(function(j){
+  var qs=fltQs();
+  return api('/admin/api/picker/results?filter='+filter+'&limit='+LIMIT+'&offset='+offset+(qs?'&'+qs:'')).then(function(j){
     total=j.total;
     if(offset===0)rows=j.rows;else rows=rows.concat(j.rows);
   });
@@ -433,7 +522,8 @@ function refreshAll(){
 
 // ============ BATCH ============
 function launchBatch(size){
-  api('/admin/api/picker/batch?size='+size,{method:'POST'}).then(function(j){
+  var qs=fltQs();
+  api('/admin/api/picker/batch?size='+size+(qs?'&'+qs:''),{method:'POST'}).then(function(j){
     currentJob=j.job_id;
     $('jobbar').classList.add('on');
     pollJob(size);
@@ -458,35 +548,23 @@ function pollJob(size){
 
 // ============ VUE MANUELLE (sélection à la main par région) ============
 function renderManual(){
-  var h='<div class="panel"><h3>✋ Sélection manuelle des photos par région</h3>'
-    +'<div style="font-size:13px;color:var(--cool);margin-bottom:12px">Choisis une région, puis pour chaque salon : clique <b>« Héros »</b> sur la meilleure photo de fond, et coche <b>« Galerie »</b> sur les photos à mettre dans la galerie. Même résultat que l\'onglet IA, mais c\'est toi qui choisis.</div>'
-    +'<div class="mbar"><label style="font-weight:600">Région :</label>'
-    +'<select class="pos" id="m-src" style="min-width:210px"><option value="">— choisir —</option></select>'
-    +'<span id="m-srcinfo" style="font-size:12.5px;color:var(--muted)"></span></div>'
+  var h=fltBarHtml()
+    +'<div class="panel"><h3>✋ Sélection manuelle des photos</h3>'
+    +'<div style="font-size:13px;color:var(--cool)">Filtre les salons ci-dessus (région, source, statut de contact — ex. <b>« Confiés au séquenceur »</b> pour préparer les prochains prospectés), puis pour chaque salon : clique <b>« Héros »</b> sur la meilleure photo de fond, et coche <b>« Galerie »</b> sur les photos à mettre dans la galerie. Même résultat que l\'onglet IA, mais c\'est toi qui choisis.</div>'
     +'<label class="mopt" style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:13.5px;cursor:pointer"><input type="checkbox" id="m-autogal" style="width:16px;height:16px;flex:0 0 auto;margin-top:1px"><span>En choisissant un héros, basculer automatiquement <b>les autres photos</b> du salon en galerie (placées en tête).</span></label></div>'
-    +'<div id="m-list"><div class="msg">Choisis une région ci-dessus pour afficher ses salons et leurs photos.</div></div>';
+    +'<div id="m-list"><div class="msg">Chargement des salons…</div></div>';
   $('content').innerHTML=h;
   var ag=$('m-autogal'); if(ag){ag.checked=!!mState.autoGallery; ag.onchange=function(){mSetAutoGallery(ag.checked);};}
-  var sel=$('m-src');
-  function fillSel(){
-    sel.innerHTML='<option value="">— choisir —</option>'+(mState.groups||[]).map(function(g){
-      return '<option value="'+g.group_id+'">'+esc(g.name)+' ('+g.salons+')</option>';
-    }).join('');
-    if(mState.groupId)sel.value=mState.groupId;
-  }
-  if(!mState.groups){
-    api('/admin/api/picker/groups').then(function(j){mState.groups=j.groups||[];fillSel();}).catch(function(e){toast('Erreur : '+e.message);});
-  } else { fillSel(); }
-  sel.onchange=function(){
-    mState.groupId=sel.value; mState.offset=0; mState.salons=[]; mState.sel={};
-    if(!mState.groupId){$('m-list').innerHTML='<div class="msg">Choisis une région.</div>';var i=$('m-srcinfo');if(i)i.textContent='';return;}
+  bindFltBar(function(){
+    mState.offset=0; mState.salons=[]; mState.sel={};
     loadManualSalons();
-  };
-  if(mState.groupId && mState.salons.length) renderManualList();
+  });
+  loadManualSalons();
 }
 function loadManualSalons(){
   if(mState.offset===0)$('m-list').innerHTML='<div class="msg">Chargement des salons…</div>';
-  return api('/admin/api/picker/manual-salons?group_id='+encodeURIComponent(mState.groupId)+'&limit='+M_LIMIT+'&offset='+mState.offset)
+  var qs=fltQs();
+  return api('/admin/api/picker/manual-salons?limit='+M_LIMIT+'&offset='+mState.offset+(qs?'&'+qs:''))
     .then(function(j){
       mState.total=j.total;
       mState.salons=(mState.offset===0)?j.salons:mState.salons.concat(j.salons);
@@ -526,8 +604,7 @@ function mCard(s){
 }
 function renderManualList(){
   var el=$('m-list');if(!el)return;
-  var info=$('m-srcinfo');if(info)info.textContent=mState.total+' salon'+(mState.total>1?'s':'')+' avec photos';
-  if(!mState.salons.length){el.innerHTML='<div class="msg">Aucun salon avec photos pour cette région.</div>';return;}
+  if(!mState.salons.length){el.innerHTML='<div class="msg">Aucun salon avec photos pour cette sélection.</div>';return;}
   var h=mState.salons.map(mCard).join('');
   if(mState.salons.length<mState.total)h+='<button class="btn more" id="m-more">Charger plus ('+mState.salons.length+'/'+mState.total+')</button>';
   el.innerHTML=h;

@@ -6,7 +6,9 @@
 //   GET  /api/picker/stats                → compteurs globaux
 //   GET  /api/picker/criteria             → critères actifs
 //   PUT  /api/picker/criteria             → nouvelle version active
+//   GET  /api/picker/scope                → compte les salons du filtre courant
 //   POST /api/picker/batch?size=1|10|100  → scoring batch en arrière-plan → job_id
+//                                           (+ filtres group_id/csv_source/search/contact_status)
 //   GET  /api/picker/batch/:id            → progression du job
 //   GET  /api/picker/results              → liste scorings (filtre + pagination)
 //   GET  /api/picker/results/:id          → détail scoring + photos
@@ -28,6 +30,48 @@ import { applyHero, applyGallery, resetImages } from '../photo-apply.js';
 
 const router = express.Router();
 router.use(express.json({ limit: '2mb' }));
+
+// ---------------------------------------------------------------------------
+// Filtre de salons partagé par les deux vues (IA + manuelle).
+// Mêmes critères que le tableau de bord (group_id, csv_source, search,
+// contact_status) — « confiés au séquenceur » inclus, pour pouvoir préparer
+// les photos des salons qui vont partir en prospection.
+// Toujours restreint aux salons ayant un google_id ET des photos indexées.
+// L'alias de la table salons doit être `s`.
+// ---------------------------------------------------------------------------
+const PHOTOS_BASE_WHERE = `s.google_id IS NOT NULL AND s.google_id != ''
+  AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)`;
+
+function salonFilter(q = {}) {
+  const conds = [];
+  const params = [];
+  const gid = (q.group_id == null ? '' : String(q.group_id)).trim();
+  if (gid === 'manuel') conds.push("s.csv_source = 'manuel'");
+  else if (gid === 'none') conds.push('s.group_id IS NULL');
+  else if (gid && gid !== 'all') {
+    const n = parseInt(gid, 10);
+    if (Number.isFinite(n)) { conds.push('s.group_id = ?'); params.push(n); }
+  }
+  if (q.csv_source) { conds.push('s.csv_source = ?'); params.push(String(q.csv_source)); }
+  if (q.search) {
+    const s = `%${String(q.search).trim()}%`;
+    conds.push('(s.nom LIKE ? OR s.nom_clean LIKE ? OR s.ville LIKE ? OR s.slug LIKE ?)');
+    params.push(s, s, s, s);
+  }
+  // Statut cold-mail : mêmes définitions que src/routes/admin.js (coldMailConds).
+  const cs = q.contact_status;
+  if (cs === 'never') conds.push('s.cold_mail_campaign IS NULL');
+  else if (cs === 'contacted') conds.push('s.cold_mail_campaign IS NOT NULL');
+  else if (cs === 'sequenced') conds.push('EXISTS (SELECT 1 FROM sequencer_leads q WHERE q.salon_slug = s.slug)');
+  return { sql: conds.length ? ' AND ' + conds.join(' AND ') : '', params };
+}
+
+function filterFromQuery(src = {}) {
+  return {
+    group_id: src.group_id, csv_source: src.csv_source,
+    search: src.search, contact_status: src.contact_status,
+  };
+}
 
 // --- Static renditions (authé car monté après requireAuth dans admin.js) ---
 router.use('/photos-files', express.static(SALON_PHOTOS_DIR, {
@@ -146,6 +190,35 @@ router.put('/api/picker/criteria', (req, res) => {
 // ---------------------------------------------------------------------------
 const batchJobs = new Map();
 
+// Salons jamais scorés (sans erreur) qui matchent le filtre courant.
+function unscoredSalons(filter, limit) {
+  const f = salonFilter(filter);
+  return db.prepare(`
+    SELECT s.slug, s.google_id, COALESCE(NULLIF(TRIM(s.nom_clean), ''), s.nom) AS nom, s.ville
+    FROM salons s
+    WHERE ${PHOTOS_BASE_WHERE}${f.sql}
+      AND NOT EXISTS (SELECT 1 FROM picker_scorings sc WHERE sc.google_id = s.google_id AND sc.error IS NULL)
+    ORDER BY s.id
+    LIMIT ?
+  `).all(...f.params, limit);
+}
+
+// Combien de salons le filtre courant sélectionne, et combien restent à scorer.
+router.get('/api/picker/scope', (req, res) => {
+  const f = salonFilter(filterFromQuery(req.query));
+  const salons = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${PHOTOS_BASE_WHERE}${f.sql}`).get(...f.params).c;
+  const unscored = db.prepare(`
+    SELECT COUNT(*) AS c FROM salons s
+    WHERE ${PHOTOS_BASE_WHERE}${f.sql}
+      AND NOT EXISTS (SELECT 1 FROM picker_scorings sc WHERE sc.google_id = s.google_id AND sc.error IS NULL)
+  `).get(...f.params).c;
+  const hero = db.prepare(`
+    SELECT COUNT(*) AS c FROM salons s
+    WHERE ${PHOTOS_BASE_WHERE}${f.sql} AND s.overrides_json LIKE '%backgroundImage%'
+  `).get(...f.params).c;
+  res.json({ salons, unscored, hero_applied: hero });
+});
+
 router.post('/api/picker/batch', (req, res) => {
   if (!isPickerAiConfigured()) {
     return res.status(503).json({ error: 'Azure OpenAI non configuré (AZURE_OPENAI_KEY manquante)' });
@@ -154,6 +227,12 @@ router.post('/api/picker/batch', (req, res) => {
   if (![1, 10, 100].includes(size)) {
     return res.status(400).json({ error: 'size doit être 1, 10 ou 100' });
   }
+  // Filtre optionnel (barre de sélection des salons) : si présent, le batch ne
+  // score QUE des salons de ce périmètre, dans l'ordre. Sinon, comportement
+  // historique = pickNextUnscoredSalon() (tous les salons en BDD).
+  const filter = filterFromQuery(req.query);
+  const scoped = Object.values(filter).some((v) => v != null && v !== '' && v !== 'all');
+  const queue = scoped ? unscoredSalons(filter, size) : null;
   const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const job = {
     id: jobId, size,
@@ -167,7 +246,7 @@ router.post('/api/picker/batch', (req, res) => {
 
   (async () => {
     for (let i = 0; i < size; i++) {
-      const next = pickNextUnscoredSalon();
+      const next = queue ? queue[i] : pickNextUnscoredSalon();
       if (!next) { job.exhausted = true; break; }
       try {
         const r = await scoreSalonPhotos(next.google_id, { slug: next.slug || null });
@@ -219,7 +298,14 @@ router.get('/api/picker/results', async (req, res) => {
     where = 'sc.error IS NULL AND NOT EXISTS (SELECT 1 FROM picker_feedback pf WHERE pf.scoring_id = sc.id)';
   else if (filter === 'applied') where = 'sc.applied_hero_at IS NOT NULL';
 
-  const total = db.prepare(`SELECT COUNT(*) AS c FROM picker_scorings sc WHERE ${where}`).get().c;
+  // Même périmètre de salons que la barre de sélection (région, source,
+  // recherche, statut de contact) : le feed ne montre que ces salons-là.
+  const f = salonFilter(filterFromQuery(req.query));
+  if (f.sql) {
+    where += ` AND EXISTS (SELECT 1 FROM salons s WHERE s.google_id = sc.google_id AND ${PHOTOS_BASE_WHERE}${f.sql})`;
+  }
+
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM picker_scorings sc WHERE ${where}`).get(...f.params).c;
   const rows = db.prepare(`
     SELECT sc.id AS scoring_id, sc.google_id, sc.slug, sc.selected_photo_id, sc.overall_score,
            sc.reasoning, sc.per_photo_scores, sc.rag_examples_used, sc.cost_eur, sc.latency_ms, sc.created_at,
@@ -229,7 +315,7 @@ router.get('/api/picker/results', async (req, res) => {
     WHERE ${where}
     ORDER BY sc.created_at DESC, sc.id DESC
     LIMIT ? OFFSET ?
-  `).all(limit, offset);
+  `).all(...f.params, limit, offset);
 
   for (const r of rows) {
     const meta = db.prepare('SELECT nom, ville FROM salon_photos WHERE google_id = ? LIMIT 1').get(r.google_id);
@@ -457,27 +543,31 @@ router.get('/api/picker/groups', (req, res) => {
       AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)
   `).get().c;
   const out = manuel > 0 ? [{ group_id: 'manuel', name: '✋ Créés à la main', salons: manuel }, ...rows] : rows;
-  res.json({ groups: out });
+  // Sources CSV (départements) présentes parmi les salons avec photos + total
+  // global : alimente la barre de sélection commune aux deux vues.
+  const csvSources = db.prepare(`
+    SELECT s.csv_source, COUNT(*) AS n FROM salons s
+    WHERE ${PHOTOS_BASE_WHERE} AND s.csv_source IS NOT NULL AND s.csv_source != ''
+    GROUP BY s.csv_source ORDER BY s.csv_source
+  `).all();
+  const totalSalons = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${PHOTOS_BASE_WHERE}`).get().c;
+  res.json({ groups: out, csv_sources: csvSources, total_salons: totalSalons });
 });
 
 router.get('/api/picker/manual-salons', async (req, res) => {
-  const groupId = (req.query.group_id || '').toString();
-  if (!groupId) return res.status(400).json({ error: 'group_id requis' });
   const limit = Math.min(parseInt(req.query.limit || '8', 10), 24);
   const offset = parseInt(req.query.offset || '0', 10);
-  const isManuel = groupId === 'manuel';
-  const isNone = groupId === 'none';
-  const whereGrp = isManuel ? "s.csv_source = 'manuel'" : (isNone ? 's.group_id IS NULL' : 's.group_id = ?');
-  const grpParams = (isManuel || isNone) ? [] : [parseInt(groupId, 10)];
-  const baseWhere = `${whereGrp} AND s.google_id IS NOT NULL AND s.google_id != '' AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)`;
+  const filter = filterFromQuery(req.query);
+  const f = salonFilter(filter);
+  const baseWhere = `${PHOTOS_BASE_WHERE}${f.sql}`;
 
-  const total = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${baseWhere}`).get(...grpParams).c;
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${baseWhere}`).get(...f.params).c;
   const salons = db.prepare(`
     SELECT s.id, s.slug, s.nom, s.ville, s.google_id, s.overrides_json
     FROM salons s WHERE ${baseWhere}
     ORDER BY s.nom COLLATE NOCASE, s.id
     LIMIT ? OFFSET ?
-  `).all(...grpParams, limit, offset);
+  `).all(...f.params, limit, offset);
 
   const out = [];
   for (const s of salons) {
@@ -497,7 +587,7 @@ router.get('/api/picker/manual-salons', async (req, res) => {
       photos: dedup.kept.slice(0, 15).map((p) => ({ photo_id: p.photo_id, lowdef: !!p.lowdef, ...photoUrls(p) })),
     });
   }
-  res.json({ total, limit, offset, group_id: groupId, salons: out });
+  res.json({ total, limit, offset, group_id: filter.group_id || '', salons: out });
 });
 
 export default router;
