@@ -78,32 +78,55 @@ function filterFromQuery(src = {}) {
   return {
     group_id: src.group_id, csv_source: src.csv_source,
     search: src.search, contact_status: src.contact_status,
-    seq_status: src.seq_status,
+    seq_status: src.seq_status, sort: src.sort,
   };
 }
 
-// Slugs des salons dont le lead séquenceur a ce statut. Renvoie null si aucun
-// statut n'est demandé (= pas de restriction). `nodes_ok < nodes_total` signale
-// une liste partielle : un nœud injoignable cache ses leads.
+// Salons du séquenceur, dans l'ordre où ils vont être démarchés, éventuellement
+// restreints à un statut de lead. Renvoie null quand le séquenceur n'est pas
+// concerné. `nodes_ok < nodes_total` signale une liste partielle : un nœud
+// injoignable cache ses leads.
 async function resolveSeqSlugs(filter, opts = {}) {
-  if (filter.contact_status !== 'sequenced' || !filter.seq_status) return null;
+  const veutOrdre = filter.sort === 'send_order';
+  if (filter.contact_status !== 'sequenced' || (!filter.seq_status && !veutOrdre)) return null;
   const { statutsLeadsParEmail } = await import('./sequencer.js');
-  const { map, nodes_ok, nodes_total, nodes } = await statutsLeadsParEmail(opts);
+  const { infos, nodes_ok, nodes_total, nodes } = await statutsLeadsParEmail(opts);
   const rows = db.prepare("SELECT email, salon_slug FROM sequencer_leads WHERE salon_slug IS NOT NULL AND salon_slug != ''").all();
-  const slugs = [];
+  const items = [];
+  const bySlug = {};
   for (const r of rows) {
-    if (map.get(String(r.email || '').trim().toLowerCase()) === filter.seq_status) slugs.push(r.salon_slug);
+    const info = infos.get(String(r.email || '').trim().toLowerCase());
+    if (!info) continue; // lead absent des nœuds (nœud tombé, ou lead retiré)
+    if (filter.seq_status && info.status !== filter.seq_status) continue;
+    items.push({ slug: r.salon_slug, rank: info.rank });
+    bySlug[r.salon_slug] = { status: info.status, mailbox: info.mailbox, step: info.step, next_send_at: info.next_send_at };
   }
-  return { slugs, nodes_ok, nodes_total, nodes };
+  items.sort((a, b) => a.rank - b.rank);
+  items.forEach((it, i) => { if (bySlug[it.slug]) bySlug[it.slug].queue_pos = i + 1; });
+  return { slugs: items.map((i) => i.slug), bySlug, ordered: veutOrdre, nodes_ok, nodes_total, nodes };
 }
 
 // Prépare filtre + restriction séquenceur en un appel (utilisé par toutes les routes).
 // `seq_retry=1` en query → relance les nœuds tombés sans attendre l'expiration du cache.
+//
+// Deux formes de restriction séquenceur, selon le besoin de l'appelant :
+//   - `f` (IN json_each) pour les COMPTES, où l'ordre n'a aucune importance ;
+//   - `join`/`order` pour les LISTES, où l'ordre d'envoi est justement le sujet
+//     (un JOIN sur json_each donne l'ordre du tableau via sa clé).
 async function prepareFilter(query) {
   const filter = filterFromQuery(query);
   const seq = await resolveSeqSlugs(filter, { retryFailed: query.seq_retry === '1' });
+  const ordonne = !!(seq && seq.ordered);
   const f = salonFilter(filter, seq ? seq.slugs : null);
-  return { filter, seq, f };
+  const liste = ordonne
+    ? {
+        join: 'JOIN json_each(?) j ON j.value = s.slug',
+        joinParams: [JSON.stringify(seq.slugs)],
+        order: 'ORDER BY j.key',
+        f: salonFilter(filter, null), // la jointure fait déjà la restriction
+      }
+    : { join: '', joinParams: [], order: 'ORDER BY s.nom COLLATE NOCASE, s.id', f };
+  return { filter, seq, f, liste };
 }
 
 // --- Static renditions (authé car monté après requireAuth dans admin.js) ---
@@ -223,16 +246,18 @@ router.put('/api/picker/criteria', (req, res) => {
 // ---------------------------------------------------------------------------
 const batchJobs = new Map();
 
-// Salons jamais scorés (sans erreur) qui matchent le filtre courant.
-function unscoredSalons(f, limit) {
+// Salons jamais scorés (sans erreur) qui matchent le filtre courant, dans
+// l'ordre de la liste — donc, en mode séquenceur, les prochains démarchés
+// d'abord : le scoring IA sert à préparer les envois qui arrivent.
+function unscoredSalons(liste, limit) {
   return db.prepare(`
     SELECT s.slug, s.google_id, COALESCE(NULLIF(TRIM(s.nom_clean), ''), s.nom) AS nom, s.ville
-    FROM salons s
-    WHERE ${PHOTOS_BASE_WHERE}${f.sql}
+    FROM salons s ${liste.join}
+    WHERE ${PHOTOS_BASE_WHERE}${liste.f.sql}
       AND NOT EXISTS (SELECT 1 FROM picker_scorings sc WHERE sc.google_id = s.google_id AND sc.error IS NULL)
-    ORDER BY s.id
+    ${liste.join ? liste.order : 'ORDER BY s.id'}
     LIMIT ?
-  `).all(...f.params, limit);
+  `).all(...liste.joinParams, ...liste.f.params, limit);
 }
 
 // Combien de salons le filtre courant sélectionne, et combien restent à scorer.
@@ -267,11 +292,13 @@ router.post('/api/picker/batch', async (req, res) => {
   // Filtre optionnel (barre de sélection des salons) : si présent, le batch ne
   // score QUE des salons de ce périmètre, dans l'ordre. Sinon, comportement
   // historique = pickNextUnscoredSalon() (tous les salons en BDD).
-  let filter, f;
-  try { ({ filter, f } = await prepareFilter(req.query)); }
+  let filter, liste;
+  try { ({ filter, liste } = await prepareFilter(req.query)); }
   catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
-  const scoped = Object.values(filter).some((v) => v != null && v !== '' && v !== 'all');
-  const queue = scoped ? unscoredSalons(f, size) : null;
+  // `sort` n'est pas un filtre : trier seul ne restreint pas le périmètre.
+  const scoped = Object.entries(filter)
+    .some(([k, v]) => k !== 'sort' && v != null && v !== '' && v !== 'all');
+  const queue = scoped ? unscoredSalons(liste, size) : null;
   const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const job = {
     id: jobId, size,
@@ -598,18 +625,19 @@ router.get('/api/picker/groups', (req, res) => {
 router.get('/api/picker/manual-salons', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '8', 10), 24);
   const offset = parseInt(req.query.offset || '0', 10);
-  let filter, f;
-  try { ({ filter, f } = await prepareFilter(req.query)); }
+  let filter, seq, liste;
+  try { ({ filter, seq, liste } = await prepareFilter(req.query)); }
   catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
-  const baseWhere = `${PHOTOS_BASE_WHERE}${f.sql}`;
+  const baseWhere = `${PHOTOS_BASE_WHERE}${liste.f.sql}`;
 
-  const total = db.prepare(`SELECT COUNT(*) AS c FROM salons s WHERE ${baseWhere}`).get(...f.params).c;
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM salons s ${liste.join} WHERE ${baseWhere}`)
+    .get(...liste.joinParams, ...liste.f.params).c;
   const salons = db.prepare(`
     SELECT s.id, s.slug, s.nom, s.ville, s.google_id, s.overrides_json
-    FROM salons s WHERE ${baseWhere}
-    ORDER BY s.nom COLLATE NOCASE, s.id
+    FROM salons s ${liste.join} WHERE ${baseWhere}
+    ${liste.order}
     LIMIT ? OFFSET ?
-  `).all(...f.params, limit, offset);
+  `).all(...liste.joinParams, ...liste.f.params, limit, offset);
 
   const out = [];
   for (const s of salons) {
@@ -624,6 +652,7 @@ router.get('/api/picker/manual-salons', async (req, res) => {
     } catch {}
     out.push({
       slug: s.slug, nom: s.nom, ville: s.ville,
+      seq: seq && seq.bySlug ? (seq.bySlug[s.slug] || null) : null,
       hero_applied: heroApplied, gallery_custom: galleryCount,
       ai_pick_photo_id: lastScoring ? lastScoring.selected_photo_id : null,
       photos: dedup.kept.slice(0, 15).map((p) => ({ photo_id: p.photo_id, lowdef: !!p.lowdef, ...photoUrls(p) })),

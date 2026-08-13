@@ -470,9 +470,25 @@ async function dashboardNodes({ maxAgeMs = DASHBOARD_TTL_MS, retryFailed = false
 
 async function statutsLeadsParEmail(opts = {}) {
   const results = await dashboardNodes(opts);
-  const map = new Map();
+  const map = new Map();     // email → statut (compat)
+  const infos = new Map();   // email → { statut, boîte, étape, rang d'envoi }
   const detail = [];
   let ok = 0;
+  // Rang d'envoi : chaque nœud sert ses leads dans l'ordre de sa feuille, et les
+  // nœuds envoient en parallèle. On entrelace donc les files (round-robin) pour
+  // obtenir l'ordre dans lequel les salons seront réellement démarchés.
+  const actifs = results.filter((r) => r.ok);
+  const nb = actifs.length || 1;
+  actifs.forEach((r, ni) => {
+    (r.leads || []).forEach((l, pos) => {
+      const email = normaliserEmail(l.email);
+      if (!email) return;
+      infos.set(email, {
+        status: l.status || null, mailbox: r.mailbox, step: l.current_step,
+        next_send_at: l.next_send_at || null, rank: pos * nb + ni,
+      });
+    });
+  });
   for (const r of results) {
     let leads = 0;
     if (r.ok) {
@@ -489,7 +505,7 @@ async function statutsLeadsParEmail(opts = {}) {
       leads, checked_at: r.fetched_at,
     });
   }
-  return { map, nodes_ok: ok, nodes_total: results.length, nodes: detail };
+  return { map, infos, nodes_ok: ok, nodes_total: results.length, nodes: detail };
 }
 
 export { listNodes, callNodes, statutsLeadsParEmail, dashboardNodes, invaliderDashboard };

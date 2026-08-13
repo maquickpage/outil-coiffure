@@ -212,7 +212,7 @@ var M_LIMIT=8;
 // Sélection des salons — mêmes critères que le tableau de bord, partagée par
 // les deux vues (IA + manuelle). Persistée entre les visites.
 var FLT_KEY='picker-salon-filter';
-var flt={group_id:'',csv_source:'',search:'',contact_status:'',seq_status:''};
+var flt={group_id:'',csv_source:'',search:'',contact_status:'',seq_status:'',sort:'send_order'};
 try{var _s=JSON.parse(localStorage.getItem(FLT_KEY)||'null');if(_s)flt=Object.assign(flt,_s);}catch(e){}
 var fmeta={groups:null,csv_sources:[],total_salons:0};
 function fltSave(){try{localStorage.setItem(FLT_KEY,JSON.stringify(flt));}catch(e){}}
@@ -224,6 +224,7 @@ function fltQs(){
   });
   // Le statut de lead n'a de sens que dans le périmètre séquenceur
   if(flt.contact_status==='sequenced'&&flt.seq_status)p.push('seq_status='+encodeURIComponent(flt.seq_status));
+  if(flt.contact_status==='sequenced'&&flt.sort==='send_order')p.push('sort=send_order');
   return p.join('&');
 }
 function cap(s){return s?String(s).charAt(0).toUpperCase()+String(s).slice(1):s;}
@@ -263,6 +264,10 @@ function fltBarHtml(){
     +'<option value="failed">failed — en erreur</option>'
     +'<option value="completed">completed — séquence finie</option>'
     +'</select>'
+    +'<select class="pos" id="f-sort" style="min-width:210px;display:none">'
+    +'<option value="send_order">Trier : ordre d\'envoi (prochains démarchés)</option>'
+    +'<option value="name">Trier : nom (A→Z)</option>'
+    +'</select>'
     +'<input id="f-q" class="pos" style="min-width:190px" placeholder="Rechercher (nom, ville…)">'
     +'<button class="btn sm" id="f-reset">Réinitialiser</button>'
     +'<span id="f-count" style="font-size:12.5px;color:var(--muted)"></span>'
@@ -273,10 +278,10 @@ function fltBarHtml(){
 var fltOnChange=null;
 function bindFltBar(onChange){
   fltOnChange=onChange;
-  var g=$('f-group'), sr=$('f-src'), ct=$('f-contact'), sq=$('f-seq'), q=$('f-q'), rs=$('f-reset');
+  var g=$('f-group'), sr=$('f-src'), ct=$('f-contact'), sq=$('f-seq'), so=$('f-sort'), q=$('f-q'), rs=$('f-reset');
   if(!g)return;
-  // Le sélecteur de statut de lead n'apparaît que dans le périmètre séquenceur
-  function syncSeqVisible(){sq.style.display=(ct.value==='sequenced')?'':'none';}
+  // Statut de lead et ordre d'envoi n'ont de sens que dans le périmètre séquenceur
+  function syncSeqVisible(){var on=(ct.value==='sequenced');sq.style.display=on?'':'none';so.style.display=on?'':'none';}
   function fill(){
     g.innerHTML='<option value="">Toutes les régions'+(fmeta.total_salons?' ('+fmeta.total_salons+')':'')+'</option>'
       +(fmeta.groups||[]).map(function(x){return '<option value="'+esc(x.group_id)+'">'+esc(x.name)+' ('+x.salons+')</option>';}).join('');
@@ -284,7 +289,7 @@ function bindFltBar(onChange){
       +(fmeta.csv_sources||[]).map(function(x){return '<option value="'+esc(x.csv_source)+'">'+esc(x.csv_source)+' ('+x.n+')</option>';}).join('');
     g.value=flt.group_id||''; sr.value=flt.csv_source||'';
   }
-  ct.value=flt.contact_status||''; sq.value=flt.seq_status||''; q.value=flt.search||''; syncSeqVisible();
+  ct.value=flt.contact_status||''; sq.value=flt.seq_status||''; so.value=flt.sort||'send_order'; q.value=flt.search||''; syncSeqVisible();
   if(!fmeta.groups){
     api('/admin/api/picker/groups').then(function(j){
       fmeta.groups=j.groups||[]; fmeta.csv_sources=j.csv_sources||[]; fmeta.total_salons=j.total_salons||0;
@@ -294,16 +299,17 @@ function bindFltBar(onChange){
   function changed(){
     flt.group_id=g.value; flt.csv_source=sr.value; flt.contact_status=ct.value; flt.search=q.value.trim();
     flt.seq_status=(ct.value==='sequenced')?sq.value:'';
+    flt.sort=so.value;
     syncSeqVisible();
     fltSave(); refreshScope(); onChange();
   }
-  g.onchange=sr.onchange=ct.onchange=sq.onchange=changed;
+  g.onchange=sr.onchange=ct.onchange=sq.onchange=so.onchange=changed;
   var deb=null;
   q.oninput=function(){clearTimeout(deb);deb=setTimeout(changed,450);};
   q.onkeydown=function(e){if(e.key==='Enter'){clearTimeout(deb);changed();}};
   rs.onclick=function(){
-    flt={group_id:'',csv_source:'',search:'',contact_status:'',seq_status:''};
-    fltSave(); g.value='';sr.value='';ct.value='';sq.value='';q.value=''; syncSeqVisible();
+    flt={group_id:'',csv_source:'',search:'',contact_status:'',seq_status:'',sort:'send_order'};
+    fltSave(); g.value='';sr.value='';ct.value='';sq.value='';so.value='send_order';q.value=''; syncSeqVisible();
     refreshScope(); onChange();
   };
   refreshScope();
@@ -629,7 +635,11 @@ function loadManualSalons(){
 }
 function mCard(s){
   var h='<div class="card" data-slug="'+esc(s.slug)+'">';
-  h+='<div class="card-head"><span class="nm">'+esc(s.nom)+'</span><span class="vl">'+esc(s.ville||'')+'</span>';
+  h+='<div class="card-head">';
+  // Position dans la file d'envoi : le n°1 est le prochain salon démarché.
+  if(s.seq&&s.seq.queue_pos)h+='<span class="badge b-pick" title="'+esc(s.seq.mailbox||'')+(s.seq.step!=null?' · étape '+s.seq.step+'/5':'')+'">n°'+s.seq.queue_pos+' file</span> ';
+  h+='<span class="nm">'+esc(s.nom)+'</span><span class="vl">'+esc(s.ville||'')+'</span>';
+  if(s.seq&&s.seq.status)h+='<span class="badge b-none">'+esc(s.seq.status)+'</span>';
   if(s.hero_applied)h+='<span class="badge b-applied">✓ héros perso</span>';
   if(s.gallery_custom)h+='<span class="badge b-good">galerie ×'+s.gallery_custom+'</span>';
   h+='<span class="meta"><a class="tlink" href="https://maquickpage.fr/preview/'+encodeURIComponent(s.slug)+'" target="_blank" rel="noopener">Voir la démo ↗</a></span></div>';
