@@ -86,10 +86,14 @@ async function loadSalons() {
   });
   if (state.groupId) params.set('group_id', state.groupId);
   if (state.contactStatus) params.set('contact_status', state.contactStatus);
+  // Périmètre séquenceur : on veut la file de démarchage, pas l'ordre d'import,
+  // et surtout le MÊME ordre que la page Photos et l'onglet Leads.
+  if (state.contactStatus === 'sequenced') params.set('sort', 'send_order');
   const data = await api('/api/salons?' + params);
   state.total = data.total;
   const tbody = $('salons-tbody');
-  tbody.innerHTML = data.rows.map(salonRow).join('');
+  const rangDepart = (state.contactStatus === 'sequenced') ? state.page * state.pageSize : null;
+  tbody.innerHTML = data.rows.map((r, i) => salonRow(r, rangDepart === null ? null : rangDepart + i + 1)).join('');
   bindRowActions();
   // Met à jour TOUTES les paginations (haut + bas)
   updateAllPaginations(data);
@@ -181,7 +185,7 @@ function publicBaseFromHost() {
   return window.location.origin;
 }
 
-function salonRow(r) {
+function salonRow(r, rangFile) {
   const publicBase = publicBaseFromHost();
   // URL Landing avec token = lien que le coiffeur reçoit par email :
   //   /preview/{slug}?token=xxx → onboarding visite + bouton "Modifier mon site"
@@ -252,6 +256,7 @@ function salonRow(r) {
   return `<tr data-slug="${escapeHtml(r.slug)}" class="${checked ? 'row-selected' : ''}">
     <td class="col-checkbox">
       <input type="checkbox" class="row-checkbox" ${checked} aria-label="Sélectionner ${escapeHtml(r.slug)}">
+      ${rangFile ? `<div class="queue-pos" title="Position dans la file d'envoi du séquenceur">n°${rangFile}</div>` : ''}
     </td>
     <td>${nomScrappeCell}</td>
     <td>${nomFinalCell}</td>

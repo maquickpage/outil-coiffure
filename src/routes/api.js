@@ -18,7 +18,7 @@ router.get('/salon/:slug', (req, res) => {
   res.json(buildSalonView(row));
 });
 
-router.get('/salons', requireAdminSession, (req, res) => {
+router.get('/salons', requireAdminSession, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 200, 5000);
   const offset = parseInt(req.query.offset) || 0;
   const search = req.query.search || '';
@@ -53,17 +53,44 @@ router.get('/salons', requireAdminSession, (req, res) => {
     params.email_domain = `%@${String(req.query.email_domain).replace(/^@/, '').trim()}`;
   }
 
-  const total = db.prepare(`SELECT COUNT(*) as n FROM salons WHERE ${where}`).get(params).n;
+  // Tri « ordre d'envoi » : même file que la page Photos et l'onglet Leads du
+  // séquenceur (rang entrelacé entre les boîtes). Sans ça le tableau de bord
+  // classait par id décroissant, donc dans un ordre sans rapport avec le
+  // démarchage. json_each porte l'ordre dans sa clé ; ses colonnes doivent être
+  // désambiguïsées car il expose lui aussi un `id`.
+  let join = '', order = 'ORDER BY salons.id DESC';
+  if (req.query.contact_status === 'sequenced' && req.query.sort === 'send_order') {
+    try {
+      const { statutsLeadsParEmail } = await import('./sequencer.js');
+      const { infos } = await statutsLeadsParEmail();
+      const leads = db.prepare("SELECT email, salon_slug FROM sequencer_leads WHERE salon_slug IS NOT NULL AND salon_slug != ''").all();
+      const items = [];
+      for (const l of leads) {
+        const info = infos.get(String(l.email || '').trim().toLowerCase());
+        if (info) items.push({ slug: l.salon_slug, rank: info.rank });
+      }
+      items.sort((a, b) => a.rank - b.rank);
+      params.seq_slugs = JSON.stringify(items.map((i) => i.slug));
+      join = 'JOIN json_each(@seq_slugs) j ON j.value = salons.slug';
+      order = 'ORDER BY j.key';
+    } catch (e) {
+      // Séquenceur injoignable : on rend la liste dans l'ordre par défaut plutôt
+      // que de renvoyer une erreur — mieux vaut un tri approximatif qu'un écran vide.
+      console.warn('[api/salons] tri par ordre d envoi indisponible:', e.message);
+    }
+  }
+
+  const total = db.prepare(`SELECT COUNT(*) as n FROM salons ${join} WHERE ${where}`).get(params).n;
   const rows = db.prepare(`
-    SELECT id, slug, nom, nom_clean, ville, code_postal, telephone, email, note_avis, nb_avis,
+    SELECT salons.id, slug, nom, nom_clean, ville, code_postal, telephone, email, note_avis, nb_avis,
            meta_description, overrides_json, data_json,
            screenshot_path, screenshot_generated_at, csv_source, edit_token,
            overrides_json IS NOT NULL AS has_overrides, overrides_updated_at,
            nom_clean_at, created_at, domain_suggestions_json, domain_suggestions_at,
            cold_mail_campaign, cold_mail_sent_at
-    FROM salons
+    FROM salons ${join}
     WHERE ${where}
-    ORDER BY id DESC
+    ${order}
     LIMIT @limit OFFSET @offset
   `).all({ ...params, limit, offset });
 

@@ -312,6 +312,15 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     width: 36px;
     text-align: center;
 }
+/* Position dans la file d'envoi du sequenceur (filtre "confies au sequenceur").
+   Affichee sous la case a cocher pour ne pas ajouter une colonne au tableau. */
+.col-checkbox .queue-pos {
+    margin-top: 3px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted, #8a8270);
+    white-space: nowrap;
+}
 .col-checkbox input[type="checkbox"] {
     width: 16px;
     height: 16px;
