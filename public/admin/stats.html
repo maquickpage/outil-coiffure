@@ -25,6 +25,13 @@
   .periods{display:inline-flex;background:rgba(255,255,255,.1);border-radius:9px;padding:3px;gap:2px;}
   .pbtn{border:0;background:transparent;color:rgba(255,255,255,.7);padding:5px 9px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;}
   .pbtn.on{background:#fff;color:#1a1a1a;}
+  /* Filtre par intervalle de dates (« du … au … ») — cohabite avec 7j/30j/90j */
+  .daterange{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);border-radius:9px;padding:3px 6px;}
+  .daterange .dlab{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.7);}
+  .daterange input[type=date]{background:rgba(255,255,255,.9);border:0;border-radius:7px;padding:4px 6px;font-size:12px;font-family:inherit;color:#1a1a1a;}
+  .daterange.on{background:#c9a96e;}
+  .daterange.on .dlab{color:#1a1a1a;}
+  @media(max-width:680px){.daterange{width:100%;justify-content:center;flex-wrap:wrap;}}
   .controls{background:#fff;border-bottom:1px solid var(--border);padding:12px 0;}
   .controls-inner{max-width:1100px;margin:0 auto;padding:0 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   .controls input[type=search]{flex:1;min-width:160px;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;outline:none;}
@@ -144,6 +151,12 @@
       <span class="brand" id="t-brand">Suivi des maquettes</span>
       <span class="spacer"></span>
       <div class="periods" aria-label="Période"><button class="pbtn" data-days="7">7j</button><button class="pbtn on" data-days="30">30j</button><button class="pbtn" data-days="90">90j</button></div>
+      <div class="daterange" id="daterange">
+        <span class="dlab" id="t-dfrom">Du</span><input type="date" id="d-from">
+        <span class="dlab" id="t-dto">au</span><input type="date" id="d-to">
+        <button class="pbtn" id="d-apply">OK</button>
+        <button class="pbtn" id="d-clear" title="Effacer la période">✕</button>
+      </div>
       <span class="updated" id="updated"></span>
       <button class="hbtn" id="refresh">↻ Actualiser</button>
       <button class="hbtn gold" id="export">⬇ CSV</button>
@@ -167,10 +180,13 @@
   var CSV_URL='/admin/api/preview-visits.csv', JSON_URL='/admin/api/suivi.json', PREVIEW_REDIR='/admin/api/suivi/preview/';
   var $=function(id){return document.getElementById(id);};
   var salonsData=[], META={myIp:'',excludedIps:[],totals:{}}, sortKey='status', sortDir=-1, statusFilter='all', autoTimer=null, expanded={}, periodDays=30;
+  // Intervalle explicite « du … au … ». Non vide ⇒ il remplace periodDays.
+  var dateFrom='', dateTo='';
   var inCalling=new Set(); // slugs déjà dans la prospection (rempli par loadCallingSlugs)
 
   var T={
     fr:{brand:'Suivi des maquettes',refresh:'Actualiser',exp:'CSV',maj:'maj',back:'← Admin',search:'Rechercher salon, ville, email…',humans:'Humains seulement',auto:'Auto (60s)',loading:'Chargement…',
+      d_from:'Du',d_to:'au',d_bad:'Période invalide : la date de début est après la date de fin.',d_none:'Choisis au moins une date.',
       k_visited:'Salons visités',k_pricing:'Ont vu les tarifs',k_domains:'Ont vu les domaines',k_custom:'Domaine perso tapé',k_edited:'Ont édité leur démo',k_cgv:'CGV acceptées',k_pay:'Paiement initié',k_clients:'Devenus clients',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
       funnel_title:'Entonnoir comportemental (prospect · bots + IP internes exclus)',f_visited:'Visité la maquette',f_pricing:'A vu les tarifs',f_domains:'A vu les domaines',f_pay:'Paiement initié',f_client:'Devenu client',
       k_prospect_ev:'Actions prospect',k_filtered:'{b} bots · {i} internes filtrés',
@@ -185,6 +201,7 @@
       see:'Voir →',none:'Aucune visite pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : ',u_min:'min',u_h:'h',u_d:'j',
       ttl_photos:'Photos du salon (héro + galerie)',ttl_incall:'Déjà en prospection — ouvrir dans le cockpit',ttl_addcall:'Ajouter à la prospection téléphonique',toast_already:'Déjà dans la prospection',toast_added:'Ajouté à la prospection ✓',toast_nonum:' · numéro à retrouver (bouton 🔎 dans Prospection)',toast_err:'Erreur : ',ua_unknown:'Inconnu',ua_bot:'Bot / scanner',ua_other:'Autre'},
     en:{brand:'Mockup tracking',refresh:'Refresh',exp:'CSV',maj:'upd.',back:'← Admin',search:'Search salon, city, email…',humans:'Humans only',auto:'Auto (60s)',loading:'Loading…',
+      d_from:'From',d_to:'to',d_bad:'Invalid range: the start date is after the end date.',d_none:'Pick at least one date.',
       k_visited:'Salons visited',k_pricing:'Saw pricing',k_domains:'Saw domains',k_custom:'Typed custom domain',k_edited:'Edited demo',k_cgv:'Accepted terms',k_pay:'Clicked pay',k_clients:'Became clients',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
       funnel_title:'Behavioral funnel (prospect · bots + internal IPs excluded)',f_visited:'Visited the mockup',f_pricing:'Saw pricing',f_domains:'Saw domains',f_pay:'Clicked pay',f_client:'Became client',
       k_prospect_ev:'Prospect actions',k_filtered:'{b} bots · {i} internal filtered',
@@ -198,6 +215,7 @@
       see:'View →',none:'No visits yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: ',u_min:'min',u_h:'h',u_d:'d',
       ttl_photos:'Salon photos (hero + gallery)',ttl_incall:'Already in prospecting — open in cockpit',ttl_addcall:'Add to phone prospecting',toast_already:'Already in prospecting',toast_added:'Added to prospecting ✓',toast_nonum:' · number to find (🔎 button in Prospecting)',toast_err:'Error: ',ua_unknown:'Unknown',ua_bot:'Bot / scanner',ua_other:'Other'},
     zh:{brand:'样板追踪',refresh:'刷新',exp:'CSV',maj:'更新',back:'← 后台',search:'搜索沙龙、城市、邮箱…',humans:'仅真人',auto:'自动 (60秒)',loading:'加载中…',
+      d_from:'从',d_to:'到',d_bad:'时间段无效：开始日期晚于结束日期。',d_none:'请至少选择一个日期。',
       k_visited:'已访问的沙龙',k_pricing:'查看了价格',k_domains:'查看了域名',k_custom:'输入了自定义域名',k_edited:'编辑了样板',k_cgv:'已接受条款',k_pay:'点击了付款',k_clients:'已成为客户',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
       funnel_title:'行为漏斗（潜客 · 已排除机器人+内部 IP）',f_visited:'访问了样板',f_pricing:'查看了价格',f_domains:'查看了域名',f_pay:'点击了付款',f_client:'已成为客户',
       k_prospect_ev:'潜客操作数',k_filtered:'已过滤 {b} 机器人 · {i} 内部',
@@ -219,6 +237,7 @@
     $('t-brand').textContent=t('brand');$('refresh').textContent='↻ '+t('refresh');$('export').textContent='⬇ '+t('exp');
     var _ba=$('back-admin');if(_ba)_ba.textContent=t('back');
     $('q').placeholder=t('search');$('t-auto').textContent=t('auto');
+    $('t-dfrom').textContent=t('d_from');$('t-dto').textContent=t('d_to');
     Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'),function(b){b.classList.toggle('active',b.dataset.lang===lang);});
   }
   function setLang(l){if(!T[l])return;lang=l;try{localStorage.setItem('outil-coiffure-lang',l);}catch(e){}applyStatic();if(salonsData.length)render();}
@@ -463,7 +482,10 @@
   function load(){
     $('updated').textContent='…';
     loadCallingSlugs();
-    fetch(JSON_URL+'?days='+periodDays+'&t='+Date.now(),{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}}).then(function(r){
+    var qs=(dateFrom||dateTo)
+      ? ('?from='+encodeURIComponent(dateFrom)+'&to='+encodeURIComponent(dateTo))
+      : ('?days='+periodDays);
+    fetch(JSON_URL+qs+'&t='+Date.now(),{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}}).then(function(r){
       if(r.status===401||r.status===302||r.redirected)throw new Error('auth');
       if(!r.ok)throw new Error('http '+r.status);
       return r.json();
@@ -482,7 +504,36 @@
 
   // (langue gérée par admin-nav.js, partagé sur toutes les pages)
   $('refresh').onclick=load;
-  Array.prototype.forEach.call(document.querySelectorAll('.pbtn'),function(b){b.onclick=function(){periodDays=Number(b.dataset.days);document.querySelectorAll('.pbtn').forEach(function(x){x.classList.toggle('on',x===b);});load();};});
+  // Raccourcis 7j/30j/90j et intervalle explicite sont exclusifs : choisir l'un
+  // efface l'autre, pour qu'on sache toujours quelle période est affichée.
+  function syncPeriodUi(){
+    var ranged=!!(dateFrom||dateTo);
+    document.querySelectorAll('.periods .pbtn').forEach(function(x){
+      x.classList.toggle('on',!ranged&&Number(x.dataset.days)===periodDays);
+    });
+    $('daterange').classList.toggle('on',ranged);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.periods .pbtn'),function(b){
+    b.onclick=function(){
+      periodDays=Number(b.dataset.days);
+      dateFrom=dateTo=''; $('d-from').value=''; $('d-to').value='';
+      syncPeriodUi(); load();
+    };
+  });
+  $('d-apply').onclick=function(){
+    var f=$('d-from').value, to=$('d-to').value;
+    if(!f&&!to)return stToast(t('d_none'));
+    if(f&&to&&f>to)return stToast(t('d_bad'));
+    dateFrom=f; dateTo=to; syncPeriodUi(); load();
+  };
+  $('d-clear').onclick=function(){
+    if(!dateFrom&&!dateTo)return;
+    dateFrom=dateTo=''; $('d-from').value=''; $('d-to').value='';
+    syncPeriodUi(); load();
+  };
+  ['d-from','d-to'].forEach(function(id){
+    $(id).addEventListener('keydown',function(e){if(e.key==='Enter')$('d-apply').click();});
+  });
   $('export').onclick=function(){window.open(CSV_URL,'_blank');};
   $('q').addEventListener('input',function(){if(salonsData.length)render();});
   $('autorefresh').addEventListener('change',function(){if(this.checked)autoTimer=setInterval(load,60000);else clearInterval(autoTimer);});
@@ -490,6 +541,7 @@
   function stToast(m,ms){var t=$('st-toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('on');},ms||3500);}
 
   applyStatic();
+  syncPeriodUi();
   load();
 })();
 </script>

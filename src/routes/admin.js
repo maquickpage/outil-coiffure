@@ -139,14 +139,27 @@ const SUIVI_STAGE = { preview_ouvert: 1, template_essaye: 2, pricing_ouvert: 3, 
 const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
 const INTERNAL_ACTIVITY_EVENTS = new Set(['demo_email_envoyee', 'demo_sms_copiee']);
 
-function trackingPeriod(value) {
-  const days = [7, 30, 90].includes(Number(value)) ? Number(value) : 30;
-  return { days, eventSql: ` AND e.ts >= datetime('now', '-${days} days')` };
+// Période affichée : soit un raccourci en jours (7/30/90), soit un intervalle
+// explicite `from`/`to` (YYYY-MM-DD, bornes incluses, heure serveur = UTC comme
+// e.ts). Une seule borne suffit : « depuis le X » ou « jusqu'au Y ».
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function trackingPeriod(q = {}) {
+  const from = ISO_DAY_RE.test(String(q.from || '')) ? String(q.from) : null;
+  const to = ISO_DAY_RE.test(String(q.to || '')) ? String(q.to) : null;
+  if (from || to) {
+    let eventSql = '';
+    const params = [];
+    if (from) { eventSql += ' AND e.ts >= ?'; params.push(`${from} 00:00:00`); }
+    if (to) { eventSql += ' AND e.ts <= ?'; params.push(`${to} 23:59:59`); }
+    return { days: null, from, to, eventSql, params };
+  }
+  const days = [7, 30, 90].includes(Number(q.days)) ? Number(q.days) : 30;
+  return { days, from: null, to: null, eventSql: ` AND e.ts >= datetime('now', '-${days} days')`, params: [] };
 }
 
 router.get('/api/suivi.json', (req, res) => {
   let rows, excludedRows, salonSlugs;
-  const period = trackingPeriod(req.query.days);
+  const period = trackingPeriod(req.query);
   try {
     rows = db.prepare(`
       SELECT e.ts, e.event, e.slug, e.meta, e.ip, e.user_agent,
@@ -156,7 +169,7 @@ router.get('/api/suivi.json', (req, res) => {
        WHERE e.slug IS NOT NULL
        ${period.eventSql}
        ORDER BY e.ts ASC
-     `).all();
+     `).all(...period.params);
     excludedRows = db.prepare('SELECT ip FROM suivi_excluded_ips').all();
     salonSlugs = db.prepare('SELECT slug FROM salons').all();
   } catch (e) {
@@ -267,6 +280,8 @@ router.get('/api/suivi.json', (req, res) => {
     myIp: clientIp(req),
     excludedIps: [...excluded],
     periodDays: period.days,
+    periodFrom: period.from,
+    periodTo: period.to,
     totals: { salons: salons.length, humanEvents, botEvents, internalEvents },
   });
 });

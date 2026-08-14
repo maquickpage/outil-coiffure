@@ -18,6 +18,9 @@
 //   GET  /api/picker/salon/:slug/photos   → photos d'un salon (modale stats.html)
 //   POST /api/picker/salon/:slug/hero     → {photo_id, position} → héro
 //   POST /api/picker/salon/:slug/gallery  → {photo_ids[]} → galerie
+//   POST /api/picker/gallery-default      → lot : toutes les photos en galerie
+//                                           pour les salons du filtre → job_id
+//   GET  /api/picker/gallery-default/:id  → progression du lot galerie
 
 import express from 'express';
 import { existsSync, readFileSync } from 'node:fs';
@@ -41,6 +44,12 @@ router.use(express.json({ limit: '2mb' }));
 // ---------------------------------------------------------------------------
 const PHOTOS_BASE_WHERE = `s.google_id IS NOT NULL AND s.google_id != ''
   AND EXISTS (SELECT 1 FROM salon_photos sp WHERE sp.google_id = s.google_id)`;
+
+// Galerie « par défaut » = les photos Google du salon. Un salon dont la galerie
+// ne vient pas du photo-picker affiche encore les images génériques du mode démo.
+// (saveOverrides sérialise sans espaces → la signature JSON est stable.)
+const GALLERY_MISSING_SQL = `(s.overrides_json IS NULL
+  OR s.overrides_json NOT LIKE '%"imagesSource":"photo-picker"%')`;
 
 function salonFilter(q = {}, seqSlugs = null) {
   const conds = [];
@@ -93,17 +102,28 @@ async function resolveSeqSlugs(filter, opts = {}) {
   const { infos, nodes_ok, nodes_total, nodes } = await statutsLeadsParEmail(opts);
   const rows = db.prepare("SELECT email, salon_slug FROM sequencer_leads WHERE salon_slug IS NOT NULL AND salon_slug != ''").all();
   const items = [];
-  const bySlug = {};
   for (const r of rows) {
     const info = infos.get(String(r.email || '').trim().toLowerCase());
     if (!info) continue; // lead absent des nœuds (nœud tombé, ou lead retiré)
     if (filter.seq_status && info.status !== filter.seq_status) continue;
-    items.push({ slug: r.salon_slug, rank: info.rank });
-    bySlug[r.salon_slug] = { status: info.status, mailbox: info.mailbox, step: info.step, next_send_at: info.next_send_at };
+    items.push({ slug: r.salon_slug, rank: info.rank, info });
   }
   items.sort((a, b) => a.rank - b.rank);
-  items.forEach((it, i) => { if (bySlug[it.slug]) bySlug[it.slug].queue_pos = i + 1; });
-  return { slugs: items.map((i) => i.slug), bySlug, ordered: veutOrdre, nodes_ok, nodes_total, nodes };
+  // Un salon peut avoir PLUSIEURS emails confiés au séquenceur (la clé de
+  // sequencer_leads est l'email, pas le slug). Sans ce dédoublonnage, la liste
+  // de slugs contient le même slug N fois → le JOIN json_each duplique la carte
+  // du salon dans les deux vues. On garde le lead le mieux placé dans la file.
+  const bySlug = {};
+  const slugs = [];
+  for (const it of items) {
+    if (bySlug[it.slug]) continue;
+    bySlug[it.slug] = {
+      status: it.info.status, mailbox: it.info.mailbox, step: it.info.step,
+      next_send_at: it.info.next_send_at, queue_pos: slugs.length + 1,
+    };
+    slugs.push(it.slug);
+  }
+  return { slugs, bySlug, ordered: veutOrdre, nodes_ok, nodes_total, nodes };
 }
 
 // Prépare filtre + restriction séquenceur en un appel (utilisé par toutes les routes).
@@ -275,8 +295,14 @@ router.get('/api/picker/scope', async (req, res) => {
     SELECT COUNT(*) AS c FROM salons s
     WHERE ${PHOTOS_BASE_WHERE}${f.sql} AND s.overrides_json LIKE '%backgroundImage%'
   `).get(...f.params).c;
+  // Salons du périmètre dont la galerie n'est PAS encore celle de leurs propres
+  // photos Google (= ils affichent encore les images du mode démo).
+  const galleryMissing = db.prepare(`
+    SELECT COUNT(*) AS c FROM salons s
+    WHERE ${PHOTOS_BASE_WHERE}${f.sql} AND ${GALLERY_MISSING_SQL}
+  `).get(...f.params).c;
   res.json({
-    salons, unscored, hero_applied: hero,
+    salons, unscored, hero_applied: hero, gallery_missing: galleryMissing,
     seq_nodes: seq ? { ok: seq.nodes_ok, total: seq.nodes_total, nodes: seq.nodes } : null,
   });
 });
@@ -358,18 +384,30 @@ function photoUrls(p) {
   };
 }
 
+// Condition d'un onglet du feed, exprimée sur un alias de picker_scorings —
+// paramétrée par l'alias pour pouvoir être réutilisée sur le scoring « suivant »
+// (voir le NOT EXISTS de dédoublonnage ci-dessous).
+function scoringWhere(filter, a = 'sc') {
+  if (filter === 'pick') return `${a}.selected_photo_id IS NOT NULL AND ${a}.error IS NULL`;
+  if (filter === 'no_suitable') return `${a}.selected_photo_id IS NULL AND ${a}.error IS NULL`;
+  if (filter === 'errors') return `${a}.error IS NOT NULL`;
+  if (filter === 'feedback_pending') return `${a}.error IS NULL AND NOT EXISTS (SELECT 1 FROM picker_feedback pf WHERE pf.scoring_id = ${a}.id)`;
+  if (filter === 'applied') return `${a}.applied_hero_at IS NOT NULL`;
+  return '1=1';
+}
+
 router.get('/api/picker/results', async (req, res) => {
   const filter = req.query.filter || 'all';
   const limit = Math.min(parseInt(req.query.limit || '20', 10), 100);
   const offset = parseInt(req.query.offset || '0', 10);
 
-  let where = '1=1';
-  if (filter === 'pick') where = 'sc.selected_photo_id IS NOT NULL AND sc.error IS NULL';
-  else if (filter === 'no_suitable') where = 'sc.selected_photo_id IS NULL AND sc.error IS NULL';
-  else if (filter === 'errors') where = "sc.error IS NOT NULL";
-  else if (filter === 'feedback_pending')
-    where = 'sc.error IS NULL AND NOT EXISTS (SELECT 1 FROM picker_feedback pf WHERE pf.scoring_id = sc.id)';
-  else if (filter === 'applied') where = 'sc.applied_hero_at IS NOT NULL';
+  // Un salon peut porter PLUSIEURS scorings (rescoring depuis la modale « Avis
+  // de l'IA », lots successifs) : sans ce filtre la même carte apparaît deux
+  // fois. On ne garde que le scoring le plus récent PARMI CEUX qui matchent
+  // l'onglet courant — un onglet par onglet, une carte par salon.
+  let where = `(${scoringWhere(filter)})`
+    + ` AND NOT EXISTS (SELECT 1 FROM picker_scorings sc2
+          WHERE sc2.google_id = sc.google_id AND sc2.id > sc.id AND (${scoringWhere(filter, 'sc2')}))`;
 
   // Même périmètre de salons que la barre de sélection (région, source,
   // recherche, statut de contact) : le feed ne montre que ces salons-là.
@@ -586,6 +624,68 @@ router.post('/api/picker/salon/:slug/gallery', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Galerie par défaut = TOUTES les photos du salon
+//
+// Règle produit : les photos d'un salon sont dans SA galerie d'office ; on ne
+// fait que retirer celles qu'on ne veut pas. Le site public ne sait pas lire le
+// volume /data/salon-photos (servi derrière le login admin) : chaque photo doit
+// être recadrée + uploadée en object storage. Ce lot fait ce travail pour tout
+// le périmètre du filtre, en arrière-plan (même mécanique que le lot de scoring).
+// ---------------------------------------------------------------------------
+const GALLERY_MAX = 12;          // même plafond que photo-apply.js
+const GALLERY_BATCH_MAX = 200;   // garde-fou : 200 salons × 12 uploads par lancement
+const galleryJobs = new Map();
+
+router.post('/api/picker/gallery-default', async (req, res) => {
+  let liste;
+  try { ({ liste } = await prepareFilter(req.query)); }
+  catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
+  // only_missing=0 → réapplique aussi les salons qui ont déjà une galerie perso
+  const onlyMissing = req.query.only_missing !== '0';
+  const cond = onlyMissing ? ` AND ${GALLERY_MISSING_SQL}` : '';
+  const found = db.prepare(`
+    SELECT s.slug, s.google_id FROM salons s ${liste.join}
+    WHERE ${PHOTOS_BASE_WHERE}${liste.f.sql}${cond}
+    ${liste.order}
+    LIMIT ?
+  `).all(...liste.joinParams, ...liste.f.params, GALLERY_BATCH_MAX + 1);
+  const capped = found.length > GALLERY_BATCH_MAX;
+  const queue = found.slice(0, GALLERY_BATCH_MAX);
+
+  const jobId = `gal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const job = {
+    id: jobId, size: queue.length, done: 0, applied: 0, photos: 0, errors: 0, skipped: 0,
+    capped, cap: GALLERY_BATCH_MAX, started_at: new Date().toISOString(), finished_at: null, last_error: null,
+  };
+  galleryJobs.set(jobId, job);
+  if (galleryJobs.size > 20) galleryJobs.delete(galleryJobs.keys().next().value);
+
+  (async () => {
+    for (const s of queue) {
+      try {
+        const raw = db.prepare('SELECT id, photo_id, dir, lowdef FROM salon_photos WHERE google_id = ? ORDER BY COALESCE(position,99), id').all(s.google_id);
+        const dedup = await dedupPhotosByPhash(raw);
+        const ids = dedup.kept.slice(0, GALLERY_MAX).map((p) => p.photo_id);
+        if (!ids.length) { job.done++; job.skipped++; continue; }
+        const r = await applyGallery({ slug: s.slug, photoIds: ids, mode: 'replace', googleId: s.google_id });
+        job.done++; job.applied++; job.photos += r.count;
+      } catch (e) {
+        job.done++; job.errors++; job.last_error = `${s.slug}: ${e.message}`;
+      }
+    }
+    job.finished_at = new Date().toISOString();
+  })();
+
+  res.json({ ok: true, job_id: jobId, size: job.size, capped, cap: GALLERY_BATCH_MAX });
+});
+
+router.get('/api/picker/gallery-default/:id', (req, res) => {
+  const job = galleryJobs.get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'job introuvable' });
+  res.json(job);
 });
 
 // Réinitialise héro + galerie aux images du mode démo (retire les photos Google)
