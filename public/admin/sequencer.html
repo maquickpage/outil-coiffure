@@ -134,7 +134,7 @@
         <span class="muted" id="leadCount"></span>
       </div>
       <table id="leadTbl"><thead><tr>
-        <th id="th-salon"></th><th>Email</th><th id="th-leadmb"></th><th>Step</th><th id="th-status"></th>
+        <th>#</th><th id="th-salon"></th><th>Email</th><th id="th-leadmb"></th><th>Step</th><th id="th-status"></th>
         <th id="th-lastsend"></th><th id="th-nextsend"></th><th></th>
       </tr></thead><tbody></tbody></table>
       <p class="muted" id="leadEmpty"></p>
@@ -642,19 +642,29 @@ function renderOverview(){
 // --- leads (fusion multi-nœuds) ---
 function renderLeads(){
   var filter = document.getElementById('leadFilter').value;
-  var rows = [], total = 0;
-  okNodes().forEach(function(n){
-    (n.leads || []).forEach(function(l){
-      total++;
+  var nodes = okNodes(), nb = nodes.length || 1;
+  // Ordre d'ENVOI, pas ordre de stockage : chaque noeud sert sa feuille dans
+  // l'ordre, mais les boites envoient en parallele. Lister noeud par noeud
+  // donnait un ordre sans rapport avec le demarchage reel, et surtout different
+  // de la page Photos. On entrelace donc les files avec la MEME formule que
+  // statutsLeadsParEmail(), pour que les deux ecrans montrent la meme liste.
+  var all = [];
+  nodes.forEach(function(n, ni){
+    (n.leads || []).forEach(function(l, i){ all.push({ l: l, n: n, rank: i * nb + ni }); });
+  });
+  all.sort(function(a, b){ return a.rank - b.rank; });
+  var rows = [], total = all.length, rang = 0;
+  all.forEach(function(it){
+      var l = it.l, n = it.n;
       if (filter && l.status !== filter) return;
+      rang++;
       var canStop = ['stopped','unsubscribed','replied','completed'].indexOf(l.status) === -1;
-      rows.push('<tr><td>'+esc(l.salon_name||'-')+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.mailbox)+'</td>'
+      rows.push('<tr><td class="muted">'+rang+'</td><td>'+esc(l.salon_name||'-')+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.mailbox)+'</td>'
         +'<td>'+l.current_step+'/5</td>'
         +'<td><span class="badge b-'+esc(l.status)+'">'+esc(l.status)+'</span>'
           +(l.last_error?' <span class="muted" title="'+esc(l.last_error)+'">!</span>':'')+'</td>'
         +'<td>'+esc(l.last_sent_at)+'</td><td>'+esc(l.next_send_at)+'</td>'
         +'<td>'+(canStop?'<button class="btn danger small" onclick="stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
-    });
   });
   document.querySelector('#leadTbl tbody').innerHTML = rows.join('');
   document.getElementById('leadCount').textContent = t('lead_count', { shown: rows.length, total: total });

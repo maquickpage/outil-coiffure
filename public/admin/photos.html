@@ -465,7 +465,10 @@ function renderCriteria(){
 
 function cardHtml(r){
   var h='<div class="card" data-sid="'+r.scoring_id+'">';
-  h+='<div class="card-head"><span class="nm">'+esc(r.nom)+'</span><span class="vl">'+esc(r.ville||'')+'</span>';
+  h+='<div class="card-head">';
+  // Position dans la file d'envoi : meme numero que l'onglet Leads du sequenceur
+  if(r.seq&&r.seq.queue_pos)h+='<span class="badge b-pick" title="'+esc(r.seq.mailbox||'')+'">n°'+r.seq.queue_pos+' file</span> ';
+  h+='<span class="nm">'+esc(r.nom)+'</span><span class="vl">'+esc(r.ville||'')+'</span>';
   if(r.error)h+='<span class="badge b-err">erreur</span>';
   else if(r.selected_photo_id)h+='<span class="badge b-pick">⭐ choix fait'+(r.overall_score!=null?' · '+r.overall_score+'/3':'')+'</span>';
   else h+='<span class="badge b-none">aucune ne convient</span>';
@@ -597,7 +600,7 @@ function pollJob(size){
   jobTimer=setInterval(function(){
     api('/admin/api/picker/batch/'+currentJob).then(function(j){
       var pct=Math.round(j.done/j.size*100);
-      $('jobtxt').textContent='Scoring '+j.done+'/'+j.size+' — ✓ '+j.success+' choix · ∅ '+j.no_suitable+' aucune · ⚠ '+j.errors+' err · '+(j.cost_total_eur*100).toFixed(1)+' c€'+(j.exhausted?' · plus de salons à scorer':'');
+      $('jobtxt').textContent='Scoring '+j.done+'/'+j.size+' — ✓ '+j.success+' choix · ∅ '+j.no_suitable+' aucune · ⚠ '+j.errors+' err'+(j.skipped?' · ↩ '+j.skipped+' déjà scorés':'')+' · '+(j.cost_total_eur*100).toFixed(1)+' c€'+(j.exhausted?' · plus de salons à scorer':'');
       $('jobprog').style.width=pct+'%';
       if(j.finished_at){
         clearInterval(jobTimer);

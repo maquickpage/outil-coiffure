@@ -303,7 +303,7 @@ router.post('/api/picker/batch', async (req, res) => {
   const job = {
     id: jobId, size,
     started_at: new Date().toISOString(), finished_at: null,
-    done: 0, success: 0, no_suitable: 0, no_photos: 0, errors: 0,
+    done: 0, success: 0, no_suitable: 0, no_photos: 0, errors: 0, skipped: 0,
     exhausted: false, last_result: null, cost_total_eur: 0,
   };
   batchJobs.set(jobId, job);
@@ -314,6 +314,13 @@ router.post('/api/picker/batch', async (req, res) => {
     for (let i = 0; i < size; i++) {
       const next = queue ? queue[i] : pickNextUnscoredSalon();
       if (!next) { job.exhausted = true; break; }
+      // La file est figée au lancement du lot. Si un autre lot (ou un double clic)
+      // a scoré ce salon entre-temps, on ne le repaie pas : sans ce garde-fou on
+      // obtenait deux cartes identiques dans le feed, facturées deux fois.
+      const dejaScore = db.prepare(
+        'SELECT 1 FROM picker_scorings WHERE google_id = ? AND error IS NULL LIMIT 1'
+      ).get(next.google_id);
+      if (dejaScore) { job.done++; job.skipped++; continue; }
       try {
         const r = await scoreSalonPhotos(next.google_id, { slug: next.slug || null });
         job.done++;
@@ -366,24 +373,39 @@ router.get('/api/picker/results', async (req, res) => {
 
   // Même périmètre de salons que la barre de sélection (région, source,
   // recherche, statut de contact) : le feed ne montre que ces salons-là.
-  let f;
-  try { ({ f } = await prepareFilter(req.query)); }
+  let f, seq, liste;
+  try { ({ f, seq, liste } = await prepareFilter(req.query)); }
   catch (e) { return res.status(502).json({ error: 'Séquenceur injoignable : ' + e.message }); }
-  if (f.sql) {
+
+  // En tri « ordre d'envoi », le feed doit suivre la file de démarchage et non
+  // la date de scoring : sinon la page Photos et l'onglet Leads du séquenceur
+  // affichent deux listes sans rapport. La jointure sur json_each porte l'ordre
+  // dans sa clé, et remplace la restriction par IN.
+  let join = '', joinParams = [], order = 'ORDER BY sc.created_at DESC, sc.id DESC';
+  const params = [];
+  if (liste.join) {
+    join = `JOIN salons s ON s.google_id = sc.google_id ${liste.join}`;
+    joinParams = liste.joinParams;
+    params.push(...joinParams);
+    where += ` AND ${PHOTOS_BASE_WHERE}${liste.f.sql}`;
+    params.push(...liste.f.params);
+    order = 'ORDER BY j.key, sc.id DESC';
+  } else if (f.sql) {
     where += ` AND EXISTS (SELECT 1 FROM salons s WHERE s.google_id = sc.google_id AND ${PHOTOS_BASE_WHERE}${f.sql})`;
+    params.push(...f.params);
   }
 
-  const total = db.prepare(`SELECT COUNT(*) AS c FROM picker_scorings sc WHERE ${where}`).get(...f.params).c;
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM picker_scorings sc ${join} WHERE ${where}`).get(...params).c;
   const rows = db.prepare(`
     SELECT sc.id AS scoring_id, sc.google_id, sc.slug, sc.selected_photo_id, sc.overall_score,
            sc.reasoning, sc.per_photo_scores, sc.rag_examples_used, sc.cost_eur, sc.latency_ms, sc.created_at,
            sc.error, sc.applied_hero_at,
            (SELECT rating FROM picker_feedback pf WHERE pf.scoring_id = sc.id ORDER BY pf.id DESC LIMIT 1) AS feedback_rating
-    FROM picker_scorings sc
+    FROM picker_scorings sc ${join}
     WHERE ${where}
-    ORDER BY sc.created_at DESC, sc.id DESC
+    ${order}
     LIMIT ? OFFSET ?
-  `).all(...f.params, limit, offset);
+  `).all(...params, limit, offset);
 
   for (const r of rows) {
     const meta = db.prepare('SELECT nom, ville FROM salon_photos WHERE google_id = ? LIMIT 1').get(r.google_id);
@@ -402,6 +424,8 @@ router.get('/api/picker/results', async (req, res) => {
       const s = db.prepare("SELECT slug FROM salons WHERE google_id = ? LIMIT 1").get(r.google_id);
       r.slug = s?.slug || null;
     }
+    // Position dans la file d'envoi, pour retrouver le salon dans le séquenceur
+    r.seq = seq && seq.bySlug ? (seq.bySlug[r.slug] || null) : null;
   }
   res.json({ total, limit, offset, rows });
 });
