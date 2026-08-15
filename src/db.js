@@ -296,6 +296,34 @@ export function initSchema() {
   const evCols = db.prepare("PRAGMA table_info(preview_events)").all().map(c => c.name);
   if (!evCols.includes('device')) db.exec("ALTER TABLE preview_events ADD COLUMN device TEXT");
 
+  // Fusion des appareils portant le MÊME nom. Un téléphone passé par Chrome puis
+  // par le navigateur in-app d'une messagerie a deux cookies, donc deux entrées :
+  // pour l'utilisateur c'est le même appareil, et la liste se remplissait de
+  // doublons. On garde le plus ancien et on lui rapatrie signatures et events,
+  // donc aucune exclusion (ni rétroactive) n'est perdue. Idempotent.
+  try {
+    const groups = db.prepare(`
+      SELECT lower(trim(label)) AS k, COUNT(*) AS n FROM suivi_excluded_devices
+      GROUP BY k HAVING n > 1
+    `).all();
+    for (const g of groups) {
+      const ids = db.prepare(`
+        SELECT device_id FROM suivi_excluded_devices
+        WHERE lower(trim(label)) = ? ORDER BY added_at, device_id
+      `).all(g.k).map(r => r.device_id);
+      const keep = ids.shift();
+      for (const dup of ids) {
+        db.prepare('UPDATE OR IGNORE suivi_device_sigs SET device_id = ? WHERE device_id = ?').run(keep, dup);
+        db.prepare('DELETE FROM suivi_device_sigs WHERE device_id = ?').run(dup);
+        db.prepare('UPDATE preview_events SET device = ? WHERE device = ?').run(keep, dup);
+        db.prepare('DELETE FROM suivi_excluded_devices WHERE device_id = ?').run(dup);
+      }
+      console.log(`[db] appareils fusionnes sur « ${g.k} » : ${ids.length} doublon(s) -> ${keep}`);
+    }
+  } catch (e) {
+    console.warn('[db] fusion des appareils dupliques ignoree:', e.message);
+  }
+
   // === Prospection téléphonique (onglet ☎️ Prospection) ===
   // calling_prospects : 1 ligne = 1 salon dans le pipeline d'appels (UNIQUE slug).
   //   status : a_appeler | rappeler | interesse | demo_envoyee | gagne | perdu | ne_pas_rappeler

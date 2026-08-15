@@ -247,7 +247,27 @@ router.get('/no-track', (req, res) => {
         + `<p class="hint">Astuce : précise à qui il est (« téléphone Johann », « Mac Michele ») — il y aura vite plusieurs iPhone dans la liste.</p>`));
     }
 
-    const device = deviceIdOf(req) || crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+    // Un même appareil passe souvent par plusieurs navigateurs (Chrome, Safari,
+    // navigateur in-app d'une messagerie) : chacun a son propre cookie, donc son
+    // propre identifiant, et la liste se remplissait de doublons du même nom.
+    // Le NOM fait donc foi : si ce libellé existe déjà, on reprend son
+    // identifiant et le nouveau navigateur rejoint l'appareil existant.
+    const twin = db.prepare(`
+      SELECT device_id FROM suivi_excluded_devices
+      WHERE lower(trim(label)) = lower(trim(?)) ORDER BY added_at LIMIT 1
+    `).get(label);
+    const fromCookie = deviceIdOf(req);
+    const device = (twin && twin.device_id) || fromCookie || crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+
+    // Le navigateur portait déjà un autre identifiant (ex. il avait été nommé
+    // autrement) → on rapatrie ses signatures et ses events sur l'appareil retenu
+    // pour ne perdre aucune exclusion rétroactive, puis on supprime le doublon.
+    if (fromCookie && fromCookie !== device) {
+      db.prepare('UPDATE OR IGNORE suivi_device_sigs SET device_id = ? WHERE device_id = ?').run(device, fromCookie);
+      db.prepare('DELETE FROM suivi_device_sigs WHERE device_id = ?').run(fromCookie);
+      db.prepare('UPDATE preview_events SET device = ? WHERE device = ?').run(device, fromCookie);
+      db.prepare('DELETE FROM suivi_excluded_devices WHERE device_id = ?').run(fromCookie);
+    }
     db.prepare(`
       INSERT INTO suivi_excluded_devices (device_id, label, last_seen) VALUES (?,?,datetime('now'))
       ON CONFLICT(device_id) DO UPDATE SET label = excluded.label, last_seen = datetime('now')
