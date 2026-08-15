@@ -188,12 +188,31 @@ function cookieDomain(host) {
   return m && h !== 'localhost' ? `; Domain=.${m[1]}` : '';
 }
 
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 const page = (title, body) => `<!doctype html><meta charset="utf-8">`
   + `<meta name="viewport" content="width=device-width,initial-scale=1">`
   + `<title>${title}</title>`
   + `<style>body{font:16px/1.5 system-ui,sans-serif;max-width:34rem;margin:12vh auto;padding:0 1.5rem;color:#222}`
-  + `h1{font-size:1.3rem}code{background:#f4f4f4;padding:.15em .4em;border-radius:.25em}</style>`
+  + `h1{font-size:1.3rem}code{background:#f4f4f4;padding:.15em .4em;border-radius:.25em}`
+  + `input[type=text]{width:100%;font:inherit;padding:.7em .8em;border:1.5px solid #ccc;border-radius:.5em;margin:.4em 0 1em}`
+  + `input:focus{outline:none;border-color:#C8A24B}`
+  + `button{font:inherit;font-weight:600;background:#C8A24B;color:#fff;border:0;padding:.7em 1.4em;border-radius:.5em;cursor:pointer}`
+  + `.hint{color:#777;font-size:.9em}</style>`
   + body;
+
+// Proposition de nom d'après le User-Agent — l'utilisateur reste libre de la
+// remplacer, c'est juste pour éviter d'avoir à tout taper sur un mobile.
+function guessLabel(ua) {
+  const s = String(ua || '');
+  if (/iPhone/i.test(s)) return 'iPhone';
+  if (/iPad/i.test(s)) return 'iPad';
+  if (/Android/i.test(s)) return /Mobile/i.test(s) ? 'Téléphone Android' : 'Tablette Android';
+  if (/Macintosh|Mac OS X/i.test(s)) return 'Mac';
+  if (/Windows/i.test(s)) return 'PC Windows';
+  if (/Linux/i.test(s)) return 'PC Linux';
+  return '';
+}
 
 router.get('/no-track', (req, res) => {
   const key = optoutKey();
@@ -211,8 +230,24 @@ router.get('/no-track', (req, res) => {
       return res.send(page('Tracking réactivé', '<h1>Tracking réactivé</h1><p>Cet appareil est de nouveau compté dans le Suivi maquettes. Ses visites passées y réapparaissent.</p>'));
     }
 
+    // Pas encore de nom → on demande, et on ne marque RIEN tant qu'il n'est pas
+    // donné (sinon un simple aperçu de lien crée une entrée fantôme).
+    const label = String(req.query.label || '').trim().slice(0, 60);
+    if (!label) {
+      const suggestion = guessLabel(req.headers['user-agent']);
+      return res.send(page('Nommer cet appareil',
+        `<h1>Quel est cet appareil&nbsp;?</h1>`
+        + `<p>Donne-lui un nom reconnaissable — c'est celui que tu verras dans le Suivi pour le réactiver un jour.</p>`
+        + `<form method="GET" action="/api/no-track">`
+        + `<input type="hidden" name="k" value="${esc(key)}">`
+        + `<input type="text" name="label" autofocus autocomplete="off" maxlength="60" required`
+        + ` value="${esc(suggestion)}" placeholder="ex. téléphone Johann">`
+        + `<button type="submit">Exclure cet appareil du suivi</button>`
+        + `</form>`
+        + `<p class="hint">Astuce : précise à qui il est (« téléphone Johann », « Mac Michele ») — il y aura vite plusieurs iPhone dans la liste.</p>`));
+    }
+
     const device = deviceIdOf(req) || crypto.randomUUID().replace(/-/g, '').slice(0, 24);
-    const label = String(req.query.label || '').slice(0, 60) || 'appareil sans nom';
     db.prepare(`
       INSERT INTO suivi_excluded_devices (device_id, label, last_seen) VALUES (?,?,datetime('now'))
       ON CONFLICT(device_id) DO UPDATE SET label = excluded.label, last_seen = datetime('now')
@@ -225,11 +260,11 @@ router.get('/no-track', (req, res) => {
 
     res.setHeader('Set-Cookie', `${NOTRACK_COOKIE}=${device}${attrs}`);
     res.send(page('Appareil exclu du suivi', `<h1>C'est bon, cet appareil est exclu du Suivi</h1>`
-      + `<p>Libellé : <code>${label.replace(/[<&]/g, '')}</code></p>`
+      + `<p>Libellé : <code>${esc(label)}</code></p>`
       + `<p>Tes visites sur les maquettes ne seront plus comptées comme celles d'un prospect — ni les prochaines, ni celles déjà enregistrées depuis cette connexion.</p>`
       + `<p>Valable 10 ans sur ce navigateur. À refaire si tu effaces les cookies, ou depuis un autre navigateur du même appareil.</p>`));
   } catch (e) {
-    res.status(500).send(page('Erreur', `<h1>Erreur</h1><p>${String(e.message).replace(/[<&]/g, '')}</p>`));
+    res.status(500).send(page('Erreur', `<h1>Erreur</h1><p>${esc(e.message)}</p>`));
   }
 });
 
