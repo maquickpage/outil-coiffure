@@ -135,6 +135,14 @@ router.get('/api/preview-visits.csv', (req, res) => {
 // authentifiée). Sépare les visiteurs par (ip|ua) et exclut de l'entonnoir
 // prospect : les bots (UA) ET les IP internes (toi/QA, table suivi_excluded_ips).
 const SUIVI_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
+// Certains scanners ne s'annoncent PAS dans l'User-Agent : Gmail et Outlook
+// ouvrent les liens d'un message pour les vérifier, en se présentant comme un
+// Chrome ordinaire. Résultat : chaque email envoyé fabriquait une fausse visite
+// (23 events sur 14 salons au 2026-08-15), et un salon paraissait « tiède »
+// alors que personne ne l'avait ouvert. On les reconnaît donc à leur plage IP.
+// Plages : Google (Gmail, Googlebot) et Microsoft (Exchange Online / SafeLinks).
+const SUIVI_SCANNER_IP_RE = /^(2607:f8b0:|2a00:1450:|66\.249\.|64\.233\.|209\.85\.|40\.9[2-9]\.|104\.47\.|52\.10[0-9]\.)/i;
+
 const SUIVI_STAGE = { preview_ouvert: 1, template_essaye: 2, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
 const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
 
@@ -203,7 +211,9 @@ router.get('/api/suivi.json', (req, res) => {
   const excludedDevices = new Set(deviceRows.map(r => r.device_id));
   const excludedSigs = new Set(sigRows.map(r => skey(r.ip, r.ua)));
   const realSlugs = new Set(salonSlugs.map(r => r.slug)); // « réel » = existe dans salons (même sans nom)
-  const isBot = (ua) => !ua || SUIVI_BOT_RE.test(ua);
+  // « bot » au sens du Suivi = pas un humain : robot déclaré (UA) OU scanner
+  // d'email reconnu à sa plage IP (qui, lui, se fait passer pour un navigateur).
+  const isBot = (ua, ip) => !ua || SUIVI_BOT_RE.test(ua) || SUIVI_SCANNER_IP_RE.test(String(ip || ''));
   const dkey = (ip, ua) => (ip || '?') + '|' + (ua || '').slice(0, 250);
 
   const bySlug = new Map();
@@ -211,7 +221,7 @@ router.get('/api/suivi.json', (req, res) => {
 
   for (const r of rows) {
     if (!realSlugs.has(r.slug)) continue; // écarte les slugs scanner (.env, phpinfo…)
-    const bot = isBot(r.user_agent);
+    const bot = isBot(r.user_agent, r.ip);
     const internal = !bot && (
       excluded.has(r.ip) || excluded.has(ip64(r.ip))
       || (r.device && excludedDevices.has(r.device))
