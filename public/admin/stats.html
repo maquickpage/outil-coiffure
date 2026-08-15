@@ -179,7 +179,7 @@
   'use strict';
   var CSV_URL='/admin/api/preview-visits.csv', JSON_URL='/admin/api/suivi.json', PREVIEW_REDIR='/admin/api/suivi/preview/';
   var $=function(id){return document.getElementById(id);};
-  var salonsData=[], META={myIp:'',excludedIps:[],excludedDevices:[],totals:{}}, sortKey='status', sortDir=-1, statusFilter='all', autoTimer=null, expanded={}, periodDays=30;
+  var salonsData=[], META={myIp:'',myIpKey:'',excludedIps:[],excludedDevices:[],totals:{}}, sortKey='status', sortDir=-1, statusFilter='all', autoTimer=null, expanded={}, periodDays=30;
   // Intervalle explicite « du … au … ». Non vide ⇒ il remplace periodDays.
   var dateFrom='', dateTo='';
   var inCalling=new Set(); // slugs déjà dans la prospection (rempli par loadCallingSlugs)
@@ -355,7 +355,9 @@
     var clients=salons.filter(function(s){return s.hasProspect&&isClient(s);}).length;
 
     // Bandeau IP : montre l'IP de l'admin + bouton d'exclusion (Flaw 2).
-    var myIp=META.myIp,excl=(META.excludedIps||[]).indexOf(myIp)>=0;
+    var myIp=META.myIp,exIps=(META.excludedIps||[]);
+    // L'exclusion est stockee sur le prefixe /64 en IPv6 : comparer les deux.
+    var excl=exIps.indexOf(myIp)>=0||(META.myIpKey&&exIps.indexOf(META.myIpKey)>=0);
     var nExcl=(META.excludedIps||[]).length;
     var html='';
     if(myIp){
@@ -449,7 +451,7 @@
       b.onclick=function(){statusFilter=b.getAttribute('data-filter');render();};});
     var ipT=$('ipToggle');
     if(ipT)ipT.onclick=function(){
-      var on=(META.excludedIps||[]).indexOf(META.myIp)<0; // pas encore exclu → on exclut
+      var on=(META.excludedIps||[]).indexOf(META.myIp)<0&&(META.excludedIps||[]).indexOf(META.myIpKey)<0; // pas encore exclu → on exclut
       ipT.disabled=true;ipT.textContent='…';
       fetch('/admin/api/suivi/exclude-ip',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({ip:META.myIp,on:on})})
         .then(function(r){return r.json();})
@@ -512,7 +514,7 @@
       return r.json();
     }).then(function(d){
       salonsData=decorate(d.salons||[]);
-      META={myIp:d.myIp||'',excludedIps:d.excludedIps||[],excludedDevices:d.excludedDevices||[],totals:d.totals||{}};
+      META={myIp:d.myIp||'',myIpKey:d.myIpKey||'',excludedIps:d.excludedIps||[],excludedDevices:d.excludedDevices||[],totals:d.totals||{}};
       var n=new Date();
       $('updated').textContent=t('maj')+' '+n.getHours()+'h'+('0'+n.getMinutes()).slice(-2);
       render();

@@ -137,6 +137,21 @@ router.get('/api/preview-visits.csv', (req, res) => {
 const SUIVI_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
 const SUIVI_STAGE = { preview_ouvert: 1, template_essaye: 2, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
 const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
+
+// Une box fournit un /64 en IPv6, et les appareils y tirent une adresse dont les
+// 64 derniers bits changent (extensions de confidentialité) : à la maison, chaque
+// reconnexion produit une IP différente. On ne peut donc pas comparer l'adresse
+// entière — on compare le PRÉFIXE RÉSEAU, stable, qui identifie la connexion.
+// En IPv4 l'adresse est déjà stable : renvoyée telle quelle.
+export function ip64(ip) {
+  const s = String(ip || '');
+  if (!s.includes(':')) return s;
+  const parts = s.split(':');
+  return parts.length >= 4 && parts.slice(0, 4).every(Boolean) ? parts.slice(0, 4).join(':') + '::/64' : s;
+}
+// Clé de rapprochement d'un visiteur pour l'EXCLUSION (≠ dkey, qui sert à
+// l'affichage et garde l'IP entière pour rester lisible dans le détail).
+const skey = (ip, ua) => ip64(ip) + '|' + (ua || '').slice(0, 250);
 const INTERNAL_ACTIVITY_EVENTS = new Set(['demo_email_envoyee', 'demo_sms_copiee']);
 
 // Période affichée : soit un raccourci en jours (7/30/90), soit un intervalle
@@ -186,7 +201,7 @@ router.get('/api/suivi.json', (req, res) => {
   // marquage) OU sur la signature (ip|ua) — c'est ce second cas qui écarte
   // RÉTROACTIVEMENT les visites faites avant que le cookie soit posé.
   const excludedDevices = new Set(deviceRows.map(r => r.device_id));
-  const excludedSigs = new Set(sigRows.map(r => (r.ip || '?') + '|' + (r.ua || '').slice(0, 250)));
+  const excludedSigs = new Set(sigRows.map(r => skey(r.ip, r.ua)));
   const realSlugs = new Set(salonSlugs.map(r => r.slug)); // « réel » = existe dans salons (même sans nom)
   const isBot = (ua) => !ua || SUIVI_BOT_RE.test(ua);
   const dkey = (ip, ua) => (ip || '?') + '|' + (ua || '').slice(0, 250);
@@ -198,9 +213,9 @@ router.get('/api/suivi.json', (req, res) => {
     if (!realSlugs.has(r.slug)) continue; // écarte les slugs scanner (.env, phpinfo…)
     const bot = isBot(r.user_agent);
     const internal = !bot && (
-      excluded.has(r.ip)
+      excluded.has(r.ip) || excluded.has(ip64(r.ip))
       || (r.device && excludedDevices.has(r.device))
-      || excludedSigs.has(dkey(r.ip, r.user_agent))
+      || excludedSigs.has(skey(r.ip, r.user_agent))
       || INTERNAL_ACTIVITY_EVENTS.has(r.event)
     );
     if (bot) botEvents++; else if (internal) internalEvents++; else humanEvents++;
@@ -293,6 +308,7 @@ router.get('/api/suivi.json', (req, res) => {
   res.json({
     salons,
     myIp: clientIp(req),
+    myIpKey: ip64(clientIp(req)), // ce qui est réellement stocké/comparé pour l'exclusion
     excludedIps: [...excluded],
     excludedDevices: deviceRows,
     periodDays: period.days,
@@ -319,7 +335,9 @@ router.post('/api/suivi/remove-device', express.json(), (req, res) => {
 
 // Toggle d'une IP interne (exclue de l'entonnoir prospect). body: { ip, on }
 router.post('/api/suivi/exclude-ip', express.json(), (req, res) => {
-  const ip = (req.body && req.body.ip ? String(req.body.ip) : '').trim();
+  // IPv6 → on stocke le préfixe /64 (l'adresse entière changerait à la
+  // prochaine reconnexion et l'exclusion ne tiendrait qu'une soirée).
+  const ip = ip64((req.body && req.body.ip ? String(req.body.ip) : '').trim());
   const on = !(req.body && req.body.on === false);
   if (!ip) return res.status(400).json({ error: 'ip requis' });
   try {
