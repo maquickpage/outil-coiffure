@@ -179,7 +179,7 @@
   'use strict';
   var CSV_URL='/admin/api/preview-visits.csv', JSON_URL='/admin/api/suivi.json', PREVIEW_REDIR='/admin/api/suivi/preview/';
   var $=function(id){return document.getElementById(id);};
-  var salonsData=[], META={myIp:'',excludedIps:[],totals:{}}, sortKey='status', sortDir=-1, statusFilter='all', autoTimer=null, expanded={}, periodDays=30;
+  var salonsData=[], META={myIp:'',excludedIps:[],excludedDevices:[],totals:{}}, sortKey='status', sortDir=-1, statusFilter='all', autoTimer=null, expanded={}, periodDays=30;
   // Intervalle explicite « du … au … ». Non vide ⇒ il remplace periodDays.
   var dateFrom='', dateTo='';
   var inCalling=new Set(); // slugs déjà dans la prospection (rempli par loadCallingSlugs)
@@ -366,6 +366,19 @@
         +'</div>';
     }
 
+    // Appareils marqués par le cookie /api/no-track — exclusion qui suit
+    // l'appareil quelle que soit son IP, et rétroactive sur ses visites passées.
+    var devs=META.excludedDevices||[];
+    if(devs.length){
+      html+='<div class="ipbar"><span class="ipbar-txt">Appareils internes exclus :</span>';
+      for(var di=0;di<devs.length;di++){
+        html+='<button class="ipbtn on devbtn" data-dev="'+esc(devs[di].device_id)+'" '
+          +'title="Cliquer pour réintégrer cet appareil dans l\'entonnoir">'
+          +esc(devs[di].label||devs[di].device_id)+' ×</button>';
+      }
+      html+='</div>';
+    }
+
     // KPI = SIGNAUX HORS ENTONNOIR uniquement (pas de doublon avec les barres) :
     // domaine perso tapé, démo éditée, CGV, clients + qualité du trafic.
     var tot=META.totals||{};
@@ -443,6 +456,14 @@
         .then(function(j){if(j.excludedIps)META.excludedIps=j.excludedIps;load();}) // recharge : l'entonnoir se recompte serveur
         .catch(function(){ipT.disabled=false;render();});
     };
+    Array.prototype.forEach.call(document.querySelectorAll('.devbtn'),function(b){
+      b.onclick=function(){
+        b.disabled=true;b.textContent='…';
+        fetch('/admin/api/suivi/remove-device',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({device_id:b.getAttribute('data-dev')})})
+          .then(function(r){return r.json();})
+          .then(function(j){if(j.excludedDevices)META.excludedDevices=j.excludedDevices;load();})
+          .catch(function(){b.disabled=false;render();});
+      };});
     Array.prototype.forEach.call(document.querySelectorAll('tr.row'),function(tr){
       tr.onclick=function(e){if(e.target.closest('[data-stop]'))return;var sl=tr.getAttribute('data-slug');expanded[sl]=!expanded[sl];render();};});
     Array.prototype.forEach.call(document.querySelectorAll('[data-photos]'),function(a){
@@ -491,7 +512,7 @@
       return r.json();
     }).then(function(d){
       salonsData=decorate(d.salons||[]);
-      META={myIp:d.myIp||'',excludedIps:d.excludedIps||[],totals:d.totals||{}};
+      META={myIp:d.myIp||'',excludedIps:d.excludedIps||[],excludedDevices:d.excludedDevices||[],totals:d.totals||{}};
       var n=new Date();
       $('updated').textContent=t('maj')+' '+n.getHours()+'h'+('0'+n.getMinutes()).slice(-2);
       render();

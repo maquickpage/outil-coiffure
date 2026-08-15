@@ -158,11 +158,11 @@ function trackingPeriod(q = {}) {
 }
 
 router.get('/api/suivi.json', (req, res) => {
-  let rows, excludedRows, salonSlugs;
+  let rows, excludedRows, salonSlugs, deviceRows, sigRows;
   const period = trackingPeriod(req.query);
   try {
     rows = db.prepare(`
-      SELECT e.ts, e.event, e.slug, e.meta, e.ip, e.user_agent,
+      SELECT e.ts, e.event, e.slug, e.meta, e.ip, e.user_agent, e.device,
              s.nom_clean, s.nom, s.ville, s.email, s.subscription_status
       FROM preview_events e
        LEFT JOIN salons s ON s.slug = e.slug
@@ -172,11 +172,21 @@ router.get('/api/suivi.json', (req, res) => {
      `).all(...period.params);
     excludedRows = db.prepare('SELECT ip FROM suivi_excluded_ips').all();
     salonSlugs = db.prepare('SELECT slug FROM salons').all();
+    deviceRows = db.prepare('SELECT device_id, label, added_at, last_seen FROM suivi_excluded_devices ORDER BY added_at').all();
+    sigRows = db.prepare(`
+      SELECT g.ip, g.ua FROM suivi_device_sigs g
+      JOIN suivi_excluded_devices d ON d.device_id = g.device_id
+    `).all();
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 
   const excluded = new Set(excludedRows.map(r => r.ip));
+  // Exclusion par appareil : match exact sur device_id (events postérieurs au
+  // marquage) OU sur la signature (ip|ua) — c'est ce second cas qui écarte
+  // RÉTROACTIVEMENT les visites faites avant que le cookie soit posé.
+  const excludedDevices = new Set(deviceRows.map(r => r.device_id));
+  const excludedSigs = new Set(sigRows.map(r => (r.ip || '?') + '|' + (r.ua || '').slice(0, 250)));
   const realSlugs = new Set(salonSlugs.map(r => r.slug)); // « réel » = existe dans salons (même sans nom)
   const isBot = (ua) => !ua || SUIVI_BOT_RE.test(ua);
   const dkey = (ip, ua) => (ip || '?') + '|' + (ua || '').slice(0, 250);
@@ -187,7 +197,12 @@ router.get('/api/suivi.json', (req, res) => {
   for (const r of rows) {
     if (!realSlugs.has(r.slug)) continue; // écarte les slugs scanner (.env, phpinfo…)
     const bot = isBot(r.user_agent);
-    const internal = !bot && (excluded.has(r.ip) || INTERNAL_ACTIVITY_EVENTS.has(r.event));
+    const internal = !bot && (
+      excluded.has(r.ip)
+      || (r.device && excludedDevices.has(r.device))
+      || excludedSigs.has(dkey(r.ip, r.user_agent))
+      || INTERNAL_ACTIVITY_EVENTS.has(r.event)
+    );
     if (bot) botEvents++; else if (internal) internalEvents++; else humanEvents++;
 
     let s = bySlug.get(r.slug);
@@ -279,11 +294,27 @@ router.get('/api/suivi.json', (req, res) => {
     salons,
     myIp: clientIp(req),
     excludedIps: [...excluded],
+    excludedDevices: deviceRows,
     periodDays: period.days,
     periodFrom: period.from,
     periodTo: period.to,
     totals: { salons: salons.length, humanEvents, botEvents, internalEvents },
   });
+});
+
+// Retire un appareil de la liste des exclus (le cookie reste sur l'appareil,
+// mais il n'est plus reconnu → ses visites, passées comme futures, réapparaissent
+// dans l'entonnoir). body: { device_id }
+router.post('/api/suivi/remove-device', express.json(), (req, res) => {
+  const id = (req.body && req.body.device_id ? String(req.body.device_id) : '').trim();
+  if (!id) return res.status(400).json({ error: 'device_id requis' });
+  try {
+    db.prepare('DELETE FROM suivi_excluded_devices WHERE device_id = ?').run(id);
+    db.prepare('DELETE FROM suivi_device_sigs WHERE device_id = ?').run(id);
+    res.json({ ok: true, excludedDevices: db.prepare('SELECT device_id, label, added_at, last_seen FROM suivi_excluded_devices ORDER BY added_at').all() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Toggle d'une IP interne (exclue de l'entonnoir prospect). body: { ip, on }

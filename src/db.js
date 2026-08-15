@@ -263,7 +263,38 @@ export function initSchema() {
       ip TEXT PRIMARY KEY,
       added_at TEXT DEFAULT (datetime('now'))
     );
+
+    -- Appareils internes (nos mobiles/tablettes/PC) exclus du Suivi maquettes.
+    -- Marqués par un cookie longue durée posé via /api/no-track?k=… : survit
+    -- au changement d'IP (4G, WiFi client), contrairement à suivi_excluded_ips.
+    CREATE TABLE IF NOT EXISTS suivi_excluded_devices (
+      device_id TEXT PRIMARY KEY,
+      label TEXT,
+      added_at TEXT DEFAULT (datetime('now')),
+      last_seen TEXT
+    );
+
+    -- Signatures (ip|ua) observées pour un appareil exclu. C'est ce qui rend
+    -- l'exclusion RÉTROACTIVE : les events passés n'ont pas de device_id, mais
+    -- ils portent (ip, user_agent) — s'ils matchent une signature connue, ils
+    -- sont reclassés « interne » à la lecture. Aucune donnée n'est supprimée,
+    -- et la couverture s'élargit à mesure que l'appareil est vu sur d'autres
+    -- réseaux. Retirer l'appareil des exclus annule tout, historique intact.
+    CREATE TABLE IF NOT EXISTS suivi_device_sigs (
+      device_id TEXT NOT NULL,
+      ip TEXT NOT NULL,
+      ua TEXT NOT NULL,
+      first_seen TEXT DEFAULT (datetime('now')),
+      last_seen TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (device_id, ip, ua)
+    );
+    CREATE INDEX IF NOT EXISTS idx_suivi_device_sigs_dev ON suivi_device_sigs(device_id);
   `);
+
+  // device_id porté par les events postérieurs au marquage (match exact, alors
+  // que les signatures (ip|ua) ne couvrent que le passé et les cas sans cookie).
+  const evCols = db.prepare("PRAGMA table_info(preview_events)").all().map(c => c.name);
+  if (!evCols.includes('device')) db.exec("ALTER TABLE preview_events ADD COLUMN device TEXT");
 
   // === Prospection téléphonique (onglet ☎️ Prospection) ===
   // calling_prospects : 1 ligne = 1 salon dans le pipeline d'appels (UNIQUE slug).
