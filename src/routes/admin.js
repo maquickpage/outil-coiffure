@@ -141,7 +141,10 @@ const SUIVI_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headle
 // (23 events sur 14 salons au 2026-08-15), et un salon paraissait « tiède »
 // alors que personne ne l'avait ouvert. On les reconnaît donc à leur plage IP.
 // Plages : Google (Gmail, Googlebot) et Microsoft (Exchange Online / SafeLinks).
-const SUIVI_SCANNER_IP_RE = /^(2607:f8b0:|2a00:1450:|66\.249\.|64\.233\.|209\.85\.|40\.9[2-9]\.|104\.47\.|52\.10[0-9]\.)/i;
+// Google sert ces aperçus depuis BEAUCOUP de plages (142.250, 74.125, 172.217…),
+// pas seulement celles de Googlebot : lister largement, sinon un partage de lien
+// dans une messagerie ressort comme « visiteur externe » (vu sur Verdun).
+const SUIVI_SCANNER_IP_RE = /^(2607:f8b0:|2a00:1450:|2a00:1288:|66\.249\.|64\.233\.|209\.85\.|142\.250\.|74\.125\.|172\.217\.|216\.58\.|108\.177\.|173\.194\.|40\.9[2-9]\.|104\.47\.|52\.10[0-9]\.|69\.63\.|69\.171\.|31\.13\.|157\.240\.)/i;
 
 const SUIVI_STAGE = { preview_ouvert: 1, template_essaye: 2, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
 const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
