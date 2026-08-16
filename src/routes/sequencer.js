@@ -256,7 +256,7 @@ router.post('/api/sequencer/suppression', async (req, res) => {
     for (const e of liste) req2.run(e);
   });
   memoriser(emails);
-  const out = await callNodes(targets, { action: 'addSuppression', emails });
+  const out = await callNodes(targets, { action: 'addSuppression', emails, reason: 'suppression_manuelle' });
   invaliderDashboard();
   res.json({ results: out, memorises: emails.length });
 });

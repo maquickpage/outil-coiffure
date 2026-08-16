@@ -66,7 +66,9 @@ async function applyUnsubscribe(email, source) {
   try {
     const nodes = listNodes(true);
     if (nodes.length) {
-      await callNodes(nodes, { action: 'addSuppression', emails: [email] });
+      // reason: le noeud marque le lead `unsubscribed` (vraie desinscription) au lieu de
+      // `stopped` ; un noeud ancien ignore le champ et stoppe comme avant.
+      await callNodes(nodes, { action: 'addSuppression', emails: [email], reason: 'one-click' });
       invaliderDashboard(); // le dashboard en cache ne reflète plus la file
     }
   } catch (e) {
