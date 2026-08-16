@@ -316,6 +316,19 @@ router.get('/api/sequencer/suppression', async (req, res) => {
   });
 });
 
+// Qui s'est désinscrit, quand, et par quel chemin. Sur les nœuds, un lead passe à
+// `stopped` aussi bien pour une vraie désinscription que pour une suppression poussée par
+// nous ; seule la table centrale garde l'origine (`source` = one-click | suppression_manuelle).
+// Lecture pure : aucun appel aux nœuds, aucune écriture.
+router.get('/api/sequencer/unsubscribes', (req, res) => {
+  const rows = db.prepare(
+    'SELECT email, source, created_at FROM sequencer_unsubscribes ORDER BY created_at DESC'
+  ).all();
+  const par_source = {};
+  for (const r of rows) par_source[r.source || 'inconnue'] = (par_source[r.source || 'inconnue'] || 0) + 1;
+  res.json({ rows, total: rows.length, par_source });
+});
+
 router.post('/api/sequencer/suppression/remove', async (req, res) => {
   const emails = (req.body.emails || []).map(normaliserEmail).filter(e => e.includes('@'));
   if (!emails.length) return res.status(400).json({ error: 'aucun email valide' });
