@@ -145,6 +145,16 @@
       <textarea id="suppText" placeholder="email1@exemple.fr&#10;email2@exemple.fr" style="min-height:60px"></textarea>
       <div class="row" style="margin-top:10px"><button class="btn danger" onclick="pushSuppression()" id="t-supp-btn"></button></div>
     </div>
+    <div class="card">
+      <h3 style="margin-top:0" id="t-unsub-title"></h3>
+      <p class="muted" id="t-unsub-help"></p>
+      <p id="unsubCounts" class="muted"></p>
+      <div class="scroll"><table id="unsubTbl"><thead><tr>
+        <th id="th-unsub-email"></th><th id="th-unsub-source"></th><th id="th-unsub-date"></th>
+      </tr></thead><tbody></tbody></table></div>
+      <p class="muted" id="unsubEmpty"></p>
+      <p class="muted" id="unsubRecon"></p>
+    </div>
   </section>
 
   <!-- IMPORT -->
@@ -233,6 +243,14 @@ var T = {
     supp_title: "Suppression (tous les nœuds)",
     supp_help: "Un email par ligne. Poussé sur la liste de suppression de chaque nœud actif ; les leads queued/active correspondants sont stoppés.",
     supp_btn: "Pousser la suppression", supp_none: "Aucun email",
+    unsub_title: "Désinscriptions (liste centrale)",
+    unsub_help: "Qui s'est désinscrit, quand, et par quel chemin. « désinscrit » = le destinataire a cliqué ; « ajouté par nous » = suppression poussée depuis ce portail. Sur les nœuds les deux apparaissent en stopped.",
+    unsub_counts: "{total} adresse(s) — {oc} désinscrit(s), {sm} ajoutée(s) par nous",
+    unsub_src_oneclick: "désinscrit", unsub_src_manual: "ajouté par nous",
+    th_unsub_email: "Email", th_unsub_source: "Origine", th_unsub_date: "Date (UTC)",
+    unsub_empty: "Aucune désinscription enregistrée.",
+    unsub_recon: "Réconciliation : {n} adresse(s) présente(s) sur un nœud mais absente(s) de la liste centrale (entrées d'avant la table, ou écrites à la main dans le Sheet).",
+    unsub_recon_none: "Réconciliation : chaque adresse présente sur un nœud figure dans la liste centrale.",
     import_title: "Import de leads (CSV)",
     import_help: "Colonnes requises : email, salon_slug. Optionnelles : first_name, salon_name, city, preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide, déjà importé, sur suppression) rejette le fichier ENTIER du nœud concerné, sans écriture.",
     import_dest: "Destination", import_rr: "Répartir sur tous les nœuds actifs (round-robin)",
@@ -298,6 +316,14 @@ var T = {
     supp_title: "Suppression (all nodes)",
     supp_help: "One email per line. Pushed to every active node's suppression list; matching queued/active leads are stopped.",
     supp_btn: "Push suppression", supp_none: "No emails",
+    unsub_title: "Unsubscribes (central list)",
+    unsub_help: "Who opted out, when, and through which channel. \"unsubscribed\" = the recipient clicked; \"added by us\" = suppression pushed from this portal. On the nodes both show as stopped.",
+    unsub_counts: "{total} address(es) — {oc} unsubscribed, {sm} added by us",
+    unsub_src_oneclick: "unsubscribed", unsub_src_manual: "added by us",
+    th_unsub_email: "Email", th_unsub_source: "Source", th_unsub_date: "Date (UTC)",
+    unsub_empty: "No unsubscribe recorded.",
+    unsub_recon: "Reconciliation: {n} address(es) present on a node but missing from the central list (pre-table entries, or hand-written in the Sheet).",
+    unsub_recon_none: "Reconciliation: every address present on a node is in the central list.",
     import_title: "Import leads (CSV)",
     import_help: "Required columns: email, salon_slug. Optional: first_name, salon_name, city, preview_url, preview_image_url, admin_url. Any dirty row (blank/duplicate email, blank salon_slug, already imported, suppressed) rejects that node's WHOLE file with no writes.",
     import_dest: "Destination", import_rr: "Split across all active nodes (round-robin)",
@@ -363,6 +389,14 @@ var T = {
     supp_title: "屏蔽名单（全部节点）",
     supp_help: "每行一个邮箱。推送到每个启用节点的屏蔽名单；匹配的 queued/active 线索会被停止。",
     supp_btn: "推送屏蔽名单", supp_none: "没有邮箱",
+    unsub_title: "退订记录（中央名单）",
+    unsub_help: "谁退订了、何时、通过哪条路径。「已退订」= 收件人自己点击；「我方添加」= 从本后台推送的屏蔽。在节点上两者都显示为 stopped。",
+    unsub_counts: "{total} 个地址 — {oc} 个已退订，{sm} 个我方添加",
+    unsub_src_oneclick: "已退订", unsub_src_manual: "我方添加",
+    th_unsub_email: "邮箱", th_unsub_source: "来源", th_unsub_date: "日期（UTC）",
+    unsub_empty: "暂无退订记录。",
+    unsub_recon: "对账：{n} 个地址存在于某节点但不在中央名单中（建表前的条目，或手写进 Sheet 的）。",
+    unsub_recon_none: "对账：节点上的每个地址都在中央名单中。",
     import_title: "导入线索（CSV）",
     import_help: "必需列：email、salon_slug。可选列：first_name、salon_name、city、preview_url、preview_image_url、admin_url。任何脏行（邮箱为空/重复、salon_slug 为空、已导入、在屏蔽名单）都会导致该节点整个文件被拒绝，不写入任何数据。",
     import_dest: "目标", import_rr: "在所有启用节点间轮流分配（round-robin）",
@@ -434,6 +468,8 @@ function applyStatic(){
     'th-salon':'th_salon', 'th-leadmb':'th_leadmb', 'th-status':'th_status',
     'th-lastsend':'th_lastsend', 'th-nextsend':'th_nextsend', 'leadEmpty':'lead_empty',
     't-supp-title':'supp_title', 't-supp-help':'supp_help', 't-supp-btn':'supp_btn',
+    't-unsub-title':'unsub_title', 't-unsub-help':'unsub_help', 'th-unsub-email':'th_unsub_email',
+    'th-unsub-source':'th_unsub_source', 'th-unsub-date':'th_unsub_date', 'unsubEmpty':'unsub_empty',
     't-import-title':'import_title', 't-import-help':'import_help', 't-import-dest':'import_dest',
     't-import-file':'import_file', 'importBtn':'import_btn',
     't-steps-title':'steps_title', 't-steps-help':'steps_help', 'saveStepsBtn':'steps_save',
@@ -524,6 +560,7 @@ function retryDownNodes(){
 function load(silent, opts){
   if (!silent) setBusy(true);
   var qs = Object.keys(opts || {}).map(function(k){ return k + '=' + opts[k]; }).join('&');
+  loadUnsubscribes();
   return api('/overview' + (qs ? '?' + qs : '')).then(function(d){
     DATA = d;
     // finally : si render() casse, BUSY doit quand même retomber, sinon
@@ -882,6 +919,33 @@ function stopLead(nodeId, leadId){
     toast(r.ok ? t('lead_stopped') : (r.error || t('failed')), !r.ok); if (r.ok) load(); else setBusy(false);
   }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
 }
+// Lecture seule, indépendante de /overview (qui interroge les nœuds et peut prendre
+// une minute) : la table centrale répond tout de suite. La réconciliation réutilise
+// GET /suppression, qui elle interroge les nœuds — chargée à part, sans bloquer le tableau.
+function loadUnsubscribes(){
+  api('/unsubscribes').then(function(r){
+    var rows = r.rows || [];
+    var ps = r.par_source || {};
+    document.getElementById('unsubCounts').textContent = t('unsub_counts', {
+      total: r.total || 0, oc: ps['one-click'] || 0, sm: ps['suppression_manuelle'] || 0 });
+    document.querySelector('#unsubTbl tbody').innerHTML = rows.map(function(u){
+      var src = u.source === 'one-click' ? t('unsub_src_oneclick')
+              : u.source === 'suppression_manuelle' ? t('unsub_src_manual') : esc(u.source || '?');
+      var cls = u.source === 'one-click' ? 'b-unsubscribed' : 'b-stopped';
+      return '<tr><td>'+esc(u.email)+'</td><td><span class="badge '+cls+'">'+src+'</span></td><td>'+esc(u.created_at)+'</td></tr>';
+    }).join('');
+    document.getElementById('unsubEmpty').style.display = rows.length ? 'none' : 'block';
+  }).catch(function(){ /* silencieux : la carte reste vide, /overview n'est pas affecté */ });
+}
+// Interroge les 4 nœuds : une fois au chargement, pas à chaque rafraîchissement.
+function loadUnsubRecon(){
+  api('/suppression').then(function(r){
+    var n = r && typeof r.absentes_de_la_liste_centrale === 'number' ? r.absentes_de_la_liste_centrale : null;
+    document.getElementById('unsubRecon').textContent =
+      n === null ? '' : (n ? t('unsub_recon', { n: n }) : t('unsub_recon_none'));
+  }).catch(function(){ document.getElementById('unsubRecon').textContent = ''; });
+}
+
 function pushSuppression(){
   if (BUSY) return;
   var emails = document.getElementById('suppText').value.split(/[\n,;]+/).map(function(s){ return s.trim(); }).filter(Boolean);
@@ -899,6 +963,7 @@ function pushSuppression(){
 
 applyStatic();
 load();
+loadUnsubRecon();
 setInterval(function(){
   if (BUSY || anyDirty() || document.hidden) return;
   var a = document.activeElement;
