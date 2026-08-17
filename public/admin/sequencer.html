@@ -63,6 +63,24 @@
   .b-ouverture_non_confirmee { color:var(--amber); border-color:#f3dcb3; }
   .b-pas_de_trace { color:var(--muted); }
   .b-slug_incoherent { color:var(--red); border-color:#f3c6c6; }
+  /* Tiroir timeline : une ligne de détail sous la ligne du lead */
+  tr.lead-row { cursor:pointer; }
+  tr.lead-row:hover td { background:#fafbfc; }
+  tr.lead-row.open td { background:#f3f5f8; }
+  td.tgl { width:18px; color:var(--muted); font-size:11px; }
+  tr.tl-row td { background:#f7f8fa; padding:12px 14px 14px 30px; border-bottom:2px solid var(--line); }
+  .tl-head { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-bottom:8px; font-size:12px; color:var(--muted); }
+  .tl-head a { color:var(--accent); text-decoration:none; }
+  .tl { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:auto auto 1fr; gap:3px 12px; font-size:13px; align-items:baseline; }
+  .tl .when { color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tl .off  { color:var(--muted); font-size:11px; white-space:nowrap; }
+  .tl .what { }
+  .tl .what.envoi { font-weight:600; }
+  .tl .what.desinscription { color:var(--red); }
+  .tl .what.reponse { color:var(--green); }
+  .tl .approx { color:var(--muted); font-size:11px; }
+  .res-tabs { display:flex; gap:6px; margin:6px 0 10px; }
+  .res-tabs .chip.on { background:var(--ink); color:#fff; }
   .b-active{color:var(--accent);border-color:#c7d7fb}.b-queued{color:var(--muted)}.b-replied{color:var(--green);border-color:#bfe6c9}
   .b-stopped,.b-failed,.b-unsubscribed{color:var(--red);border-color:#f3c6c6}.b-completed{color:#111;background:#eef1f4}
   .b-ok{color:var(--green);border-color:#bfe6c9}.b-down{color:var(--red);border-color:#f3c6c6}.b-pending{color:var(--amber);border-color:#f5deb8}
@@ -161,7 +179,7 @@
         <span class="muted" id="leadCount"></span>
       </div>
       <table id="leadTbl"><thead><tr>
-        <th>#</th>
+        <th></th><th>#</th>
         <th id="th-salon"></th>
         <th id="th-leadmb"></th>
         <th id="th-step" class="sortable" onclick="setSort('step')"></th>
@@ -179,17 +197,16 @@
       <div class="row" style="margin-top:10px"><button class="btn danger" onclick="pushSuppression()" id="t-supp-btn"></button></div>
     </div>
     <div class="card">
-      <h3 style="margin-top:0" id="t-unsub-title"></h3>
-      <p class="muted" id="t-unsub-help"></p>
-      <p id="unsubCounts" class="muted"></p>
-      <p id="unsubVerdicts" class="muted"></p>
-      <p id="unsubVerdictHelp" class="muted" style="font-size:12px"></p>
-      <div class="scroll"><table id="unsubTbl"><thead><tr>
-        <th id="th-unsub-email"></th><th id="th-unsub-source"></th><th id="th-unsub-date"></th>
-        <th id="th-unsub-activite"></th><th id="th-unsub-etat"></th>
+      <h3 style="margin-top:0" id="t-res-title"></h3>
+      <p class="muted" id="t-res-help"></p>
+      <div class="res-tabs" id="resTabs"></div>
+      <p id="resCounts" class="muted"></p>
+      <div class="scroll"><table id="resTbl"><thead><tr>
+        <th></th><th id="th-res-salon"></th><th id="th-res-date"></th><th id="th-res-source"></th><th id="th-res-activite"></th><th id="th-res-etat"></th>
       </tr></thead><tbody></tbody></table></div>
-      <p class="muted" id="unsubEmpty"></p>
+      <p class="muted" id="resEmpty"></p>
       <p class="muted" id="unsubRecon"></p>
+      <p id="unsubVerdictHelp" class="muted" style="font-size:12px"></p>
     </div>
   </section>
 
@@ -271,20 +288,12 @@ var T = {
     mb_today: "Nœuds / boîtes aujourd'hui",
     th_mb: "Boîte", th_nodestate: "État nœud", th_campaign: "Campagne", th_sentcap: "Envoyés / plafond",
     th_window: "Fenêtre", th_days: "Jours", th_salon: "Salon", th_leadmb: "Boîte (nœud)", th_status: "Statut",
-    th_lastsend: "Dernier envoi", th_nextsend: "Prochain envoi",
     badge_ok: "ok", badge_down: "injoignable", badge_on: "actif", badge_off: "inactif",
-    btn_pause: "⏸ pause", btn_start: "▶ start",
-    all_statuses: "Tous statuts", lead_count: "{shown} affiché(s) / {total} au total",
+    btn_pause: "⏸ pause", btn_start: "▶ start", lead_count: "{shown} affiché(s) / {total} au total",
     lead_empty: "Aucun lead. Importer un CSV.",
     supp_title: "Suppression (tous les nœuds)",
     supp_help: "Un email par ligne. Poussé sur la liste de suppression de chaque nœud actif ; les leads queued/active correspondants sont stoppés.",
     supp_btn: "Pousser la suppression", supp_none: "Aucun email",
-    unsub_title: "Désinscriptions (liste centrale)",
-    unsub_help: "Qui s'est désinscrit, quand, et par quel chemin. « désinscrit » = le destinataire a cliqué ; « ajouté par nous » = suppression poussée depuis ce portail. Sur les nœuds les deux apparaissent en stopped.",
-    unsub_counts: "{total} adresse(s) — {oc} désinscrit(s), {sm} ajoutée(s) par nous",
-    unsub_src_oneclick: "désinscrit", unsub_src_manual: "ajouté par nous",
-    th_unsub_email: "Email", th_unsub_source: "Origine", th_unsub_date: "Date (Paris)",
-    unsub_empty: "Aucune désinscription enregistrée.",
     unsub_recon: "Réconciliation : {n} adresse(s) présente(s) sur un nœud mais absente(s) de la liste centrale (entrées d'avant la table, ou écrites à la main dans le Sheet).",
     unsub_recon_none: "Réconciliation : chaque adresse présente sur un nœud figure dans la liste centrale.",
     /* --- tracking P1 : chips, entonnoir, colonnes --- */
@@ -297,16 +306,25 @@ var T = {
     etat_activite_humaine: "activité humaine", etat_ouverture_non_confirmee: "ouverture non confirmée", etat_pas_de_trace: "sans trace", etat_slug_incoherent: "slug incohérent",
     th_step: "Étape", th_envoye: "Envoyé", th_activite: "Activité", th_issue: "Issue",
     box_all: "toutes les boîtes", search_ph: "salon, email…",
-    act_open: "ouverture(s) de la maquette", act_prix: "prix vu", act_scroll: "a scrollé jusqu'en bas", act_edit: "a édité son site", act_mobile: "sur mobile", act_desktop: "sur ordinateur", act_last: "dernier passage", act_first_delay: "premier passage {m} min après l'envoi",
+    act_open: "ouverture(s) de la maquette", act_prix: "prix vu", act_scroll: "a scrollé jusqu'en bas", act_edit: "a édité son site", act_mobile: "sur mobile", act_desktop: "sur ordinateur", act_first_delay: "premier passage {m} min après l'envoi",
     act_none: "—", slug_partage: "slug partagé ({n} contacts)", hors_portail_row: "importé hors portail",
     rel_now: "à l'instant", rel_min: "il y a {n} min", rel_h: "il y a {n} h", rel_d: "il y a {n} j", rel_never: "jamais", next_send: "prochain envoi",
     sort_hint: "cliquer pour trier",
-    th_unsub_activite: "Activité maquette", th_unsub_etat: "État",
-    unsub_act_none: "aucune trace",
-    unsub_act_fmt: "{o} ouverture(s){p}{s}{e} · {d} · {last}",
-    unsub_act_prix: " · prix vu", unsub_act_scroll: " · scroll", unsub_act_edit: " · édité",
-    unsub_dev_mobile: "mobile", unsub_dev_desktop: "ordinateur",
-    unsub_etats: "{h} avec activité humaine · {n} ouverture(s) non confirmée(s) · {p} sans trace",
+    /* --- tracking P2 : tiroir + résultats --- */
+    res_title: "Résultats", res_help: "Désinscrits (liste centrale), réponses (auto-réponses incluses) et silences (séquence terminée depuis 3 jours sans réponse ni trace). Cliquer une ligne pour le parcours.",
+    res_tab_desinscrits: "désinscrits", res_tab_repondus: "réponses", res_tab_silence: "silence",
+    th_res_date: "Date", th_res_source: "Canal", res_empty: "Rien dans cet onglet.",
+    res_counts: "{n} ligne(s) · {h} avec activité humaine · {p} sans trace",
+    tl_open: "voir le parcours", tl_close: "replier", tl_loading: "chargement…", tl_err: "parcours indisponible : {e}",
+    tl_hdr_slug_partage: "activité du salon (partagée entre {n} contacts)",
+    tl_hdr_ignores: "{n} événement(s) avant l'envoi ignoré(s)",
+    tl_hdr_maquette: "ouvrir la maquette ↗", tl_hdr_photos: "page Photos ↗", tl_hdr_next: "prochain envoi {d}", tl_hdr_err: "erreur : {e}",
+    tl_none: "aucun événement après l'envoi",
+    tl_envoi: "email envoyé (étape {s})", tl_envoi_first: "premier email envoyé",
+    tl_ev_preview_ouvert: "maquette ouverte", tl_ev_paywall_peek_viewed: "prix vu", tl_ev_pricing_ouvert: "page tarifs ouverte", tl_ev_scroll_max: "a scrollé jusqu'en bas", tl_ev_editeur_ouvert: "éditeur ouvert", tl_ev_editeur_modifie: "site édité",
+    tl_desinscription: "désinscription ({src})", tl_reponse: "réponse détectée", tl_arret: "arrêt (suppression / stop)", tl_approx: "≈ heure de la dernière écriture, le nœud n'horodate pas cet événement",
+    tl_off: "+{m} min", tl_off_h: "+{h} h {m} min", tl_off_d: "+{d} j {h} h", tl_off_before: "avant l'envoi",
+    src_oneclick: "un clic", src_manual: "ajouté par nous", src_link: "lien", th_unsub_etat: "État",
     unsub_verdict_help: "« activité humaine » = prix vu, scroll ou édition, ou au moins deux passages après l'envoi. « ouverture non confirmée » = une seule ouverture nue (les scanners de messagerie ouvrent les liens avec un navigateur ordinaire). « sans trace » ne veut PAS dire robot : inconnu.",
     import_title: "Import de leads (CSV)",
     import_help: "Colonnes requises : email, salon_slug. Optionnelles : first_name, salon_name, city, preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide, déjà importé, sur suppression) rejette le fichier ENTIER du nœud concerné, sans écriture.",
@@ -350,9 +368,7 @@ var T = {
     campaign_set: "Campagne {st} sur tous les nœuds", node_set: "Nœud → {st}",
     fail_on: "Échec sur : ", lead_stopped: "Lead stoppé",
     stop_confirm: "Stopper ce lead ? Il ne recevra plus aucun envoi.",
-    err: "Erreur : ", load_fail: "Chargement échoué : ", failed: "Échec",
-    stat_total: "Total", stat_queued: "En file", stat_active: "Actifs", stat_replied: "Répondu",
-    stat_stopped: "Stoppés", stat_failed: "Échecs", stat_completed: "Terminés",
+    err: "Erreur : ", load_fail: "Chargement échoué : ", failed: "Échec", stat_queued: "En file", stat_active: "Actifs", stat_failed: "Échecs", stat_completed: "Terminés",
     stopped_n: "stoppé(s)"
   },
   en: {
@@ -365,20 +381,12 @@ var T = {
     mb_today: "Nodes / mailboxes today",
     th_mb: "Mailbox", th_nodestate: "Node state", th_campaign: "Campaign", th_sentcap: "Sent / cap",
     th_window: "Window", th_days: "Days", th_salon: "Salon", th_leadmb: "Mailbox (node)", th_status: "Status",
-    th_lastsend: "Last sent", th_nextsend: "Next send",
     badge_ok: "ok", badge_down: "unreachable", badge_on: "on", badge_off: "off",
-    btn_pause: "⏸ pause", btn_start: "▶ start",
-    all_statuses: "All statuses", lead_count: "{shown} shown / {total} total",
+    btn_pause: "⏸ pause", btn_start: "▶ start", lead_count: "{shown} shown / {total} total",
     lead_empty: "No leads. Import a CSV.",
     supp_title: "Suppression (all nodes)",
     supp_help: "One email per line. Pushed to every active node's suppression list; matching queued/active leads are stopped.",
     supp_btn: "Push suppression", supp_none: "No emails",
-    unsub_title: "Unsubscribes (central list)",
-    unsub_help: "Who opted out, when, and through which channel. \"unsubscribed\" = the recipient clicked; \"added by us\" = suppression pushed from this portal. On the nodes both show as stopped.",
-    unsub_counts: "{total} address(es) — {oc} unsubscribed, {sm} added by us",
-    unsub_src_oneclick: "unsubscribed", unsub_src_manual: "added by us",
-    th_unsub_email: "Email", th_unsub_source: "Source", th_unsub_date: "Date (Paris)",
-    unsub_empty: "No unsubscribe recorded.",
     unsub_recon: "Reconciliation: {n} address(es) present on a node but missing from the central list (pre-table entries, or hand-written in the Sheet).",
     unsub_recon_none: "Reconciliation: every address present on a node is in the central list.",
     /* --- tracking P1 : chips, funnel, columns --- */
@@ -391,16 +399,25 @@ var T = {
     etat_activite_humaine: "human activity", etat_ouverture_non_confirmee: "unconfirmed open", etat_pas_de_trace: "no trace", etat_slug_incoherent: "inconsistent slug",
     th_step: "Step", th_envoye: "Sent", th_activite: "Activity", th_issue: "Outcome",
     box_all: "all mailboxes", search_ph: "salon, email…",
-    act_open: "preview open(s)", act_prix: "price seen", act_scroll: "scrolled to the bottom", act_edit: "edited their site", act_mobile: "on mobile", act_desktop: "on desktop", act_last: "last visit", act_first_delay: "first visit {m} min after the send",
+    act_open: "preview open(s)", act_prix: "price seen", act_scroll: "scrolled to the bottom", act_edit: "edited their site", act_mobile: "on mobile", act_desktop: "on desktop", act_first_delay: "first visit {m} min after the send",
     act_none: "—", slug_partage: "shared slug ({n} contacts)", hors_portail_row: "imported outside the portal",
     rel_now: "just now", rel_min: "{n} min ago", rel_h: "{n} h ago", rel_d: "{n} d ago", rel_never: "never", next_send: "next send",
     sort_hint: "click to sort",
-    th_unsub_activite: "Preview activity", th_unsub_etat: "State",
-    unsub_act_none: "no trace",
-    unsub_act_fmt: "{o} open(s){p}{s}{e} · {d} · {last}",
-    unsub_act_prix: " · price seen", unsub_act_scroll: " · scrolled", unsub_act_edit: " · edited",
-    unsub_dev_mobile: "mobile", unsub_dev_desktop: "desktop",
-    unsub_etats: "{h} with human activity · {n} unconfirmed open(s) · {p} no trace",
+    /* --- tracking P2 : drawer + results --- */
+    res_title: "Outcomes", res_help: "Unsubscribes (central list), replies (auto-replies included) and silences (sequence finished 3+ days ago with no reply and no trace). Click a row for the journey.",
+    res_tab_desinscrits: "unsubscribed", res_tab_repondus: "replies", res_tab_silence: "silence",
+    th_res_date: "Date", th_res_source: "Channel", res_empty: "Nothing in this tab.",
+    res_counts: "{n} row(s) · {h} with human activity · {p} no trace",
+    tl_open: "show journey", tl_close: "collapse", tl_loading: "loading…", tl_err: "journey unavailable: {e}",
+    tl_hdr_slug_partage: "salon activity (shared across {n} contacts)",
+    tl_hdr_ignores: "{n} event(s) before the send ignored",
+    tl_hdr_maquette: "open preview ↗", tl_hdr_photos: "Photos page ↗", tl_hdr_next: "next send {d}", tl_hdr_err: "error: {e}",
+    tl_none: "no event after the send",
+    tl_envoi: "email sent (step {s})", tl_envoi_first: "first email sent",
+    tl_ev_preview_ouvert: "preview opened", tl_ev_paywall_peek_viewed: "price seen", tl_ev_pricing_ouvert: "pricing page opened", tl_ev_scroll_max: "scrolled to the bottom", tl_ev_editeur_ouvert: "editor opened", tl_ev_editeur_modifie: "site edited",
+    tl_desinscription: "unsubscribed ({src})", tl_reponse: "reply detected", tl_arret: "stopped (suppression / stop)", tl_approx: "≈ time of the last write, the node does not timestamp this event",
+    tl_off: "+{m} min", tl_off_h: "+{h} h {m} min", tl_off_d: "+{d} d {h} h", tl_off_before: "before the send",
+    src_oneclick: "one click", src_manual: "added by us", src_link: "link", th_unsub_etat: "State",
     unsub_verdict_help: "\"human activity\" = price seen, scroll or edit, or at least two visits after the send. \"unconfirmed open\" = a single bare open (mail scanners fetch links with an ordinary browser). \"no trace\" does NOT mean bot: unknown.",
     import_title: "Import leads (CSV)",
     import_help: "Required columns: email, salon_slug. Optional: first_name, salon_name, city, preview_url, preview_image_url, admin_url. Any dirty row (blank/duplicate email, blank salon_slug, already imported, suppressed) rejects that node's WHOLE file with no writes.",
@@ -444,9 +461,7 @@ var T = {
     campaign_set: "Campaign {st} on all nodes", node_set: "Node → {st}",
     fail_on: "Failed on: ", lead_stopped: "Lead stopped",
     stop_confirm: "Stop this lead? It will never be emailed again.",
-    err: "Error: ", load_fail: "Load failed: ", failed: "Failed",
-    stat_total: "Total", stat_queued: "Queued", stat_active: "Active", stat_replied: "Replied",
-    stat_stopped: "Stopped", stat_failed: "Failed", stat_completed: "Completed",
+    err: "Error: ", load_fail: "Load failed: ", failed: "Failed", stat_queued: "Queued", stat_active: "Active", stat_failed: "Failed", stat_completed: "Completed",
     stopped_n: "stopped"
   },
   zh: {
@@ -459,20 +474,12 @@ var T = {
     mb_today: "今日节点 / 邮箱",
     th_mb: "邮箱", th_nodestate: "节点状态", th_campaign: "campaign", th_sentcap: "已发 / 上限",
     th_window: "时间窗", th_days: "星期", th_salon: "沙龙", th_leadmb: "邮箱（节点）", th_status: "状态",
-    th_lastsend: "上次发送", th_nextsend: "下次发送",
     badge_ok: "正常", badge_down: "不可达", badge_on: "启用", badge_off: "停用",
-    btn_pause: "⏸ 暂停", btn_start: "▶ 启动",
-    all_statuses: "全部状态", lead_count: "显示 {shown} / 共 {total}",
+    btn_pause: "⏸ 暂停", btn_start: "▶ 启动", lead_count: "显示 {shown} / 共 {total}",
     lead_empty: "暂无线索。请导入 CSV。",
     supp_title: "屏蔽名单（全部节点）",
     supp_help: "每行一个邮箱。推送到每个启用节点的屏蔽名单；匹配的 queued/active 线索会被停止。",
     supp_btn: "推送屏蔽名单", supp_none: "没有邮箱",
-    unsub_title: "退订记录（中央名单）",
-    unsub_help: "谁退订了、何时、通过哪条路径。「已退订」= 收件人自己点击；「我方添加」= 从本后台推送的屏蔽。在节点上两者都显示为 stopped。",
-    unsub_counts: "{total} 个地址 — {oc} 个已退订，{sm} 个我方添加",
-    unsub_src_oneclick: "已退订", unsub_src_manual: "我方添加",
-    th_unsub_email: "邮箱", th_unsub_source: "来源", th_unsub_date: "日期（巴黎）",
-    unsub_empty: "暂无退订记录。",
     unsub_recon: "对账：{n} 个地址存在于某节点但不在中央名单中（建表前的条目，或手写进 Sheet 的）。",
     unsub_recon_none: "对账：节点上的每个地址都在中央名单中。",
     /* --- tracking P1 : 筛选片、漏斗、列 --- */
@@ -485,16 +492,25 @@ var T = {
     etat_activite_humaine: "真人活动", etat_ouverture_non_confirmee: "未确认打开", etat_pas_de_trace: "无痕迹", etat_slug_incoherent: "slug 不一致",
     th_step: "步骤", th_envoye: "已发送", th_activite: "活动", th_issue: "结果",
     box_all: "全部邮箱", search_ph: "沙龙、邮箱…",
-    act_open: "打开 maquette 次数", act_prix: "看过价格", act_scroll: "滚动到底部", act_edit: "编辑过站点", act_mobile: "手机", act_desktop: "电脑", act_last: "最近访问", act_first_delay: "发送后 {m} 分钟首次访问",
+    act_open: "打开 maquette 次数", act_prix: "看过价格", act_scroll: "滚动到底部", act_edit: "编辑过站点", act_mobile: "手机", act_desktop: "电脑", act_first_delay: "发送后 {m} 分钟首次访问",
     act_none: "—", slug_partage: "共享 slug（{n} 个联系人）", hors_portail_row: "在后台之外导入",
     rel_now: "刚刚", rel_min: "{n} 分钟前", rel_h: "{n} 小时前", rel_d: "{n} 天前", rel_never: "从未", next_send: "下次发送",
     sort_hint: "点击排序",
-    th_unsub_activite: "maquette 活动", th_unsub_etat: "状态",
-    unsub_act_none: "无痕迹",
-    unsub_act_fmt: "{o} 次打开{p}{s}{e} · {d} · {last}",
-    unsub_act_prix: " · 看过价格", unsub_act_scroll: " · 滚动", unsub_act_edit: " · 编辑过",
-    unsub_dev_mobile: "手机", unsub_dev_desktop: "电脑",
-    unsub_etats: "{h} 个有真人活动 · {n} 个未确认打开 · {p} 个无痕迹",
+    /* --- tracking P2 : 抽屉 + 结果 --- */
+    res_title: "结果", res_help: "已退订（中央名单）、回复（含自动回复）和无回应（序列结束 3 天以上且无回复无痕迹）。点击一行查看轨迹。",
+    res_tab_desinscrits: "已退订", res_tab_repondus: "回复", res_tab_silence: "无回应",
+    th_res_date: "日期", th_res_source: "渠道", res_empty: "此标签下没有内容。",
+    res_counts: "{n} 行 · {h} 个有真人活动 · {p} 个无痕迹",
+    tl_open: "查看轨迹", tl_close: "收起", tl_loading: "加载中…", tl_err: "轨迹不可用：{e}",
+    tl_hdr_slug_partage: "沙龙活动（{n} 个联系人共享）",
+    tl_hdr_ignores: "已忽略发送前的 {n} 个事件",
+    tl_hdr_maquette: "打开 maquette ↗", tl_hdr_photos: "照片页面 ↗", tl_hdr_next: "下次发送 {d}", tl_hdr_err: "错误：{e}",
+    tl_none: "发送后没有事件",
+    tl_envoi: "邮件已发送（步骤 {s}）", tl_envoi_first: "首封邮件已发送",
+    tl_ev_preview_ouvert: "打开了 maquette", tl_ev_paywall_peek_viewed: "看过价格", tl_ev_pricing_ouvert: "打开了价格页", tl_ev_scroll_max: "滚动到底部", tl_ev_editeur_ouvert: "打开了编辑器", tl_ev_editeur_modifie: "编辑了站点",
+    tl_desinscription: "退订（{src}）", tl_reponse: "检测到回复", tl_arret: "已停止（屏蔽／手动）", tl_approx: "≈ 最后一次写入时间，节点不记录此事件的时间戳",
+    tl_off: "+{m} 分钟", tl_off_h: "+{h} 小时 {m} 分钟", tl_off_d: "+{d} 天 {h} 小时", tl_off_before: "发送之前",
+    src_oneclick: "一键", src_manual: "我方添加", src_link: "链接", th_unsub_etat: "状态",
     unsub_verdict_help: "「真人活动」= 看过价格、滚动或编辑，或发送后至少两次访问。「未确认打开」= 仅一次裸打开（邮件扫描器会用普通浏览器打开链接）。「无痕迹」不等于机器人：未知。",
     import_title: "导入线索（CSV）",
     import_help: "必需列：email、salon_slug。可选列：first_name、salon_name、city、preview_url、preview_image_url、admin_url。任何脏行（邮箱为空/重复、salon_slug 为空、已导入、在屏蔽名单）都会导致该节点整个文件被拒绝，不写入任何数据。",
@@ -538,9 +554,7 @@ var T = {
     campaign_set: "全部节点 campaign 已设为 {st}", node_set: "节点 → {st}",
     fail_on: "失败节点：", lead_stopped: "线索已停止",
     stop_confirm: "停止该线索？之后不会再向其发送任何邮件。",
-    err: "错误：", load_fail: "加载失败：", failed: "失败",
-    stat_total: "总数", stat_queued: "排队", stat_active: "进行中", stat_replied: "已回复",
-    stat_stopped: "已停止", stat_failed: "失败", stat_completed: "已完成",
+    err: "错误：", load_fail: "加载失败：", failed: "失败", stat_queued: "排队", stat_active: "进行中", stat_failed: "失败", stat_completed: "已完成",
     stopped_n: "已停止"
   }
 };
@@ -567,10 +581,9 @@ function applyStatic(){
     'th-salon':'th_salon', 'th-leadmb':'th_leadmb', 'th-status':'th_status',
     'th-step':'th_step', 'th-envoye':'th_envoye', 'th-activite':'th_activite', 'th-issue':'th_issue', 'leadEmpty':'lead_empty',
     't-supp-title':'supp_title', 't-supp-help':'supp_help', 't-supp-btn':'supp_btn',
-    't-unsub-title':'unsub_title', 't-unsub-help':'unsub_help', 'th-unsub-email':'th_unsub_email',
-    'th-unsub-activite':'th_unsub_activite', 'th-unsub-etat':'th_unsub_etat',
+    't-res-title':'res_title', 't-res-help':'res_help', 'th-res-salon':'th_salon', 'th-res-date':'th_res_date',
+    'th-res-source':'th_res_source', 'th-res-activite':'th_activite', 'th-res-etat':'th_unsub_etat', 'resEmpty':'res_empty',
     'unsubVerdictHelp':'unsub_verdict_help',
-    'th-unsub-source':'th_unsub_source', 'th-unsub-date':'th_unsub_date', 'unsubEmpty':'unsub_empty',
     't-import-title':'import_title', 't-import-help':'import_help', 't-import-dest':'import_dest',
     't-import-file':'import_file', 'importBtn':'import_btn',
     't-steps-title':'steps_title', 't-steps-help':'steps_help', 'saveStepsBtn':'steps_save',
@@ -584,7 +597,7 @@ function applyStatic(){
   for (var id in map) { var el = document.getElementById(id); if (el) el.textContent = t(map[id]); }
   document.getElementById('csvText').placeholder = t('import_paste');
   var ls = document.getElementById('leadSearch'); if (ls) ls.placeholder = t('search_ph');
-  if (DATA) { renderChips(); renderLeads(); }   // changement de langue : chips et colonnes se retraduisent
+  if (DATA) { renderChips(); renderLeads(); renderResultats(); }   // changement de langue : chips, colonnes, résultats se retraduisent
 }
 
 function tab(btn){
@@ -682,6 +695,7 @@ function render(){
   renderBanner();
   renderOverview();
   renderLeads();
+  renderResultats();
   renderImportTargets();
   renderSteps();
   renderMailboxes();
@@ -951,7 +965,10 @@ function renderLeads(){
     var etatChip = l.etat ? '<span class="badge b-'+esc(l.etat)+'">'+esc(t('etat_'+l.etat))+'</span>' : '';
     var flags = (l.slug_partage ? ' <span class="muted" title="'+esc(t('slug_partage', {n: 2}))+'">⧉</span>' : '')
               + (l.hors_portail ? ' <span class="muted" title="'+esc(t('hors_portail_row'))+'">⚠</span>' : '');
-    rows.push('<tr><td class="muted">'+it.rang+'</td>'
+    var key = String(l.email||'').toLowerCase();
+    var isOpen = OPEN_TL[key];
+    rows.push('<tr class="lead-row'+(isOpen?' open':'')+'" data-email="'+esc(key)+'" onclick="toggleTimeline(event, this)">'
+      +'<td class="tgl" title="'+esc(t(isOpen?'tl_close':'tl_open'))+'">'+(isOpen?'▾':'▸')+'</td><td class="muted">'+it.rang+'</td>'
       +'<td>'+esc(l.salon_name||'-')+flags+'<span class="sub">'+esc(l.email)+'</span></td>'
       +'<td>'+esc(String(l.mailbox||'').split('@')[0])+'</td>'
       +'<td>'+dots(Number(l.current_step)||0)+'</td>'
@@ -960,9 +977,12 @@ function renderLeads(){
       +'<td>'+actCell(l)+'</td>'
       +'<td><span class="badge b-'+esc(l.status)+'">'+esc(l.status)+'</span> '+etatChip
         +(l.last_error?' <span class="muted" title="'+esc(l.last_error)+'">!</span>':'')+'</td>'
-      +'<td>'+(canStop?'<button class="btn danger small" onclick="stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
+      +'<td>'+(canStop?'<button class="btn danger small" onclick="event.stopPropagation();stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
+    if (isOpen) rows.push('<tr class="tl-row" data-for="'+esc(key)+'"><td colspan="9">'+(TL_CACHE[key] ? renderTimeline(TL_CACHE[key]) : '<span class="muted">'+esc(t('tl_loading'))+'</span>')+'</td></tr>');
   });
   document.querySelector('#leadTbl tbody').innerHTML = rows.join('');
+  // les tiroirs ouverts sans données en cache se chargent après le rendu (à la demande, jamais inliné)
+  Object.keys(OPEN_TL).forEach(function(k){ if (OPEN_TL[k] && !TL_CACHE[k]) fetchTimeline(k); });
   document.getElementById('leadCount').textContent = t('lead_count', { shown: shown, total: total });
   document.getElementById('leadEmpty').style.display = total ? 'none' : 'block';
 }
@@ -1181,37 +1201,6 @@ function stopLead(nodeId, leadId){
 // Lecture seule, indépendante de /overview (qui interroge les nœuds et peut prendre
 // une minute) : la table centrale répond tout de suite. La réconciliation réutilise
 // GET /suppression, qui elle interroge les nœuds — chargée à part, sans bloquer le tableau.
-function loadUnsubscribes(){
-  api('/unsubscribes').then(function(r){
-    var rows = r.rows || [];
-    var ps = r.par_source || {};
-    document.getElementById('unsubCounts').textContent = t('unsub_counts', {
-      total: r.total || 0, oc: ps['one-click'] || 0, sm: ps['suppression_manuelle'] || 0 });
-    document.querySelector('#unsubTbl tbody').innerHTML = rows.map(function(u){
-      var src = u.source === 'one-click' ? t('unsub_src_oneclick')
-              : u.source === 'suppression_manuelle' ? t('unsub_src_manual') : esc(u.source || '?');
-      var cls = u.source === 'one-click' ? 'b-unsubscribed' : 'b-stopped';
-      var e = u.engagement;
-      var act = e ? t('unsub_act_fmt', {
-            o: e.ouvertures,
-            p: e.prix_vu ? t('unsub_act_prix') : '',
-            s: e.scrolls ? t('unsub_act_scroll') : '',
-            e: e.editions ? t('unsub_act_edit') : '',
-            d: e.appareil === 'mobile' ? t('unsub_dev_mobile') : t('unsub_dev_desktop'),
-            last: e.dernier })
-        : '<span class="muted">' + t('unsub_act_none') + '</span>';
-      var et = u.etat || 'pas_de_trace';
-      var vlabel = t('etat_' + et);
-      var vcls = 'b-' + et;
-      return '<tr><td>'+esc(u.email)+'</td><td><span class="badge '+cls+'">'+src+'</span></td><td>'+esc(u.date_paris||u.created_at)+'</td>'
-        +'<td>'+act+'</td><td><span class="badge '+vcls+'">'+vlabel+'</span></td></tr>';
-    }).join('');
-    var pv = r.par_etat || {};
-    document.getElementById('unsubVerdicts').textContent =
-      t('unsub_etats', { h: pv.activite_humaine || 0, n: pv.ouverture_non_confirmee || 0, p: pv.pas_de_trace || 0 });
-    document.getElementById('unsubEmpty').style.display = rows.length ? 'none' : 'block';
-  }).catch(function(){ /* silencieux : la carte reste vide, /overview n'est pas affecté */ });
-}
 // Interroge les 4 nœuds : une fois au chargement, pas à chaque rafraîchissement.
 function loadUnsubRecon(){
   api('/suppression').then(function(r){
@@ -1219,6 +1208,100 @@ function loadUnsubRecon(){
     document.getElementById('unsubRecon').textContent =
       n === null ? '' : (n ? t('unsub_recon', { n: n }) : t('unsub_recon_none'));
   }).catch(function(){ document.getElementById('unsubRecon').textContent = ''; });
+}
+
+// ---------- Tiroir : parcours d'un lead, à la demande ----------
+var OPEN_TL = {}, TL_CACHE = {};
+function toggleTimeline(ev, tr){
+  if (ev && ev.target && /^(BUTTON|A|INPUT|SELECT)$/.test(ev.target.tagName)) return;
+  var key = tr.getAttribute('data-email'); if (!key) return;
+  OPEN_TL[key] = !OPEN_TL[key];
+  renderLeads(); renderResultats();
+}
+function fetchTimeline(key){
+  api('/lead/' + encodeURIComponent(key) + '/timeline').then(function(tl){
+    TL_CACHE[key] = tl.error ? { error: tl.error } : tl;
+    paintTimeline(key);
+  }).catch(function(e){ TL_CACHE[key] = { error: e.message }; paintTimeline(key); });
+}
+function paintTimeline(key){
+  document.querySelectorAll('tr.tl-row[data-for="'+key+'"] td').forEach(function(td){ td.innerHTML = renderTimeline(TL_CACHE[key]); });
+}
+function offLabel(min){
+  if (min == null) return '';
+  if (min < 0) return t('tl_off_before');
+  if (min < 60) return t('tl_off', {m: min});
+  var h = Math.floor(min/60), m = min % 60;
+  if (h < 48) return t('tl_off_h', {h: h, m: m});
+  return t('tl_off_d', {d: Math.floor(h/24), h: h % 24});
+}
+function srcLabel(src){ return src === 'one-click' ? t('src_oneclick') : src === 'suppression_manuelle' ? t('src_manual') : src === 'link' ? t('src_link') : esc(src || '?'); }
+function renderTimeline(tl){
+  if (!tl) return '<span class="muted">'+esc(t('tl_loading'))+'</span>';
+  if (tl.error) return '<span class="muted">'+esc(t('tl_err', {e: tl.error}))+'</span>';
+  var head = [];
+  if (tl.liens && tl.liens.maquette) head.push('<a href="'+esc(tl.liens.maquette)+'" target="_blank" rel="noopener">'+esc(t('tl_hdr_maquette'))+'</a>');
+  head.push('<a href="/admin/photos.html" target="_blank" rel="noopener">'+esc(t('tl_hdr_photos'))+'</a>');
+  if (tl.slug_partage) head.push('<span class="chip static warn">'+esc(t('tl_hdr_slug_partage', {n: tl.contacts_sur_slug}))+'</span>');
+  if (tl.ignores_avant_envoi) head.push('<span>'+esc(t('tl_hdr_ignores', {n: tl.ignores_avant_envoi}))+'</span>');
+  if (tl.prochain_envoi) head.push('<span>'+esc(t('tl_hdr_next', {d: tl.prochain_envoi}))+'</span>');
+  if (tl.erreur) head.push('<span class="chip static err">'+esc(t('tl_hdr_err', {e: tl.erreur}))+'</span>');
+  var items = tl.items || [];
+  var lis = items.map(function(it){
+    var what = '';
+    if (it.type === 'envoi') what = it.step && it.step > 1 ? t('tl_envoi', {s: it.step}) : t('tl_envoi_first');
+    else if (it.type === 'maquette') what = t('tl_ev_' + it.event) + ' ' + (it.device === 'mobile' ? '📱' : '💻');
+    else if (it.type === 'desinscription') what = t('tl_desinscription', {src: srcLabel(it.source)});
+    else if (it.type === 'reponse') what = t('tl_reponse');
+    else if (it.type === 'arret') what = t('tl_arret');
+    var approx = it.approx ? ' <span class="approx" title="'+esc(t('tl_approx'))+'">≈</span>' : '';
+    return '<li class="when">'+esc(it.t_paris)+'</li><li class="off">'+esc(offLabel(it.offset_min))+'</li><li class="what '+esc(it.type)+'">'+esc(what)+approx+'</li>';
+  }).join('');
+  if (!items.length) lis = '<li></li><li></li><li class="muted">'+esc(t('tl_none'))+'</li>';
+  return '<div class="tl-head">'+head.join('<span class="arrow">·</span>')+'</div><ul class="tl">'+lis+'</ul>';
+}
+
+// ---------- Résultats : Désinscrits · Réponses · Silence, même ligne partout ----------
+var RES_TAB = 'desinscrits', UNSUB_ROWS = [];
+function setResTab(k){ RES_TAB = k; renderResultats(); }
+function loadUnsubscribes(){
+  api('/unsubscribes').then(function(r){ UNSUB_ROWS = r.rows || []; renderResultats(); })
+    .catch(function(){ /* silencieux : la carte reste vide, /overview n'est pas affecté */ });
+}
+function leadByEmail(){ var m = {}; okNodes().forEach(function(n){ (n.leads||[]).forEach(function(l){ m[String(l.email||'').toLowerCase()] = l; }); }); return m; }
+function renderResultats(){
+  var tabsEl = document.getElementById('resTabs'); if (!tabsEl) return;
+  var byE = leadByEmail();
+  var lists = {
+    desinscrits: UNSUB_ROWS.filter(function(u){ return !/example\.(test|fr)$|^baydeu/.test(u.email); }).map(function(u){
+      var l = byE[String(u.email).toLowerCase()] || {};
+      return { email: u.email, salon: l.salon_name || '', date: u.date_paris || u.created_at, source: u.source, act: l.activite || null, etat: u.etat || l.etat || 'pas_de_trace' }; }),
+    repondus: [], silence: []
+  };
+  Object.keys(byE).forEach(function(k){ var l = byE[k];
+    if (l.status === 'replied') lists.repondus.push({ email: l.email, salon: l.salon_name, date: l.last_activity_at || '', source: '', act: l.activite, etat: l.etat, approx: true });
+    if (l.issue === 'silence') lists.silence.push({ email: l.email, salon: l.salon_name, date: l.last_sent_at || '', source: '', act: l.activite, etat: l.etat });
+  });
+  tabsEl.innerHTML = ['desinscrits','repondus','silence'].map(function(k){
+    return '<span class="chip'+(RES_TAB===k?' on':'')+'" onclick="setResTab(\''+k+'\')"><b>'+lists[k].length+'</b> '+esc(t('res_tab_'+k))+'</span>'; }).join('');
+  var rows = lists[RES_TAB] || [];
+  var h = rows.filter(function(r){ return r.etat === 'activite_humaine'; }).length, p = rows.filter(function(r){ return r.etat === 'pas_de_trace'; }).length;
+  document.getElementById('resCounts').textContent = t('res_counts', {n: rows.length, h: h, p: p});
+  document.querySelector('#resTbl tbody').innerHTML = rows.map(function(r){
+    var key = String(r.email).toLowerCase(), isOpen = OPEN_TL[key];
+    var l = byE[key] || {};
+    var tr = '<tr class="lead-row'+(isOpen?' open':'')+'" data-email="'+esc(key)+'" onclick="toggleTimeline(event, this)">'
+      + '<td class="tgl">'+(isOpen?'▾':'▸')+'</td>'
+      + '<td>'+esc(r.salon||'-')+'<span class="sub">'+esc(r.email)+'</span></td>'
+      + '<td>'+esc(r.date)+(r.approx?' <span class="approx" title="'+esc(t('tl_approx'))+'">≈</span>':'')+'</td>'
+      + '<td>'+(r.source ? '<span class="badge '+(r.source==='one-click'?'b-unsubscribed':'b-stopped')+'">'+srcLabel(r.source)+'</span>' : '')+'</td>'
+      + '<td>'+actCell({ activite: r.act })+'</td>'
+      + '<td><span class="badge b-'+esc(r.etat)+'">'+esc(t('etat_'+r.etat))+'</span></td></tr>';
+    if (isOpen) tr += '<tr class="tl-row" data-for="'+esc(key)+'"><td colspan="6">'+(TL_CACHE[key] ? renderTimeline(TL_CACHE[key]) : '<span class="muted">'+esc(t('tl_loading'))+'</span>')+'</td></tr>';
+    return tr;
+  }).join('');
+  document.getElementById('resEmpty').style.display = rows.length ? 'none' : 'block';
+  Object.keys(OPEN_TL).forEach(function(k){ if (OPEN_TL[k] && !TL_CACHE[k]) fetchTimeline(k); });
 }
 
 function pushSuppression(){
