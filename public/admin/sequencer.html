@@ -250,7 +250,7 @@ var T = {
     unsub_help: "Qui s'est désinscrit, quand, et par quel chemin. « désinscrit » = le destinataire a cliqué ; « ajouté par nous » = suppression poussée depuis ce portail. Sur les nœuds les deux apparaissent en stopped.",
     unsub_counts: "{total} adresse(s) — {oc} désinscrit(s), {sm} ajoutée(s) par nous",
     unsub_src_oneclick: "désinscrit", unsub_src_manual: "ajouté par nous",
-    th_unsub_email: "Email", th_unsub_source: "Origine", th_unsub_date: "Date (UTC)",
+    th_unsub_email: "Email", th_unsub_source: "Origine", th_unsub_date: "Date (Paris)",
     unsub_empty: "Aucune désinscription enregistrée.",
     unsub_recon: "Réconciliation : {n} adresse(s) présente(s) sur un nœud mais absente(s) de la liste centrale (entrées d'avant la table, ou écrites à la main dans le Sheet).",
     unsub_recon_none: "Réconciliation : chaque adresse présente sur un nœud figure dans la liste centrale.",
@@ -258,6 +258,8 @@ var T = {
     unsub_v_humain: "humain confirmé", unsub_v_verifier: "à vérifier",
     unsub_act_none: "aucune trace",
     unsub_act_fmt: "{o} ouverture(s){p}{s}{e} · {d} · {last}",
+    unsub_act_prix: " · prix vu", unsub_act_scroll: " · scroll", unsub_act_edit: " · édité",
+    unsub_dev_mobile: "mobile", unsub_dev_desktop: "ordinateur",
     unsub_verdicts: "{h} humain(s) confirmé(s), {v} à vérifier",
     unsub_verdict_help: "« humain confirmé » = cette adresse a ouvert sa maquette (ou vu le prix / scrollé / édité). « à vérifier » ne veut PAS dire robot : cela veut dire aucune trace, donc inconnu.",
     import_title: "Import de leads (CSV)",
@@ -329,7 +331,7 @@ var T = {
     unsub_help: "Who opted out, when, and through which channel. \"unsubscribed\" = the recipient clicked; \"added by us\" = suppression pushed from this portal. On the nodes both show as stopped.",
     unsub_counts: "{total} address(es) — {oc} unsubscribed, {sm} added by us",
     unsub_src_oneclick: "unsubscribed", unsub_src_manual: "added by us",
-    th_unsub_email: "Email", th_unsub_source: "Source", th_unsub_date: "Date (UTC)",
+    th_unsub_email: "Email", th_unsub_source: "Source", th_unsub_date: "Date (Paris)",
     unsub_empty: "No unsubscribe recorded.",
     unsub_recon: "Reconciliation: {n} address(es) present on a node but missing from the central list (pre-table entries, or hand-written in the Sheet).",
     unsub_recon_none: "Reconciliation: every address present on a node is in the central list.",
@@ -337,6 +339,8 @@ var T = {
     unsub_v_humain: "confirmed human", unsub_v_verifier: "to check",
     unsub_act_none: "no trace",
     unsub_act_fmt: "{o} open(s){p}{s}{e} · {d} · {last}",
+    unsub_act_prix: " · price seen", unsub_act_scroll: " · scrolled", unsub_act_edit: " · edited",
+    unsub_dev_mobile: "mobile", unsub_dev_desktop: "desktop",
     unsub_verdicts: "{h} confirmed human, {v} to check",
     unsub_verdict_help: "\"confirmed human\" = this address opened its preview (or saw the price / scrolled / edited). \"to check\" does NOT mean bot: it means no trace, therefore unknown.",
     import_title: "Import leads (CSV)",
@@ -408,7 +412,7 @@ var T = {
     unsub_help: "谁退订了、何时、通过哪条路径。「已退订」= 收件人自己点击；「我方添加」= 从本后台推送的屏蔽。在节点上两者都显示为 stopped。",
     unsub_counts: "{total} 个地址 — {oc} 个已退订，{sm} 个我方添加",
     unsub_src_oneclick: "已退订", unsub_src_manual: "我方添加",
-    th_unsub_email: "邮箱", th_unsub_source: "来源", th_unsub_date: "日期（UTC）",
+    th_unsub_email: "邮箱", th_unsub_source: "来源", th_unsub_date: "日期（巴黎）",
     unsub_empty: "暂无退订记录。",
     unsub_recon: "对账：{n} 个地址存在于某节点但不在中央名单中（建表前的条目，或手写进 Sheet 的）。",
     unsub_recon_none: "对账：节点上的每个地址都在中央名单中。",
@@ -416,6 +420,8 @@ var T = {
     unsub_v_humain: "确认真人", unsub_v_verifier: "待核实",
     unsub_act_none: "无痕迹",
     unsub_act_fmt: "{o} 次打开{p}{s}{e} · {d} · {last}",
+    unsub_act_prix: " · 看过价格", unsub_act_scroll: " · 滚动", unsub_act_edit: " · 编辑过",
+    unsub_dev_mobile: "手机", unsub_dev_desktop: "电脑",
     unsub_verdicts: "{h} 个确认真人，{v} 个待核实",
     unsub_verdict_help: "「确认真人」= 该地址打开过自己的 maquette（或看过价格／滚动／编辑）。「待核实」不等于机器人：它表示没有任何痕迹，因此未知。",
     import_title: "导入线索（CSV）",
@@ -958,10 +964,11 @@ function loadUnsubscribes(){
       var e = u.engagement;
       var act = e ? t('unsub_act_fmt', {
             o: e.ouvertures,
-            p: e.prix_vu ? ' · prix vu' : '',
-            s: e.scrolls ? ' · scroll' : '',
-            e: e.editions ? ' · édité' : '',
-            d: e.appareil, last: e.dernier })
+            p: e.prix_vu ? t('unsub_act_prix') : '',
+            s: e.scrolls ? t('unsub_act_scroll') : '',
+            e: e.editions ? t('unsub_act_edit') : '',
+            d: e.appareil === 'mobile' ? t('unsub_dev_mobile') : t('unsub_dev_desktop'),
+            last: e.dernier })
         : '<span class="muted">' + t('unsub_act_none') + '</span>';
       var human = u.verdict === 'humain_confirme';
       var vlabel = human ? t('unsub_v_humain') : t('unsub_v_verifier');
