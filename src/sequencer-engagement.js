@@ -191,3 +191,51 @@ export function calculerEngagement({ leads, events, registre, desinscrits = [], 
     slug_incoherent
   };
 }
+
+// ---------- Timeline d'un lead (P2) ----------
+// Fusionne, en heure de Paris et avec le décalage depuis le premier envoi : les envois
+// (premier / dernier, compte), les events maquette HUMAINS postérieurs à l'envoi (G1),
+// la désinscription (liste centrale) et l'issue. Les events antérieurs à l'envoi ne sont
+// pas listés (prépa photos, QA) mais COMPTÉS, pour que « rien avant » soit vérifiable.
+// Slug partagé : les events sont ceux du salon, pas de cet email — l'en-tête le dit.
+export function construireTimeline({ lead, events, desinscription = null, contactsSurSlug = 1, nowMs = Date.now() }) {
+  const sent = parisToEpoch(lead.first_sent_at);
+  const lastSent = parisToEpoch(lead.last_sent_at);
+  const items = [];
+  const off = t => sent != null ? Math.floor((t - sent) / 60000) : null;
+
+  if (sent != null) items.push({ t: sent, type: 'envoi', step: 1, detail: '' });
+  if (lastSent != null && lastSent !== sent) items.push({ t: lastSent, type: 'envoi', step: Number(lead.current_step) || null, detail: '' });
+
+  let ignoresAvantEnvoi = 0;
+  for (const ev of events || []) {
+    if (!HUMAN_EVENTS.has(ev.event) || (lead.salon_slug && ev.slug !== lead.salon_slug)) continue;
+    const t = utcToEpoch(ev.ts); if (t == null) continue;
+    if (sent != null && t < sent) { ignoresAvantEnvoi++; continue; }
+    items.push({ t, type: 'maquette', event: ev.event, device: isMobile(ev.user_agent) ? 'mobile' : 'ordinateur' });
+  }
+  if (desinscription && desinscription.created_at) {
+    const t = utcToEpoch(desinscription.created_at);
+    if (t != null) items.push({ t, type: 'desinscription', source: desinscription.source || '' });
+  }
+  const st = String(lead.status || '');
+  if (st === 'replied' && lead.last_activity_at) {
+    const t = parisToEpoch(lead.last_activity_at);
+    if (t != null) items.push({ t, type: 'reponse', approx: true });   // le nœud n'horodate pas la réponse : dernière écriture ≈ détection
+  }
+  if (st === 'stopped' && !desinscription && lead.last_activity_at) {
+    const t = parisToEpoch(lead.last_activity_at);
+    if (t != null) items.push({ t, type: 'arret', approx: true });
+  }
+  items.sort((a, b) => a.t - b.t);
+  return {
+    email: normaliserEmail(lead.email),
+    slug: lead.salon_slug || '',
+    slug_partage: contactsSurSlug > 1, contacts_sur_slug: contactsSurSlug,
+    envoi: { premier: sent != null ? epochToParis(sent) : '', dernier: lastSent != null ? epochToParis(lastSent) : '', n: Number(lead.sends) || 0 },
+    ignores_avant_envoi: ignoresAvantEnvoi,
+    items: items.map(it => ({ ...it, t_paris: epochToParis(it.t), offset_min: off(it.t) })),
+    statut: st, prochain_envoi: lead.next_send_at || '', erreur: lead.last_error || '',
+    liens: { maquette: lead.salon_slug ? 'https://maquickpage.fr/preview/' + encodeURIComponent(lead.salon_slug) : '', photos: '/admin/photos.html' }
+  };
+}
