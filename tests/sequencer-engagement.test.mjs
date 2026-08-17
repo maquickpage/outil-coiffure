@@ -128,3 +128,32 @@ test('désinscrit vient de la liste centrale : un opt-out historique resté `sto
   assert.equal(r.par_email['seed@x.fr'].issue, 'stoppe');
   assert.equal(r.outcomes.desinscrit, 1);
 });
+
+import { construireTimeline } from '../src/sequencer-engagement.js';
+test('timeline a-martins : envoi → ouverture +37 min → prix → scroll → désinscription +1h59 ; le pré-envoi est compté, pas listé', () => {
+  const lead = { email: 'contact@adelinemartins.fr', salon_slug: 'clermont-ferrand-a-martins-coiffure-energetique', status: 'stopped',
+    current_step: 1, first_sent_at: '2026-08-14 16:55', last_sent_at: '2026-08-14 16:55', sends: 1, last_activity_at: '2026-08-14 18:54' };
+  const events = [
+    { slug: lead.salon_slug, event: 'preview_ouvert', ts: '2026-08-13 10:00:00', user_agent: 'Chrome' },          // avant l'envoi
+    { slug: lead.salon_slug, event: 'preview_ouvert', ts: '2026-08-14 15:32:57', user_agent: 'iPhone' },
+    { slug: lead.salon_slug, event: 'paywall_peek_viewed', ts: '2026-08-14 15:33:09', user_agent: 'iPhone' },
+    { slug: lead.salon_slug, event: 'scroll_max', ts: '2026-08-14 15:33:37', user_agent: 'iPhone' },
+    { slug: 'autre-salon', event: 'preview_ouvert', ts: '2026-08-14 15:40:00', user_agent: 'iPhone' },            // autre slug
+  ];
+  const tl = construireTimeline({ lead, events, desinscription: { created_at: '2026-08-14 16:54:46', source: 'one-click' } });
+  assert.equal(tl.ignores_avant_envoi, 1);
+  assert.deepEqual(tl.items.map(i => i.type), ['envoi', 'maquette', 'maquette', 'maquette', 'desinscription']);
+  assert.equal(tl.items[1].offset_min, 37);
+  assert.equal(tl.items[1].device, 'mobile');
+  assert.equal(tl.items[4].offset_min, 119);
+  assert.equal(tl.items[4].t_paris, '2026-08-14 18:54');
+  assert.equal(tl.envoi.premier, '2026-08-14 16:55');
+  assert.match(tl.liens.maquette, /preview\/clermont-ferrand/);
+});
+test('timeline : envoi non daté → aucun offset, events listés quand même (borne inconnue) ; slug partagé signalé', () => {
+  const lead = { email: 'x@x.fr', salon_slug: 's', status: 'active', current_step: 1, first_sent_at: '' };
+  const tl = construireTimeline({ lead, events: [{ slug: 's', event: 'preview_ouvert', ts: '2026-08-15 08:00:00', user_agent: 'Chrome' }], contactsSurSlug: 2 });
+  assert.equal(tl.items.length, 1);
+  assert.equal(tl.items[0].offset_min, null);
+  assert.equal(tl.slug_partage, true);
+});

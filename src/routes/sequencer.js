@@ -10,7 +10,7 @@ import db from '../db.js';
 import { COLONNES_IMPORT, normaliserEmail, filtrerLot, repartir, estUnRejeuIdentique } from '../sequencer-filters.js';
 import { resoudreSignature, neutraliserSignature } from '../sequencer-signature.js';
 import { creerClassifieur } from '../suivi-classifier.js';
-import { calculerEngagement, HUMAN_EVENTS, epochToParis, utcToEpoch } from '../sequencer-engagement.js';
+import { calculerEngagement, construireTimeline, HUMAN_EVENTS, epochToParis, utcToEpoch } from '../sequencer-engagement.js';
 
 const router = express.Router();
 router.use(express.json({ limit: '20mb' }));
@@ -387,6 +387,36 @@ router.get('/api/sequencer/engagement', async (req, res) => {
     total_avec_activite: emails.filter(k => e.par_email[k].activite).length,
     total_activite_humaine: emails.filter(k => e.par_email[k].etat === 'activite_humaine').length
   });
+});
+
+// Parcours d'UN lead, à la demande (tiroir de l'onglet Leads). Jamais inliné dans /overview :
+// 3 881 leads × timeline ferait exploser la réponse. Lit le cache dashboard (aucun appel
+// nœud supplémentaire), les events HUMAINS du slug, la liste centrale.
+router.get('/api/sequencer/lead/:email/timeline', async (req, res) => {
+  const email = normaliserEmail(req.params.email);
+  if (!email.includes('@')) return res.status(400).json({ error: 'email invalide' });
+  const results = await dashboardNodes({});
+  let lead = null, mailbox = '';
+  for (const r of results) {
+    if (!r.ok || !Array.isArray(r.leads)) continue;
+    const l = r.leads.find(x => normaliserEmail(x.email) === email);
+    if (l) { lead = l; mailbox = r.mailbox; break; }
+  }
+  if (!lead) return res.status(404).json({ error: 'lead inconnu des nœuds joignables' });
+  const contactsSurSlug = lead.salon_slug
+    ? results.reduce((n, r) => n + (r.ok && Array.isArray(r.leads) ? r.leads.filter(x => x.salon_slug === lead.salon_slug).length : 0), 0)
+    : 1;
+  let events = [];
+  if (lead.salon_slug) {
+    const ph = [...HUMAN_EVENTS].map(() => '?').join(',');
+    const rows = db.prepare(`SELECT slug, event, ts, ip, user_agent, device FROM preview_events WHERE slug = ? AND event IN (${ph}) ORDER BY ts ASC`)
+      .all(lead.salon_slug, ...HUMAN_EVENTS);
+    const c = creerClassifieur({ db });
+    events = rows.filter(r => c.classify(r) === 'human');
+  }
+  const desinscription = db.prepare('SELECT source, created_at FROM sequencer_unsubscribes WHERE lower(email) = ?').get(email) || null;
+  const tl = construireTimeline({ lead, events, desinscription, contactsSurSlug });
+  res.json({ ...tl, mailbox, salon_name: lead.salon_name || '', current_step: Number(lead.current_step) || 0 });
 });
 
 // Qui s'est désinscrit, quand, et par quel chemin. Sur les nœuds, un lead passe à
