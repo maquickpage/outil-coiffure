@@ -19,6 +19,7 @@ import callingRouter from './calling.js';
 import sequencerRouter from './sequencer.js';
 import { clientIp } from './tracking.js';
 import { runContactedImport } from '../contacted-import.js';
+import { BOT_RE, SCANNER_IP_RE, INTERNAL_ACTIVITY_EVENTS, ip64, skey, creerClassifieur } from '../suivi-classifier.js';
 
 const router = express.Router();
 const UPLOAD_DIR = './data/csv-uploads';
@@ -134,36 +135,12 @@ router.get('/api/preview-visits.csv', (req, res) => {
 // Ne renvoie AUCUN edit_token (le lien « Voir » passe par une redirection
 // authentifiée). Sépare les visiteurs par (ip|ua) et exclut de l'entonnoir
 // prospect : les bots (UA) ET les IP internes (toi/QA, table suivi_excluded_ips).
-const SUIVI_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
-// Certains scanners ne s'annoncent PAS dans l'User-Agent : Gmail et Outlook
-// ouvrent les liens d'un message pour les vérifier, en se présentant comme un
-// Chrome ordinaire. Résultat : chaque email envoyé fabriquait une fausse visite
-// (23 events sur 14 salons au 2026-08-15), et un salon paraissait « tiède »
-// alors que personne ne l'avait ouvert. On les reconnaît donc à leur plage IP.
-// Plages : Google (Gmail, Googlebot) et Microsoft (Exchange Online / SafeLinks).
-// Google sert ces aperçus depuis BEAUCOUP de plages (142.250, 74.125, 172.217…),
-// pas seulement celles de Googlebot : lister largement, sinon un partage de lien
-// dans une messagerie ressort comme « visiteur externe » (vu sur Verdun).
-const SUIVI_SCANNER_IP_RE = /^(2607:f8b0:|2a00:1450:|2a00:1288:|66\.249\.|64\.233\.|209\.85\.|142\.250\.|74\.125\.|172\.217\.|216\.58\.|108\.177\.|173\.194\.|40\.9[2-9]\.|104\.47\.|52\.10[0-9]\.|69\.63\.|69\.171\.|31\.13\.|157\.240\.)/i;
-
+// Classifieur bot / interne : UNE définition partagée avec le séquenceur (src/suivi-classifier.js).
+// Aliases conservés pour ne pas toucher le reste de ce fichier.
+const SUIVI_BOT_RE = BOT_RE;
+const SUIVI_SCANNER_IP_RE = SCANNER_IP_RE;
 const SUIVI_STAGE = { preview_ouvert: 1, template_essaye: 2, pricing_ouvert: 3, etape_domaine: 4, etape_email: 5, domaine_perso: 6, editeur_ouvert: 7, editeur_modifie: 8, cgv_accepte: 9, paiement_initie: 10 };
 const SUIVI_SESSION_GAP_MS = 30 * 60 * 1000;
-
-// Une box fournit un /64 en IPv6, et les appareils y tirent une adresse dont les
-// 64 derniers bits changent (extensions de confidentialité) : à la maison, chaque
-// reconnexion produit une IP différente. On ne peut donc pas comparer l'adresse
-// entière — on compare le PRÉFIXE RÉSEAU, stable, qui identifie la connexion.
-// En IPv4 l'adresse est déjà stable : renvoyée telle quelle.
-export function ip64(ip) {
-  const s = String(ip || '');
-  if (!s.includes(':')) return s;
-  const parts = s.split(':');
-  return parts.length >= 4 && parts.slice(0, 4).every(Boolean) ? parts.slice(0, 4).join(':') + '::/64' : s;
-}
-// Clé de rapprochement d'un visiteur pour l'EXCLUSION (≠ dkey, qui sert à
-// l'affichage et garde l'IP entière pour rester lisible dans le détail).
-const skey = (ip, ua) => ip64(ip) + '|' + (ua || '').slice(0, 250);
-const INTERNAL_ACTIVITY_EVENTS = new Set(['demo_email_envoyee', 'demo_sms_copiee']);
 
 // Période affichée : soit un raccourci en jours (7/30/90), soit un intervalle
 // explicite `from`/`to` (YYYY-MM-DD, bornes incluses, heure serveur = UTC comme
@@ -216,7 +193,7 @@ router.get('/api/suivi.json', (req, res) => {
   const realSlugs = new Set(salonSlugs.map(r => r.slug)); // « réel » = existe dans salons (même sans nom)
   // « bot » au sens du Suivi = pas un humain : robot déclaré (UA) OU scanner
   // d'email reconnu à sa plage IP (qui, lui, se fait passer pour un navigateur).
-  const isBot = (ua, ip) => !ua || SUIVI_BOT_RE.test(ua) || SUIVI_SCANNER_IP_RE.test(String(ip || ''));
+  const classifieur = creerClassifieur({ excludedIps: [...excluded], excludedDevices: [...excludedDevices], excludedSigs: [...excludedSigs] });
   const dkey = (ip, ua) => (ip || '?') + '|' + (ua || '').slice(0, 250);
 
   const bySlug = new Map();
@@ -224,13 +201,9 @@ router.get('/api/suivi.json', (req, res) => {
 
   for (const r of rows) {
     if (!realSlugs.has(r.slug)) continue; // écarte les slugs scanner (.env, phpinfo…)
-    const bot = isBot(r.user_agent, r.ip);
-    const internal = !bot && (
-      excluded.has(r.ip) || excluded.has(ip64(r.ip))
-      || (r.device && excludedDevices.has(r.device))
-      || excludedSigs.has(skey(r.ip, r.user_agent))
-      || INTERNAL_ACTIVITY_EVENTS.has(r.event)
-    );
+    const classe = classifieur.classify(r);
+    const bot = classe === 'bot';
+    const internal = classe === 'internal';
     if (bot) botEvents++; else if (internal) internalEvents++; else humanEvents++;
 
     let s = bySlug.get(r.slug);
@@ -379,7 +352,7 @@ router.get('/api/suivi/preview/:slug', (req, res) => {
 // l'email capturé au submit (landing_leads, rapproché par la même clé ip|ua).
 // Filtre les bots par user-agent. Renvoie : entonnoir (events + visiteurs
 // uniques), répartition CTA, tendance 14 j, leads (avec parcours) et engagés.
-const LANDING_BOT_RE = /bot|crawl|spider|slurp|curl|wget|python|http-client|headless|phantom|preview|scan|proofpoint|mimecast|barracuda|safelinks|googleimageproxy|facebookexternalhit|whatsapp|bingpreview|yandex|ahrefs|semrush|monitor/i;
+const LANDING_BOT_RE = BOT_RE; // même liste que le Suivi, une seule définition
 router.get('/api/landing-stats.json', (req, res) => {
   let rows, leadRows = [];
   const period = trackingPeriod(req.query.days);
