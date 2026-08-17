@@ -9,6 +9,8 @@ import { stringify } from 'csv-stringify/sync';
 import db from '../db.js';
 import { COLONNES_IMPORT, normaliserEmail, filtrerLot, repartir, estUnRejeuIdentique } from '../sequencer-filters.js';
 import { resoudreSignature, neutraliserSignature } from '../sequencer-signature.js';
+import { creerClassifieur } from '../suivi-classifier.js';
+import { calculerEngagement, HUMAN_EVENTS, epochToParis, utcToEpoch } from '../sequencer-engagement.js';
 
 const router = express.Router();
 router.use(express.json({ limit: '20mb' }));
@@ -193,10 +195,26 @@ router.get('/api/sequencer/overview', async (req, res) => {
     noeuds_injoignables: results.filter(r => !r.ok).length
   };
 
+  // Engagement (Gate 0) : entonnoir en slugs distincts, issues à côté, état par lead.
+  // Chaque lead reçoit `etat` + `activite` pour que l'onglet Leads n'ait rien à joindre.
+  const eng = engagementDepuis(results);
+  for (const r of results) {
+    if (!r.ok || !Array.isArray(r.leads)) continue;
+    for (const l of r.leads) {
+      const e = eng.par_email[String(l.email || '').trim().toLowerCase()];
+      l.etat = e ? e.etat : (Number(l.current_step) > 0 ? 'pas_de_trace' : '');
+      l.activite = e ? e.activite : null;
+      l.issue = e ? e.issue : '';
+      l.slug_partage = e ? e.slug_partage : false;
+      l.hors_portail = e ? e.hors_portail : false;
+    }
+  }
+
   res.json({
     nodes_registered: listNodes().map(publicNode),
     nodes: results,
     aggregate: agg,
+    engagement: { funnel: eng.funnel, outcomes: eng.outcomes, hors_portail: eng.hors_portail, slug_incoherent: eng.slug_incoherent },
     capacite,
     leads_confies: db.prepare('SELECT COUNT(*) n FROM sequencer_leads').get().n,
     all_ok: results.length > 0 && results.every(r => r.ok)
@@ -317,94 +335,86 @@ router.get('/api/sequencer/suppression', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Engagement maquette par lead (jointure locale, aucun appel aux noeuds).
-//
-// POURQUOI. Le 2026-08-16, répondre à « ces désinscriptions sont-elles des humains
-// ou des robots ? » a demandé des heures de jointure à la main entre trois sources,
-// avec au passage deux conclusions fausses (des slugs mal devinés ont donné « aucune
-// ouverture », alors que la moitié d'entre eux avaient ouvert la maquette, vu le prix
-// et scrollé). Les trois sources existaient déjà : `sequencer_leads` (email ->
-// salon_slug), `preview_events` (activité par slug) et `sequencer_unsubscribes`.
-// Elles n'étaient simplement jamais jointes. Ceci les joint une fois pour toutes.
-//
-// Le verdict ne dit JAMAIS « robot » : il dit « humain confirmé » quand une trace
-// humaine existe, et « à vérifier » quand il n'y en a pas. L'absence de preuve
-// n'est pas une preuve d'absence — un prospect qui ne clique jamais reste inconnu.
-const EVENTS_HUMAINS = ['preview_ouvert', 'paywall_peek_viewed', 'scroll_max',
-                        'editeur_ouvert', 'editeur_modifie', 'pricing_ouvert'];
+// Engagement maquette par lead — Gate 0 du plan tracking (bibiproject/03-email-outreach/
+// infra/sequencer-tracking-ux-plan.md). La règle vit dans src/sequencer-engagement.js
+// (pure, testée) ; ici on ne fait que réunir les trois sources :
+//   1. leads des nœuds (heure de Paris) — via le cache dashboard, jamais un appel de plus ;
+//   2. preview_events, classés HUMAIN par le classifieur partagé (bots + interne écartés) ;
+//   3. sequencer_leads (registre email → slug).
+// Le résultat est mémorisé sur la même durée que le cache dashboard : le poll de l'admin
+// ne rejoue pas la lecture de preview_events toutes les 60 s (G7).
+const ENGAGEMENT_TTL_MS = 60000;
+let engagementCache = { at: 0, key: '', value: null };
 
-// Les timestamps portail sont en UTC (datetime('now')), les noeuds renvoient de
-// l'heure de Paris. On normalise tout en Paris pour que l'écran soit comparable.
-function enParis(tsUtc) {
-  if (!tsUtc) return '';
-  const d = new Date(String(tsUtc).replace(' ', 'T') + 'Z');
-  if (isNaN(d)) return String(tsUtc);
-  const p = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Paris', year: 'numeric',
-    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
-  return p.replace('T', ' ');
-}
-
-function engagementParEmail() {
-  const ph = EVENTS_HUMAINS.map(() => '?').join(',');
+function eventsHumains() {
+  const ph = [...HUMAN_EVENTS].map(() => '?').join(',');
   const rows = db.prepare(`
-    SELECT l.email AS email, l.salon_slug AS slug,
-           SUM(CASE WHEN e.event = 'preview_ouvert' THEN 1 ELSE 0 END) AS ouvertures,
-           SUM(CASE WHEN e.event IN ('paywall_peek_viewed','pricing_ouvert') THEN 1 ELSE 0 END) AS prix_vu,
-           SUM(CASE WHEN e.event = 'scroll_max' THEN 1 ELSE 0 END) AS scrolls,
-           SUM(CASE WHEN e.event IN ('editeur_ouvert','editeur_modifie') THEN 1 ELSE 0 END) AS editions,
-           COUNT(*) AS total_events,
-           MIN(e.ts) AS premier, MAX(e.ts) AS dernier,
-           MAX(CASE WHEN e.user_agent LIKE '%iPhone%' OR e.user_agent LIKE '%Android%' THEN 1 ELSE 0 END) AS mobile
-    FROM sequencer_leads l
-    JOIN preview_events e ON e.slug = l.salon_slug
-    WHERE e.event IN (${ph}) AND l.salon_slug IS NOT NULL AND l.salon_slug <> ''
-    GROUP BY l.email, l.salon_slug
-  `).all(...EVENTS_HUMAINS);
-  const map = {};
-  for (const r of rows) {
-    map[normaliserEmail(r.email)] = {
-      slug: r.slug, ouvertures: r.ouvertures, prix_vu: r.prix_vu, scrolls: r.scrolls,
-      editions: r.editions, total_events: r.total_events,
-      premier: enParis(r.premier), dernier: enParis(r.dernier),
-      appareil: r.mobile ? 'mobile' : 'ordinateur'
-    };
-  }
-  return map;
+    SELECT slug, event, ts, ip, user_agent, device FROM preview_events
+    WHERE slug IS NOT NULL AND slug <> '' AND event IN (${ph})
+    ORDER BY ts ASC
+  `).all(...HUMAN_EVENTS);
+  const c = creerClassifieur({ db });
+  return rows.filter(r => c.classify(r) === 'human');
 }
 
-// Engagement de tous les leads confiés qui ont au moins une trace maquette.
-router.get('/api/sequencer/engagement', (req, res) => {
-  const map = engagementParEmail();
-  const emails = Object.keys(map);
-  const profond = emails.filter(e => map[e].prix_vu > 0 || map[e].scrolls > 0 || map[e].editions > 0);
-  res.json({ par_email: map, total_avec_activite: emails.length, total_engagement_profond: profond.length });
+// results = sortie de dashboardNodes(). Renvoie {par_email, funnel, outcomes, hors_portail, slug_incoherent}.
+function engagementDepuis(results) {
+  const key = results.map(r => (r.fetched_at || '') + ':' + (r.ok ? (r.leads || []).length : 'x')).join('|');
+  const now = Date.now();
+  if (engagementCache.value && engagementCache.key === key && now - engagementCache.at < ENGAGEMENT_TTL_MS) {
+    return engagementCache.value;
+  }
+  const leads = [];
+  for (const r of results) {
+    if (!r.ok || !Array.isArray(r.leads)) continue;
+    for (const l of r.leads) leads.push({ ...l, node_id: r.node_id, mailbox: r.mailbox });
+  }
+  const registre = db.prepare('SELECT email, salon_slug FROM sequencer_leads').all();
+  const value = calculerEngagement({ leads, events: eventsHumains(), registre, nowMs: now });
+  engagementCache = { at: now, key, value };
+  return value;
+}
+
+// Engagement de tous les leads confiés (Gate 0 appliqué).
+router.get('/api/sequencer/engagement', async (req, res) => {
+  const results = await dashboardNodes({});
+  const e = engagementDepuis(results);
+  const emails = Object.keys(e.par_email);
+  res.json({
+    par_email: e.par_email, funnel: e.funnel, outcomes: e.outcomes,
+    hors_portail: e.hors_portail, slug_incoherent: e.slug_incoherent,
+    total_avec_activite: emails.filter(k => e.par_email[k].activite).length,
+    total_activite_humaine: emails.filter(k => e.par_email[k].etat === 'activite_humaine').length
+  });
 });
 
 // Qui s'est désinscrit, quand, et par quel chemin. Sur les nœuds, un lead passe à
 // `stopped` aussi bien pour une vraie désinscription que pour une suppression poussée par
 // nous ; seule la table centrale garde l'origine (`source` = one-click | suppression_manuelle).
 // Lecture pure : aucun appel aux nœuds, aucune écriture.
-router.get('/api/sequencer/unsubscribes', (req, res) => {
+router.get('/api/sequencer/unsubscribes', async (req, res) => {
   const brut = db.prepare(
     'SELECT email, source, created_at FROM sequencer_unsubscribes ORDER BY created_at DESC'
   ).all();
-  const eng = engagementParEmail();
+  const results = await dashboardNodes({});
+  const eng = engagementDepuis(results).par_email;
   const rows = brut.map(r => {
     const e = eng[normaliserEmail(r.email)] || null;
-    const humain = !!(e && (e.ouvertures > 0 || e.prix_vu > 0 || e.scrolls > 0 || e.editions > 0));
     return {
       ...r,
-      date_paris: enParis(r.created_at),
+      date_paris: epochToParis(utcToEpoch(r.created_at)),
       slug: e ? e.slug : null,
-      engagement: e,
-      verdict: humain ? 'humain_confirme' : 'a_verifier'
+      first_sent_at: e ? e.first_sent_at : '',
+      engagement: e ? e.activite : null,
+      // vocabulaire du plan : jamais « robot ». Un lead inconnu de la jointure = pas_de_trace.
+      etat: e ? e.etat : 'pas_de_trace'
     };
   });
   const par_source = {};
   for (const r of brut) par_source[r.source || 'inconnue'] = (par_source[r.source || 'inconnue'] || 0) + 1;
-  const par_verdict = {};
-  for (const r of rows) par_verdict[r.verdict] = (par_verdict[r.verdict] || 0) + 1;
-  res.json({ rows, total: rows.length, par_source, par_verdict });
+  const par_etat = {};
+  for (const r of rows) par_etat[r.etat] = (par_etat[r.etat] || 0) + 1;
+  res.json({ rows, total: rows.length, par_source, par_etat });
 });
 
 router.post('/api/sequencer/suppression/remove', async (req, res) => {

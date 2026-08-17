@@ -23,9 +23,15 @@ test('landing funnel stages share the JS-confirmed visitor population', async ()
 });
 
 test('internal outreach actions cannot create prospect activity', async () => {
-  const source = await readFile(new URL('src/routes/admin.js', root), 'utf8');
-  assert.match(source, /INTERNAL_ACTIVITY_EVENTS = new Set\(\['demo_email_envoyee', 'demo_sms_copiee'\]\)/);
-  assert.match(source, /excluded\.has\(r\.ip\) \|\| INTERNAL_ACTIVITY_EVENTS\.has\(r\.event\)/);
+  // Comportemental, pas textuel : l'ancienne version comparait le SOURCE d'admin.js et
+  // s'est cassée dès que l'exclusion par appareil a été ajoutée entre les deux clauses.
+  const { creerClassifieur, INTERNAL_ACTIVITY_EVENTS } = await import('../src/suivi-classifier.js');
+  assert.deepEqual([...INTERNAL_ACTIVITY_EVENTS].sort(), ['demo_email_envoyee', 'demo_sms_copiee']);
+  const c = creerClassifieur({ excludedIps: ['1.2.3.4'], excludedDevices: ['dev-1'], excludedSigs: [] });
+  const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15';
+  assert.equal(c.classify({ event: 'demo_email_envoyee', ip: '9.9.9.9', user_agent: ua }), 'internal');
+  assert.equal(c.classify({ event: 'demo_sms_copiee',   ip: '9.9.9.9', user_agent: ua }), 'internal');
+  assert.equal(c.classify({ event: 'preview_ouvert',    ip: '9.9.9.9', user_agent: ua }), 'human');
 });
 
 test('landing scroll tracking can report a higher depth after returning', async () => {
