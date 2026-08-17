@@ -910,8 +910,13 @@ function readHash(){
 }
 
 // temps relatif, par langue (clés rel_*), toujours calculé sur l'heure de Paris fournie par le nœud
+var PARIS_MS_CACHE = {};
 function parisMs(str){ // "YYYY-MM-DD HH:MM" Paris → epoch, via l'offset courant du navigateur pour Paris
   if (!str) return null;
+  if (str in PARIS_MS_CACHE) return PARIS_MS_CACHE[str];
+  var v = parisMsRaw(str); PARIS_MS_CACHE[str] = v; return v;
+}
+function parisMsRaw(str){
   var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(str); if (!m) return null;
   var guess = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]);
   var off = parisOffsetMin(guess); var e = guess - off*60000; var off2 = parisOffsetMin(e); if (off2 !== off) e = guess - off2*60000;
@@ -995,7 +1000,11 @@ function renderLeads(){
   // tri : appliqué sur action utilisateur ou premier rendu ; le poll garde l'ordre courant
   var byEmail = {}; all.forEach(function(it){ byEmail[String(it.l.email||'').toLowerCase()] = it; });
   if (SORT_DIRTY || !LEAD_ORDER) {
-    var sorted = all.slice().sort(function(x, y){ var d = sortVal(y.l) - sortVal(x.l); if (SORT.dir === 'asc') d = -d; return d || (x.rank - y.rank); });
+    // clé calculée UNE fois par ligne (jamais dans le comparateur : 3 881 lignes × log n
+    // comparaisons × 2 Intl.formatToParts gelaient l'onglet 30-45 s au tri par « Envoyé »)
+    var keyed = all.map(function(it){ return { it: it, k: sortVal(it.l) }; });
+    keyed.sort(function(x, y){ var d = y.k - x.k; if (SORT.dir === 'asc') d = -d; return d || (x.it.rank - y.it.rank); });
+    var sorted = keyed.map(function(x){ return x.it; });
     LEAD_ORDER = sorted.map(function(it){ return String(it.l.email||'').toLowerCase(); }); SORT_DIRTY = false;
   } else {
     all.forEach(function(it){ var k = String(it.l.email||'').toLowerCase(); if (LEAD_ORDER.indexOf(k) === -1) LEAD_ORDER.push(k); });
