@@ -156,18 +156,19 @@ export function calculerEngagement({ leads, events, registre, nowMs = Date.now()
 
     // issues (à côté de l'entonnoir, pas dedans)
     const st = String(l.status || '');
-    if (st === 'replied') outcomes.repondu++;
-    else if (st === 'unsubscribed') outcomes.desinscrit++;
-    else if (st === 'stopped') { /* arrêt manuel/suppression : ni succès ni silence */ }
+    let issue = '';
+    if (st === 'replied') { outcomes.repondu++; issue = 'repondu'; }
+    else if (st === 'unsubscribed') { outcomes.desinscrit++; issue = 'desinscrit'; }
+    else if (st === 'stopped') { issue = 'stoppe'; /* arrêt manuel/suppression : ni succès ni silence */ }
     else if (st === 'completed') {
       const lastSent = parisToEpoch(l.last_sent_at) ?? sent;
       const silent = lastSent != null && (nowMs - lastSent) >= SILENCE_APRES_MS && evs.length === 0;
-      if (silent) outcomes.silence++; else outcomes.en_cours++;
+      if (silent) { outcomes.silence++; issue = 'silence'; } else { outcomes.en_cours++; issue = 'en_cours'; }
     }
-    else if (sent) outcomes.en_cours++;
+    else if (sent) { outcomes.en_cours++; issue = 'en_cours'; }
 
     par_email[email] = {
-      etat, slug, slug_partage: partage, hors_portail: !inReg,
+      etat, issue, slug, slug_partage: partage, hors_portail: !inReg,
       first_sent_at: sent ? epochToParis(sent) : '', activite: act
     };
   }

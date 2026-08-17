@@ -37,6 +37,32 @@
   th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
   .scroll { overflow-x:auto; }
   .badge { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; }
+  /* Chips : UN mécanisme pour tout — chaque nombre est un filtre. */
+  .chips { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px;
+          padding:5px 11px; font-size:13px; background:var(--card); cursor:pointer; line-height:1; color:var(--ink); }
+  .chip b { font-size:15px; font-weight:600; }
+  .chip:hover { border-color:var(--ink); }
+  .chip.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .chip.dim { opacity:.55; }
+  .chip.static { cursor:default; }
+  .chip.static:hover { border-color:var(--line); }
+  .chip.warn { border-color:var(--amber); color:var(--amber); }
+  .chip.err  { border-color:var(--red);   color:var(--red); }
+  .chip-lbl { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-right:2px; }
+  .arrow { color:var(--muted); padding:0 2px; }
+  .dots { letter-spacing:2px; font-size:11px; color:var(--muted); }
+  .dots i { font-style:normal; color:var(--ink); }
+  .act { font-size:12px; white-space:nowrap; }
+  .act span { cursor:help; margin-right:5px; }
+  .sub { display:block; font-size:11px; color:var(--muted); }
+  th.sortable { cursor:pointer; user-select:none; }
+  th.sortable:hover { color:var(--ink); }
+  th .dir { font-size:10px; margin-left:3px; }
+  .b-activite_humaine { color:var(--green); border-color:#bfe3c9; }
+  .b-ouverture_non_confirmee { color:var(--amber); border-color:#f3dcb3; }
+  .b-pas_de_trace { color:var(--muted); }
+  .b-slug_incoherent { color:var(--red); border-color:#f3c6c6; }
   .b-active{color:var(--accent);border-color:#c7d7fb}.b-queued{color:var(--muted)}.b-replied{color:var(--green);border-color:#bfe6c9}
   .b-stopped,.b-failed,.b-unsubscribed{color:var(--red);border-color:#f3c6c6}.b-completed{color:#111;background:#eef1f4}
   .b-ok{color:var(--green);border-color:#bfe6c9}.b-down{color:var(--red);border-color:#f3c6c6}.b-pending{color:var(--amber);border-color:#f5deb8}
@@ -111,8 +137,11 @@
         <button class="btn" id="pauseBtn" onclick="setCampaign('paused')"></button>
         <span class="muted" id="t-dispatcher-hint"></span>
       </div>
-      <div class="stats" id="stats"></div>
-      <p class="muted" id="capacity" style="margin:10px 0 0"></p>
+      <div class="chips" id="funnelBar" style="margin-bottom:8px"></div>
+      <div class="chips" id="outcomeBar" style="margin-bottom:8px"></div>
+      <div class="chips" id="statusBar"></div>
+      <p class="muted" id="engNote" style="margin:8px 0 0;font-size:12px"></p>
+      <p class="muted" id="capacity" style="margin:6px 0 0"></p>
     </div>
     <div class="card">
       <h3 style="margin-top:0" id="t-mb-today"></h3>
@@ -125,17 +154,21 @@
   <!-- LEADS -->
   <section id="leads" class="hide">
     <div class="card scroll">
-      <div class="row" style="margin-bottom:10px">
-        <select id="leadFilter" style="width:auto" onchange="renderLeads()">
-          <option value=""></option>
-          <option>queued</option><option>active</option><option>replied</option>
-          <option>stopped</option><option>unsubscribed</option><option>failed</option><option>completed</option>
-        </select>
+      <div class="chips" id="leadChips" style="margin-bottom:8px"></div>
+      <div class="row" style="margin-bottom:10px;gap:8px">
+        <select id="leadBox" style="width:auto" onchange="setFilter('box', this.value)"></select>
+        <input id="leadSearch" type="search" style="width:240px" oninput="setFilter('q', this.value)">
         <span class="muted" id="leadCount"></span>
       </div>
       <table id="leadTbl"><thead><tr>
-        <th>#</th><th id="th-salon"></th><th>Email</th><th id="th-leadmb"></th><th>Step</th><th id="th-status"></th>
-        <th id="th-lastsend"></th><th id="th-nextsend"></th><th></th>
+        <th>#</th>
+        <th id="th-salon"></th>
+        <th id="th-leadmb"></th>
+        <th id="th-step" class="sortable" onclick="setSort('step')"></th>
+        <th id="th-envoye" class="sortable" onclick="setSort('sent')"></th>
+        <th id="th-activite" class="sortable" onclick="setSort('act')"></th>
+        <th id="th-issue"></th>
+        <th></th>
       </tr></thead><tbody></tbody></table>
       <p class="muted" id="leadEmpty"></p>
     </div>
@@ -153,7 +186,7 @@
       <p id="unsubVerdictHelp" class="muted" style="font-size:12px"></p>
       <div class="scroll"><table id="unsubTbl"><thead><tr>
         <th id="th-unsub-email"></th><th id="th-unsub-source"></th><th id="th-unsub-date"></th>
-        <th id="th-unsub-activite"></th><th id="th-unsub-verdict"></th>
+        <th id="th-unsub-activite"></th><th id="th-unsub-etat"></th>
       </tr></thead><tbody></tbody></table></div>
       <p class="muted" id="unsubEmpty"></p>
       <p class="muted" id="unsubRecon"></p>
@@ -254,14 +287,27 @@ var T = {
     unsub_empty: "Aucune désinscription enregistrée.",
     unsub_recon: "Réconciliation : {n} adresse(s) présente(s) sur un nœud mais absente(s) de la liste centrale (entrées d'avant la table, ou écrites à la main dans le Sheet).",
     unsub_recon_none: "Réconciliation : chaque adresse présente sur un nœud figure dans la liste centrale.",
-    th_unsub_activite: "Activité maquette", th_unsub_verdict: "Verdict",
-    unsub_v_humain: "humain confirmé", unsub_v_verifier: "à vérifier",
+    /* --- tracking P1 : chips, entonnoir, colonnes --- */
+    f_contactes: "contactés", f_ouvert: "maquette ouverte", f_prix: "prix vu", f_inconnu: "envoi non daté",
+    o_repondu: "réponses (auto-réponses incluses)", o_desinscrit: "désinscrits", o_encours: "en cours", o_silence: "silence", o_stoppe: "arrêtés par nous",
+    lbl_entonnoir: "Entonnoir", lbl_issues: "Issues", lbl_file: "File", lbl_filtres: "Filtres",
+    hors_portail: "hors portail", slug_incoherent: "slug incohérent",
+    eng_note: "Salons distincts, événements postérieurs à l'envoi, hors bots et hors trafic interne connu. Silence = séquence terminée depuis 3 jours sans réponse ni trace.",
+    chip_tout: "tout",
+    etat_activite_humaine: "activité humaine", etat_ouverture_non_confirmee: "ouverture non confirmée", etat_pas_de_trace: "sans trace", etat_slug_incoherent: "slug incohérent",
+    th_step: "Étape", th_envoye: "Envoyé", th_activite: "Activité", th_issue: "Issue",
+    box_all: "toutes les boîtes", search_ph: "salon, email…",
+    act_open: "ouverture(s) de la maquette", act_prix: "prix vu", act_scroll: "a scrollé jusqu'en bas", act_edit: "a édité son site", act_mobile: "sur mobile", act_desktop: "sur ordinateur", act_last: "dernier passage", act_first_delay: "premier passage {m} min après l'envoi",
+    act_none: "—", slug_partage: "slug partagé ({n} contacts)", hors_portail_row: "importé hors portail",
+    rel_now: "à l'instant", rel_min: "il y a {n} min", rel_h: "il y a {n} h", rel_d: "il y a {n} j", rel_never: "jamais", next_send: "prochain envoi",
+    sort_hint: "cliquer pour trier",
+    th_unsub_activite: "Activité maquette", th_unsub_etat: "État",
     unsub_act_none: "aucune trace",
     unsub_act_fmt: "{o} ouverture(s){p}{s}{e} · {d} · {last}",
     unsub_act_prix: " · prix vu", unsub_act_scroll: " · scroll", unsub_act_edit: " · édité",
     unsub_dev_mobile: "mobile", unsub_dev_desktop: "ordinateur",
-    unsub_verdicts: "{h} humain(s) confirmé(s), {v} à vérifier",
-    unsub_verdict_help: "« humain confirmé » = cette adresse a ouvert sa maquette (ou vu le prix / scrollé / édité). « à vérifier » ne veut PAS dire robot : cela veut dire aucune trace, donc inconnu.",
+    unsub_etats: "{h} avec activité humaine · {n} ouverture(s) non confirmée(s) · {p} sans trace",
+    unsub_verdict_help: "« activité humaine » = prix vu, scroll ou édition, ou au moins deux passages après l'envoi. « ouverture non confirmée » = une seule ouverture nue (les scanners de messagerie ouvrent les liens avec un navigateur ordinaire). « sans trace » ne veut PAS dire robot : inconnu.",
     import_title: "Import de leads (CSV)",
     import_help: "Colonnes requises : email, salon_slug. Optionnelles : first_name, salon_name, city, preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide, déjà importé, sur suppression) rejette le fichier ENTIER du nœud concerné, sans écriture.",
     import_dest: "Destination", import_rr: "Répartir sur tous les nœuds actifs (round-robin)",
@@ -335,14 +381,27 @@ var T = {
     unsub_empty: "No unsubscribe recorded.",
     unsub_recon: "Reconciliation: {n} address(es) present on a node but missing from the central list (pre-table entries, or hand-written in the Sheet).",
     unsub_recon_none: "Reconciliation: every address present on a node is in the central list.",
-    th_unsub_activite: "Preview activity", th_unsub_verdict: "Verdict",
-    unsub_v_humain: "confirmed human", unsub_v_verifier: "to check",
+    /* --- tracking P1 : chips, funnel, columns --- */
+    f_contactes: "contacted", f_ouvert: "preview opened", f_prix: "price seen", f_inconnu: "undated send",
+    o_repondu: "replies (auto-replies included)", o_desinscrit: "unsubscribed", o_encours: "in progress", o_silence: "silence", o_stoppe: "stopped by us",
+    lbl_entonnoir: "Funnel", lbl_issues: "Outcomes", lbl_file: "Queue", lbl_filtres: "Filters",
+    hors_portail: "outside portal", slug_incoherent: "inconsistent slug",
+    eng_note: "Distinct salons, events after the send only, excluding bots and known internal traffic. Silence = sequence finished 3+ days ago with no reply and no trace.",
+    chip_tout: "all",
+    etat_activite_humaine: "human activity", etat_ouverture_non_confirmee: "unconfirmed open", etat_pas_de_trace: "no trace", etat_slug_incoherent: "inconsistent slug",
+    th_step: "Step", th_envoye: "Sent", th_activite: "Activity", th_issue: "Outcome",
+    box_all: "all mailboxes", search_ph: "salon, email…",
+    act_open: "preview open(s)", act_prix: "price seen", act_scroll: "scrolled to the bottom", act_edit: "edited their site", act_mobile: "on mobile", act_desktop: "on desktop", act_last: "last visit", act_first_delay: "first visit {m} min after the send",
+    act_none: "—", slug_partage: "shared slug ({n} contacts)", hors_portail_row: "imported outside the portal",
+    rel_now: "just now", rel_min: "{n} min ago", rel_h: "{n} h ago", rel_d: "{n} d ago", rel_never: "never", next_send: "next send",
+    sort_hint: "click to sort",
+    th_unsub_activite: "Preview activity", th_unsub_etat: "State",
     unsub_act_none: "no trace",
     unsub_act_fmt: "{o} open(s){p}{s}{e} · {d} · {last}",
     unsub_act_prix: " · price seen", unsub_act_scroll: " · scrolled", unsub_act_edit: " · edited",
     unsub_dev_mobile: "mobile", unsub_dev_desktop: "desktop",
-    unsub_verdicts: "{h} confirmed human, {v} to check",
-    unsub_verdict_help: "\"confirmed human\" = this address opened its preview (or saw the price / scrolled / edited). \"to check\" does NOT mean bot: it means no trace, therefore unknown.",
+    unsub_etats: "{h} with human activity · {n} unconfirmed open(s) · {p} no trace",
+    unsub_verdict_help: "\"human activity\" = price seen, scroll or edit, or at least two visits after the send. \"unconfirmed open\" = a single bare open (mail scanners fetch links with an ordinary browser). \"no trace\" does NOT mean bot: unknown.",
     import_title: "Import leads (CSV)",
     import_help: "Required columns: email, salon_slug. Optional: first_name, salon_name, city, preview_url, preview_image_url, admin_url. Any dirty row (blank/duplicate email, blank salon_slug, already imported, suppressed) rejects that node's WHOLE file with no writes.",
     import_dest: "Destination", import_rr: "Split across all active nodes (round-robin)",
@@ -416,14 +475,27 @@ var T = {
     unsub_empty: "暂无退订记录。",
     unsub_recon: "对账：{n} 个地址存在于某节点但不在中央名单中（建表前的条目，或手写进 Sheet 的）。",
     unsub_recon_none: "对账：节点上的每个地址都在中央名单中。",
-    th_unsub_activite: "maquette 活动", th_unsub_verdict: "判定",
-    unsub_v_humain: "确认真人", unsub_v_verifier: "待核实",
+    /* --- tracking P1 : 筛选片、漏斗、列 --- */
+    f_contactes: "已联系", f_ouvert: "打开了 maquette", f_prix: "看过价格", f_inconnu: "发送时间未知",
+    o_repondu: "回复（含自动回复）", o_desinscrit: "已退订", o_encours: "进行中", o_silence: "无回应", o_stoppe: "我方停止",
+    lbl_entonnoir: "漏斗", lbl_issues: "结果", lbl_file: "队列", lbl_filtres: "筛选",
+    hors_portail: "后台之外", slug_incoherent: "slug 不一致",
+    eng_note: "按不同沙龙统计，仅计发送之后的事件，已排除机器人和已知内部流量。无回应 = 序列结束 3 天以上且无回复无痕迹。",
+    chip_tout: "全部",
+    etat_activite_humaine: "真人活动", etat_ouverture_non_confirmee: "未确认打开", etat_pas_de_trace: "无痕迹", etat_slug_incoherent: "slug 不一致",
+    th_step: "步骤", th_envoye: "已发送", th_activite: "活动", th_issue: "结果",
+    box_all: "全部邮箱", search_ph: "沙龙、邮箱…",
+    act_open: "打开 maquette 次数", act_prix: "看过价格", act_scroll: "滚动到底部", act_edit: "编辑过站点", act_mobile: "手机", act_desktop: "电脑", act_last: "最近访问", act_first_delay: "发送后 {m} 分钟首次访问",
+    act_none: "—", slug_partage: "共享 slug（{n} 个联系人）", hors_portail_row: "在后台之外导入",
+    rel_now: "刚刚", rel_min: "{n} 分钟前", rel_h: "{n} 小时前", rel_d: "{n} 天前", rel_never: "从未", next_send: "下次发送",
+    sort_hint: "点击排序",
+    th_unsub_activite: "maquette 活动", th_unsub_etat: "状态",
     unsub_act_none: "无痕迹",
     unsub_act_fmt: "{o} 次打开{p}{s}{e} · {d} · {last}",
     unsub_act_prix: " · 看过价格", unsub_act_scroll: " · 滚动", unsub_act_edit: " · 编辑过",
     unsub_dev_mobile: "手机", unsub_dev_desktop: "电脑",
-    unsub_verdicts: "{h} 个确认真人，{v} 个待核实",
-    unsub_verdict_help: "「确认真人」= 该地址打开过自己的 maquette（或看过价格／滚动／编辑）。「待核实」不等于机器人：它表示没有任何痕迹，因此未知。",
+    unsub_etats: "{h} 个有真人活动 · {n} 个未确认打开 · {p} 个无痕迹",
+    unsub_verdict_help: "「真人活动」= 看过价格、滚动或编辑，或发送后至少两次访问。「未确认打开」= 仅一次裸打开（邮件扫描器会用普通浏览器打开链接）。「无痕迹」不等于机器人：未知。",
     import_title: "导入线索（CSV）",
     import_help: "必需列：email、salon_slug。可选列：first_name、salon_name、city、preview_url、preview_image_url、admin_url。任何脏行（邮箱为空/重复、salon_slug 为空、已导入、在屏蔽名单）都会导致该节点整个文件被拒绝，不写入任何数据。",
     import_dest: "目标", import_rr: "在所有启用节点间轮流分配（round-robin）",
@@ -493,10 +565,10 @@ function applyStatic(){
     't-mb-today':'mb_today', 'th-mb':'th_mb', 'th-nodestate':'th_nodestate', 'th-campaign':'th_campaign',
     'th-sentcap':'th_sentcap', 'th-window':'th_window', 'th-days':'th_days',
     'th-salon':'th_salon', 'th-leadmb':'th_leadmb', 'th-status':'th_status',
-    'th-lastsend':'th_lastsend', 'th-nextsend':'th_nextsend', 'leadEmpty':'lead_empty',
+    'th-step':'th_step', 'th-envoye':'th_envoye', 'th-activite':'th_activite', 'th-issue':'th_issue', 'leadEmpty':'lead_empty',
     't-supp-title':'supp_title', 't-supp-help':'supp_help', 't-supp-btn':'supp_btn',
     't-unsub-title':'unsub_title', 't-unsub-help':'unsub_help', 'th-unsub-email':'th_unsub_email',
-    'th-unsub-activite':'th_unsub_activite', 'th-unsub-verdict':'th_unsub_verdict',
+    'th-unsub-activite':'th_unsub_activite', 'th-unsub-etat':'th_unsub_etat',
     'unsubVerdictHelp':'unsub_verdict_help',
     'th-unsub-source':'th_unsub_source', 'th-unsub-date':'th_unsub_date', 'unsubEmpty':'unsub_empty',
     't-import-title':'import_title', 't-import-help':'import_help', 't-import-dest':'import_dest',
@@ -511,7 +583,8 @@ function applyStatic(){
   };
   for (var id in map) { var el = document.getElementById(id); if (el) el.textContent = t(map[id]); }
   document.getElementById('csvText').placeholder = t('import_paste');
-  document.querySelector('#leadFilter option[value=""]').textContent = t('all_statuses');
+  var ls = document.getElementById('leadSearch'); if (ls) ls.placeholder = t('search_ph');
+  if (DATA) { renderChips(); renderLeads(); }   // changement de langue : chips et colonnes se retraduisent
 }
 
 function tab(btn){
@@ -663,12 +736,7 @@ function renderOverview(){
   var firstOk = ok[0];
   document.getElementById('clock').textContent = firstOk ? ('Paris ' + firstOk.now_paris) : '';
 
-  var s = DATA.aggregate || {};
-  var order = [['total', t('stat_total')],['queued', t('stat_queued')],['active', t('stat_active')],
-    ['step1','Step 1'],['step2','Step 2'],['step3','Step 3'],['step4','Step 4'],['step5','Step 5'],
-    ['replied', t('stat_replied')],['stopped', t('stat_stopped')],['failed', t('stat_failed')],['completed', t('stat_completed')]];
-  document.getElementById('stats').innerHTML = order.map(function(o){
-    return '<div class="stat"><b>'+(s[o[0]]||0)+'</b><span>'+esc(o[1])+'</span></div>'; }).join('');
+  renderChips();
 
   // Capacité d'envoi : traduit la file d'attente en jours, et prévient si un nœud
   // à terre ampute le débit quotidien sans que ça se voie dans les compteurs.
@@ -706,34 +774,196 @@ function renderOverview(){
 }
 
 // --- leads (fusion multi-nœuds) ---
+// ---------- Filtres = chips. UN mécanisme : chaque nombre de la vue d'ensemble est un filtre. ----------
+var FILTER = { status:'', eng:'', issue:'', box:'', q:'' };
+var SORT = { key:'act', dir:'desc' };
+var LEAD_ORDER = null;      // ordre figé entre deux actions utilisateur : le poll refiltre, ne retrie pas
+var SORT_DIRTY = true;
+
+function pct(n, d){ return d ? Math.round(100*n/d) + ' %' : '—'; }
+function chip(kind, val, label, n, extraCls){
+  var on = FILTER[kind] === val;
+  return '<span class="chip'+(on?' on':'')+(extraCls?' '+extraCls:'')+'" onclick="goLeads(\''+kind+'\',\''+val+'\')">'
+    + '<b>'+n+'</b> '+esc(label)+'</span>';
+}
+function renderChips(){
+  var s = DATA.aggregate || {}, e = (DATA.engagement || {}), f = e.funnel || {}, o = e.outcomes || {};
+  var lbl = function(k){ return '<span class="chip-lbl">'+esc(t(k))+'</span>'; };
+  document.getElementById('funnelBar').innerHTML = lbl('lbl_entonnoir')
+    + chip('eng','contacted', t('f_contactes'), f.contactes||0)
+    + '<span class="arrow">→</span>' + chip('eng','ouvert', t('f_ouvert') + ' · ' + pct(f.ouvert||0, f.contactes||0), f.ouvert||0)
+    + '<span class="arrow">→</span>' + chip('eng','prix_vu', t('f_prix') + ' · ' + pct(f.prix_vu||0, f.contactes||0), f.prix_vu||0)
+    + (f.inconnu ? chip('eng','inconnu', t('f_inconnu'), f.inconnu, 'warn') : '');
+  document.getElementById('outcomeBar').innerHTML = lbl('lbl_issues')
+    + chip('issue','repondu', t('o_repondu'), o.repondu||0)
+    + chip('issue','desinscrit', t('o_desinscrit'), o.desinscrit||0)
+    + chip('issue','en_cours', t('o_encours'), o.en_cours||0)
+    + chip('issue','silence', t('o_silence'), o.silence||0)
+    + chip('issue','stoppe', t('o_stoppe'), s.stopped||0, 'dim');
+  document.getElementById('statusBar').innerHTML = lbl('lbl_file')
+    + chip('status','queued', t('stat_queued'), s.queued||0)
+    + chip('status','active', t('stat_active'), s.active||0)
+    + chip('status','completed', t('stat_completed'), s.completed||0, 'dim')
+    + (s.failed ? chip('status','failed', t('stat_failed'), s.failed, 'err') : '')
+    + (e.hors_portail ? '<span class="chip static warn" title="'+esc(t('hors_portail_row'))+'"><b>'+e.hors_portail+'</b> '+esc(t('hors_portail'))+'</span>' : '')
+    + (e.slug_incoherent ? chip('eng','slug_incoherent', t('slug_incoherent'), e.slug_incoherent, 'err') : '');
+  document.getElementById('engNote').textContent = t('eng_note');
+  // même barre dans l'onglet Leads (+ « tout »)
+  var lc = document.getElementById('leadChips');
+  if (lc) {
+    var any = FILTER.status || FILTER.eng || FILTER.issue;
+    lc.innerHTML = lbl('lbl_filtres')
+      + '<span class="chip'+(any?'':' on')+'" onclick="clearChips()">'+esc(t('chip_tout'))+'</span>'
+      + chip('eng','contacted', t('f_contactes'), f.contactes||0)
+      + chip('eng','ouvert', t('f_ouvert'), f.ouvert||0)
+      + chip('eng','prix_vu', t('f_prix'), f.prix_vu||0)
+      + chip('eng','humaine', t('etat_activite_humaine'), countEtat('activite_humaine'))
+      + chip('eng','non_confirmee', t('etat_ouverture_non_confirmee'), countEtat('ouverture_non_confirmee'))
+      + chip('eng','pas_de_trace', t('etat_pas_de_trace'), countEtat('pas_de_trace'))
+      + '<span class="arrow">·</span>'
+      + chip('issue','repondu', t('o_repondu'), o.repondu||0)
+      + chip('issue','desinscrit', t('o_desinscrit'), o.desinscrit||0)
+      + chip('issue','silence', t('o_silence'), o.silence||0)
+      + '<span class="arrow">·</span>'
+      + chip('status','queued', t('stat_queued'), s.queued||0)
+      + chip('status','active', t('stat_active'), s.active||0);
+  }
+}
+function countEtat(k){ var n = 0; okNodes().forEach(function(nd){ (nd.leads||[]).forEach(function(l){ if (l.etat === k) n++; }); }); return n; }
+function goLeads(kind, val){
+  // un clic sur un chip déjà actif l'éteint ; un chip d'une autre famille remplace le sien
+  FILTER[kind] = (FILTER[kind] === val) ? '' : val;
+  var btn = document.querySelector('.seq-tabs button[data-tab="leads"]');
+  if (btn && !btn.classList.contains('active')) tab(btn);
+  syncHash(); SORT_DIRTY = true; renderChips(); renderLeads();
+}
+function clearChips(){ FILTER.status = FILTER.eng = FILTER.issue = ''; syncHash(); SORT_DIRTY = true; renderChips(); renderLeads(); }
+function setFilter(k, v){ FILTER[k] = v || ''; syncHash(); renderLeads(); }
+function setSort(key){
+  if (SORT.key === key) SORT.dir = SORT.dir === 'desc' ? 'asc' : 'desc'; else { SORT.key = key; SORT.dir = 'desc'; }
+  SORT_DIRTY = true; renderLeads();
+}
+function syncHash(){
+  var q = []; ['status','eng','issue','box'].forEach(function(k){ if (FILTER[k]) q.push(k+'='+encodeURIComponent(FILTER[k])); });
+  try { history.replaceState(null, '', location.pathname + (q.length ? '#leads?'+q.join('&') : '')); } catch(e){}
+}
+function readHash(){
+  var m = /^#leads\?(.*)$/.exec(location.hash || ''); if (!m) return;
+  m[1].split('&').forEach(function(kv){ var p = kv.split('='); if (p[0] in FILTER) FILTER[p[0]] = decodeURIComponent(p[1]||''); });
+  var btn = document.querySelector('.seq-tabs button[data-tab="leads"]'); if (btn) tab(btn);
+}
+
+// temps relatif, par langue (clés rel_*), toujours calculé sur l'heure de Paris fournie par le nœud
+function parisMs(str){ // "YYYY-MM-DD HH:MM" Paris → epoch, via l'offset courant du navigateur pour Paris
+  if (!str) return null;
+  var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(str); if (!m) return null;
+  var guess = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]);
+  var off = parisOffsetMin(guess); var e = guess - off*60000; var off2 = parisOffsetMin(e); if (off2 !== off) e = guess - off2*60000;
+  return e;
+}
+var _pf = null;
+function parisOffsetMin(ms){
+  _pf = _pf || new Intl.DateTimeFormat('en-US', { timeZone:'Europe/Paris', hourCycle:'h23', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  var g = {}; _pf.formatToParts(new Date(ms)).forEach(function(p){ g[p.type] = p.value; });
+  return Math.round((Date.UTC(+g.year, +g.month-1, +g.day, +g.hour, +g.minute) - ms)/60000);
+}
+function rel(str){
+  var ms = parisMs(str); if (ms == null) return t('rel_never');
+  var d = Math.max(0, Date.now() - ms), mn = Math.floor(d/60000);
+  if (mn < 1) return t('rel_now'); if (mn < 60) return t('rel_min', {n: mn});
+  var h = Math.floor(mn/60); if (h < 48) return t('rel_h', {n: h});
+  return t('rel_d', {n: Math.floor(h/24)});
+}
+function dots(step){ var o = ''; for (var i = 1; i <= 5; i++) o += (i <= step ? '<i>●</i>' : '○'); return '<span class="dots" title="'+step+'/5">'+o+'</span>'; }
+function actCell(l){
+  var a = l.activite; if (!a) return '<span class="muted">'+t('act_none')+'</span>';
+  var h = '<span class="act">';
+  h += '<span title="'+esc(t('act_open'))+'">👁 '+a.ouvertures+'</span>';
+  if (a.prix_vu)  h += '<span title="'+esc(t('act_prix'))+'">€</span>';
+  if (a.scrolls)  h += '<span title="'+esc(t('act_scroll'))+'">↧</span>';
+  if (a.editions) h += '<span title="'+esc(t('act_edit'))+'">✎</span>';
+  h += '<span title="'+esc(a.appareil === 'mobile' ? t('act_mobile') : t('act_desktop'))+'">'+(a.appareil === 'mobile' ? '📱' : '💻')+'</span>';
+  h += '<span class="muted" title="'+esc(t('act_first_delay', {m: a.delai_premier_min}))+'">'+esc(rel(a.dernier))+'</span>';
+  h += '</span>';
+  return h;
+}
+function passes(l){
+  if (FILTER.status && l.status !== FILTER.status) return false;
+  if (FILTER.box && l.mailbox !== FILTER.box) return false;
+  if (FILTER.issue && l.issue !== FILTER.issue) return false;
+  var a = l.activite;
+  switch (FILTER.eng) {
+    case '': break;
+    case 'contacted': if (!(Number(l.current_step) >= 1)) return false; break;
+    case 'ouvert': if (!(a && a.ouvertures > 0)) return false; break;
+    case 'prix_vu': if (!(a && a.prix_vu > 0)) return false; break;
+    case 'humaine': if (l.etat !== 'activite_humaine') return false; break;
+    case 'non_confirmee': if (l.etat !== 'ouverture_non_confirmee') return false; break;
+    case 'pas_de_trace': if (l.etat !== 'pas_de_trace') return false; break;
+    case 'inconnu': if (!(Number(l.current_step) >= 1 && !l.first_sent_at)) return false; break;
+    case 'slug_incoherent': if (l.etat !== 'slug_incoherent') return false; break;
+  }
+  if (FILTER.q) {
+    var q = FILTER.q.toLowerCase();
+    if (String(l.salon_name||'').toLowerCase().indexOf(q) === -1 && String(l.email||'').toLowerCase().indexOf(q) === -1) return false;
+  }
+  return true;
+}
+function sortVal(l){
+  if (SORT.key === 'step') return Number(l.current_step)||0;
+  if (SORT.key === 'sent') return parisMs(l.first_sent_at) || 0;
+  return l.activite ? (parisMs(l.activite.dernier)||0) : 0; // 'act'
+}
 function renderLeads(){
-  var filter = document.getElementById('leadFilter').value;
   var nodes = okNodes(), nb = nodes.length || 1;
-  // Ordre d'ENVOI, pas ordre de stockage : chaque noeud sert sa feuille dans
-  // l'ordre, mais les boites envoient en parallele. Lister noeud par noeud
-  // donnait un ordre sans rapport avec le demarchage reel, et surtout different
-  // de la page Photos. On entrelace donc les files avec la MEME formule que
-  // statutsLeadsParEmail(), pour que les deux ecrans montrent la meme liste.
+  // Ordre d'ENVOI (rang round-robin), partagé avec la page Photos : le # ne bouge jamais.
   var all = [];
-  nodes.forEach(function(n, ni){
-    (n.leads || []).forEach(function(l, i){ all.push({ l: l, n: n, rank: i * nb + ni }); });
-  });
+  nodes.forEach(function(n, ni){ (n.leads || []).forEach(function(l, i){ all.push({ l: l, n: n, rank: i * nb + ni }); }); });
   all.sort(function(a, b){ return a.rank - b.rank; });
-  var rows = [], total = all.length, rang = 0;
-  all.forEach(function(it){
-      var l = it.l, n = it.n;
-      if (filter && l.status !== filter) return;
-      rang++;
-      var canStop = ['stopped','unsubscribed','replied','completed'].indexOf(l.status) === -1;
-      rows.push('<tr><td class="muted">'+rang+'</td><td>'+esc(l.salon_name||'-')+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.mailbox)+'</td>'
-        +'<td>'+l.current_step+'/5</td>'
-        +'<td><span class="badge b-'+esc(l.status)+'">'+esc(l.status)+'</span>'
-          +(l.last_error?' <span class="muted" title="'+esc(l.last_error)+'">!</span>':'')+'</td>'
-        +'<td>'+esc(l.last_sent_at)+'</td><td>'+esc(l.next_send_at)+'</td>'
-        +'<td>'+(canStop?'<button class="btn danger small" onclick="stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
+  all.forEach(function(it, i){ it.rang = i + 1; });
+  // boîtes (select) — reconstruit sans perdre la sélection
+  var boxSel = document.getElementById('leadBox');
+  if (boxSel && boxSel.options.length !== nodes.length + 1) {
+    boxSel.innerHTML = '<option value="">'+esc(t('box_all'))+'</option>' + nodes.map(function(n){ return '<option value="'+esc(n.mailbox)+'">'+esc(n.mailbox.split('@')[0])+'</option>'; }).join('');
+    boxSel.value = FILTER.box;
+  }
+  var srch = document.getElementById('leadSearch'); if (srch && srch.placeholder !== t('search_ph')) srch.placeholder = t('search_ph');
+  // tri : appliqué sur action utilisateur ou premier rendu ; le poll garde l'ordre courant
+  var byEmail = {}; all.forEach(function(it){ byEmail[String(it.l.email||'').toLowerCase()] = it; });
+  if (SORT_DIRTY || !LEAD_ORDER) {
+    var sorted = all.slice().sort(function(x, y){ var d = sortVal(y.l) - sortVal(x.l); if (SORT.dir === 'asc') d = -d; return d || (x.rank - y.rank); });
+    LEAD_ORDER = sorted.map(function(it){ return String(it.l.email||'').toLowerCase(); }); SORT_DIRTY = false;
+  } else {
+    all.forEach(function(it){ var k = String(it.l.email||'').toLowerCase(); if (LEAD_ORDER.indexOf(k) === -1) LEAD_ORDER.push(k); });
+  }
+  document.querySelectorAll('#leadTbl th.sortable').forEach(function(th){
+    var key = th.getAttribute('onclick').match(/setSort\('(\w+)'\)/)[1];
+    var base = th.textContent.replace(/[▲▼]\s*$/, '').trim();
+    th.innerHTML = esc(base) + (SORT.key === key ? '<span class="dir">'+(SORT.dir === 'desc' ? '▼' : '▲')+'</span>' : '');
+    th.title = t('sort_hint');
+  });
+  var rows = [], total = all.length, shown = 0;
+  LEAD_ORDER.forEach(function(k){
+    var it = byEmail[k]; if (!it) return; var l = it.l, n = it.n;
+    if (!passes(l)) return;
+    shown++;
+    var canStop = ['stopped','unsubscribed','replied','completed'].indexOf(l.status) === -1;
+    var etatChip = l.etat ? '<span class="badge b-'+esc(l.etat)+'">'+esc(t('etat_'+l.etat))+'</span>' : '';
+    var flags = (l.slug_partage ? ' <span class="muted" title="'+esc(t('slug_partage', {n: 2}))+'">⧉</span>' : '')
+              + (l.hors_portail ? ' <span class="muted" title="'+esc(t('hors_portail_row'))+'">⚠</span>' : '');
+    rows.push('<tr><td class="muted">'+it.rang+'</td>'
+      +'<td>'+esc(l.salon_name||'-')+flags+'<span class="sub">'+esc(l.email)+'</span></td>'
+      +'<td>'+esc(String(l.mailbox||'').split('@')[0])+'</td>'
+      +'<td>'+dots(Number(l.current_step)||0)+'</td>'
+      +'<td title="'+esc(l.first_sent_at||'')+'">'+esc(l.first_sent_at ? rel(l.first_sent_at) : t('rel_never'))
+        +(l.next_send_at ? '<span class="sub">'+esc(t('next_send'))+' '+esc(l.next_send_at)+'</span>' : '')+'</td>'
+      +'<td>'+actCell(l)+'</td>'
+      +'<td><span class="badge b-'+esc(l.status)+'">'+esc(l.status)+'</span> '+etatChip
+        +(l.last_error?' <span class="muted" title="'+esc(l.last_error)+'">!</span>':'')+'</td>'
+      +'<td>'+(canStop?'<button class="btn danger small" onclick="stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
   });
   document.querySelector('#leadTbl tbody').innerHTML = rows.join('');
-  document.getElementById('leadCount').textContent = t('lead_count', { shown: rows.length, total: total });
+  document.getElementById('leadCount').textContent = t('lead_count', { shown: shown, total: total });
   document.getElementById('leadEmpty').style.display = total ? 'none' : 'block';
 }
 
@@ -970,15 +1200,15 @@ function loadUnsubscribes(){
             d: e.appareil === 'mobile' ? t('unsub_dev_mobile') : t('unsub_dev_desktop'),
             last: e.dernier })
         : '<span class="muted">' + t('unsub_act_none') + '</span>';
-      var human = u.verdict === 'humain_confirme';
-      var vlabel = human ? t('unsub_v_humain') : t('unsub_v_verifier');
-      var vcls = human ? 'b-ok' : 'b-stopped';
+      var et = u.etat || 'pas_de_trace';
+      var vlabel = t('etat_' + et);
+      var vcls = 'b-' + et;
       return '<tr><td>'+esc(u.email)+'</td><td><span class="badge '+cls+'">'+src+'</span></td><td>'+esc(u.date_paris||u.created_at)+'</td>'
         +'<td>'+act+'</td><td><span class="badge '+vcls+'">'+vlabel+'</span></td></tr>';
     }).join('');
-    var pv = r.par_verdict || {};
+    var pv = r.par_etat || {};
     document.getElementById('unsubVerdicts').textContent =
-      t('unsub_verdicts', { h: pv.humain_confirme || 0, v: pv.a_verifier || 0 });
+      t('unsub_etats', { h: pv.activite_humaine || 0, n: pv.ouverture_non_confirmee || 0, p: pv.pas_de_trace || 0 });
     document.getElementById('unsubEmpty').style.display = rows.length ? 'none' : 'block';
   }).catch(function(){ /* silencieux : la carte reste vide, /overview n'est pas affecté */ });
 }
@@ -1007,6 +1237,7 @@ function pushSuppression(){
 }
 
 applyStatic();
+readHash();
 load();
 loadUnsubRecon();
 setInterval(function(){

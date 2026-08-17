@@ -23,9 +23,10 @@ async function chargerT() {
   return ctx.T;
 }
 
-const ALLOW = /maquette|stripe|coolify|apps script|planity|booksy|treatwell|maquickpage|séquenceur|sequenceur|csv|json|url|ok|paris|utc|id|api|node|nœud|noeud/i;
+// Mots légitimes en anglais qui ressemblent à du français : retirés avant la recherche.
+const ALLOW = /\b(?:maquette|stripe|coolify|apps script|planity|booksy|treatwell|maquickpage|séquenceur|sequenceur|csv|json|url|ok|paris|utc|id|api|node|nœud|noeud|silence|scroll(?:ed|ing)?|slug|bot|stop|toast|table|import|export|total|active|mobile|desktop|template|status|action|question|section|option|position|portal|prospect|salon|version|session|note|date|minute|second|route|module|service)\b/gi;
 // Mots/graphies qui trahissent du français resté dans une autre langue.
-const FRENCH = /\b(le|la|les|des|du|une|un|et|ou|pour|avec|sans|dans|sur|par|vers|chez|est|sont|pas|aucun|aucune|tous|toutes|prix|vu|vue|envoi|envoyé|envoyée|ouvert|ouverte|ouverture|scroll|édité|éditée|désinscrit|désinscrite|désinscription|répondu|silence|à|où|déjà|encore|hier|aujourd)\b/i;
+const FRENCH = /\b(le|la|les|des|du|une|un|et|ou|pour|avec|sans|dans|sur|par|vers|chez|est|sont|pas|aucun|aucune|tous|toutes|prix|vu|vue|envoi|envoyé|envoyée|ouvert|ouverte|ouverture|édité|éditée|désinscrit|désinscrite|désinscription|répondu|silence|à|où|déjà|encore|hier|aujourd)\b/i;
 
 test('T : mêmes clés dans fr, en, zh — aucune manquante, aucune en trop', async () => {
   const T = await chargerT();

@@ -204,6 +204,7 @@ router.get('/api/sequencer/overview', async (req, res) => {
       const e = eng.par_email[String(l.email || '').trim().toLowerCase()];
       l.etat = e ? e.etat : (Number(l.current_step) > 0 ? 'pas_de_trace' : '');
       l.activite = e ? e.activite : null;
+      l.issue = e ? e.issue : '';
       l.slug_partage = e ? e.slug_partage : false;
       l.hors_portail = e ? e.hors_portail : false;
     }
