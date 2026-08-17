@@ -1011,7 +1011,7 @@ function renderLeads(){
   }
   document.querySelectorAll('#leadTbl th.sortable').forEach(function(th){
     var key = th.getAttribute('onclick').match(/setSort\('(\w+)'\)/)[1];
-    var base = th.textContent.replace(/[▲▼]\s*$/, '').trim();
+    var base = th.textContent.replace(/[▲▼↕]+\s*$/, '').trim();   // ↕ inclus, sinon il s'accumule à chaque rendu
     th.innerHTML = esc(base) + (SORT.key === key ? '<span class="dir">'+(SORT.dir === 'desc' ? '▼' : '▲')+'</span>' : '<span class="dir idle">↕</span>');
     th.title = t('sort_hint'); th.setAttribute('tabindex', '0'); th.setAttribute('role', 'button');
     th.onkeydown = function(ev){ if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setSort(key); } };
