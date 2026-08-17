@@ -7,41 +7,45 @@
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --ink:#1a1d21; --muted:#6b7280;
           --accent:#2563eb; --green:#16a34a; --red:#dc2626; --amber:#d97706; }
+  /* Échelle typographique globale : un seul bouton. Toutes les tailles sont en rem.
+     16px = taille d'origine ; 18px = +12,5 %. Au-delà, le tableau Leads passe à la ligne. */
+  html { font-size:18px; }
   * { box-sizing:border-box; }
-  body { margin:0; font:14px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  body { margin:0; font:.875rem/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink); background:var(--bg); }
   .seq-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 18px; background:var(--card); border-bottom:1px solid var(--line); }
-  .seq-head h1 { font-size:16px; margin:0; }
-  .pill { font-size:12px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
+  .seq-head h1 { font-size:1rem; margin:0; }
+  .pill { font-size:0.75rem; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
   .pill.running { color:#fff; background:var(--green); border-color:var(--green); }
   .pill.paused  { color:#fff; background:var(--amber); border-color:var(--amber); }
   .pill.mixed   { color:#fff; background:var(--muted); border-color:var(--muted); }
   .pill.err     { color:#fff; background:var(--red); border-color:var(--red); }
   .grow { flex:1; }
   .seq-tabs { display:flex; gap:4px; padding:0 12px; background:var(--card); border-bottom:1px solid var(--line); overflow-x:auto; }
-  .seq-tabs button { border:0; background:none; padding:11px 14px; font-size:14px; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  .seq-tabs button { border:0; background:none; padding:11px 14px; font-size:0.875rem; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
   .seq-tabs button.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
-  main { padding:16px; max-width:1150px; margin:0 auto; }
+  /* Élargi avec la typo : à 1150 px le tableau Leads repliait « next send » et les issues. */
+  main { padding:16px; max-width:1360px; margin:0 auto; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
   .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  button.btn { border:1px solid var(--line); background:var(--card); border-radius:8px; padding:8px 14px; font-size:14px; cursor:pointer; }
+  button.btn { border:1px solid var(--line); background:var(--card); border-radius:8px; padding:8px 14px; font-size:0.875rem; cursor:pointer; }
   button.btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
   button.btn.danger  { color:var(--red); border-color:#f3c6c6; }
-  button.btn.small   { padding:4px 10px; font-size:12px; }
+  button.btn.small   { padding:4px 10px; font-size:0.75rem; }
   button.btn:disabled { opacity:.5; cursor:default; }
   .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:10px; }
   .stat { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
-  .stat b { display:block; font-size:22px; }
-  .stat span { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+  .stat b { display:block; font-size:1.375rem; }
+  .stat span { font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+  table { width:100%; border-collapse:collapse; font-size:0.8125rem; }
+  th, td { text-align:left; padding:9px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:0.75rem; text-transform:uppercase; }
   .scroll { overflow-x:auto; }
-  .badge { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; }
+  .badge { font-size:0.6875rem; padding:2px 7px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; }
   /* Chips : UN mécanisme pour tout — chaque nombre est un filtre. */
   .chips { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px;
-          padding:5px 11px; font-size:13px; background:var(--card); cursor:pointer; line-height:1; color:var(--ink); }
-  .chip b { font-size:15px; font-weight:600; }
+          padding:5px 11px; font-size:0.8125rem; background:var(--card); cursor:pointer; line-height:1; color:var(--ink); }
+  .chip b { font-size:0.9375rem; font-weight:600; }
   .chip:hover { border-color:var(--ink); }
   .chip.on { background:var(--ink); color:#fff; border-color:var(--ink); }
   .chip.dim { opacity:.55; }
@@ -49,16 +53,16 @@
   .chip.static:hover { border-color:var(--line); }
   .chip.warn { border-color:var(--amber); color:var(--amber); }
   .chip.err  { border-color:var(--red);   color:var(--red); }
-  .chip-lbl { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-right:2px; }
+  .chip-lbl { font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-right:2px; }
   .arrow { color:var(--muted); padding:0 2px; }
-  .dots { letter-spacing:2px; font-size:11px; color:var(--muted); }
+  .dots { letter-spacing:2px; font-size:0.6875rem; color:var(--muted); }
   .dots i { font-style:normal; color:var(--ink); }
-  .act { font-size:12px; white-space:nowrap; }
+  .act { font-size:0.75rem; white-space:nowrap; }
   .act span { cursor:help; margin-right:5px; }
-  .sub { display:block; font-size:11px; color:var(--muted); }
+  .sub { display:block; font-size:0.6875rem; color:var(--muted); }
   th.sortable { cursor:pointer; user-select:none; }
   th.sortable:hover { color:var(--ink); }
-  th .dir { font-size:10px; margin-left:3px; }
+  th .dir { font-size:0.625rem; margin-left:3px; }
   .b-activite_humaine { color:var(--green); border-color:#bfe3c9; }
   .b-ouverture_non_confirmee { color:var(--amber); border-color:#f3dcb3; }
   .b-pas_de_trace { color:var(--muted); }
@@ -67,18 +71,18 @@
   tr.lead-row { cursor:pointer; }
   tr.lead-row:hover td { background:#fafbfc; }
   tr.lead-row.open td { background:#f3f5f8; }
-  td.tgl { width:18px; color:var(--muted); font-size:11px; }
+  td.tgl { width:18px; color:var(--muted); font-size:0.6875rem; }
   tr.tl-row td { background:#f7f8fa; padding:12px 14px 14px 30px; border-bottom:2px solid var(--line); }
-  .tl-head { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-bottom:8px; font-size:12px; color:var(--muted); }
+  .tl-head { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-bottom:8px; font-size:0.75rem; color:var(--muted); }
   .tl-head a { color:var(--accent); text-decoration:none; }
-  .tl { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:auto auto 1fr; gap:3px 12px; font-size:13px; align-items:baseline; }
+  .tl { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:auto auto 1fr; gap:3px 12px; font-size:0.8125rem; align-items:baseline; }
   .tl .when { color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .tl .off  { color:var(--muted); font-size:11px; white-space:nowrap; }
+  .tl .off  { color:var(--muted); font-size:0.6875rem; white-space:nowrap; }
   .tl .what { }
   .tl .what.envoi { font-weight:600; }
   .tl .what.desinscription { color:var(--red); }
   .tl .what.reponse { color:var(--green); }
-  .tl .approx { color:var(--muted); font-size:11px; }
+  .tl .approx { color:var(--muted); font-size:0.6875rem; }
   .res-tabs { display:flex; gap:6px; margin:6px 0 10px; }
   .res-tabs .chip.on { background:var(--ink); color:#fff; }
   .chip:focus-visible, tr.lead-row:focus-visible, th.sortable:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -87,16 +91,16 @@
   .b-active{color:var(--accent);border-color:#c7d7fb}.b-queued{color:var(--muted)}.b-replied{color:var(--green);border-color:#bfe6c9}
   .b-stopped,.b-failed,.b-unsubscribed{color:var(--red);border-color:#f3c6c6}.b-completed{color:#111;background:#eef1f4}
   .b-ok{color:var(--green);border-color:#bfe6c9}.b-down{color:var(--red);border-color:#f3c6c6}.b-pending{color:var(--amber);border-color:#f5deb8}
-  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 3px; }
+  label { display:block; font-size:0.75rem; color:var(--muted); margin:10px 0 3px; }
   input, textarea, select { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:7px; font:inherit; background:#fff; }
-  textarea { min-height:90px; resize:vertical; font-family:ui-monospace,Menlo,monospace; font-size:13px; }
+  textarea { min-height:90px; resize:vertical; font-family:ui-monospace,Menlo,monospace; font-size:0.8125rem; }
   .step-card { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .muted { color:var(--muted); font-size:12px; }
-  .setup-banner { border:1px solid #f5deb8; background:#fdf6e7; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; }
+  .muted { color:var(--muted); font-size:0.75rem; }
+  .setup-banner { border:1px solid #f5deb8; background:#fdf6e7; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:0.8125rem; }
   .setup-banner b { color:var(--amber); }
   .setup-banner ul { margin:6px 0 0; padding-left:20px; }
-  #toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 16px; border-radius:8px; font-size:13px; max-width:90%; white-space:pre-wrap; display:none; z-index:130; }
+  #toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 16px; border-radius:8px; font-size:0.8125rem; max-width:90%; white-space:pre-wrap; display:none; z-index:130; }
   #toast.err { background:var(--red); }
   .hide { display:none; }
   @media (max-width:640px){ .grid2{grid-template-columns:1fr;} }
@@ -161,7 +165,7 @@
       <div class="chips" id="funnelBar" style="margin-bottom:8px"></div>
       <div class="chips" id="outcomeBar" style="margin-bottom:8px"></div>
       <div class="chips" id="statusBar"></div>
-      <p class="muted" id="engNote" style="margin:8px 0 0;font-size:12px"></p>
+      <p class="muted" id="engNote" style="margin:8px 0 0;font-size:0.75rem"></p>
       <p class="muted" id="capacity" style="margin:6px 0 0"></p>
     </div>
     <div class="card">
@@ -194,12 +198,6 @@
       <p class="muted" id="leadEmpty"></p>
     </div>
     <div class="card">
-      <h3 style="margin-top:0" id="t-supp-title"></h3>
-      <p class="muted" id="t-supp-help"></p>
-      <textarea id="suppText" placeholder="email1@exemple.fr&#10;email2@exemple.fr" style="min-height:60px"></textarea>
-      <div class="row" style="margin-top:10px"><button class="btn danger" onclick="pushSuppression()" id="t-supp-btn"></button></div>
-    </div>
-    <div class="card">
       <h3 style="margin-top:0" id="t-res-title"></h3>
       <p class="muted" id="t-res-help"></p>
       <div class="res-tabs" id="resTabs"></div>
@@ -209,7 +207,14 @@
       </tr></thead><tbody></tbody></table></div>
       <p class="muted" id="resEmpty"></p>
       <p class="muted" id="unsubRecon"></p>
-      <p id="unsubVerdictHelp" class="muted" style="font-size:12px"></p>
+      <p id="unsubVerdictHelp" class="muted" style="font-size:0.75rem"></p>
+    </div>
+    <!-- Action d'écriture : en bas, après les vues de lecture (suivi), pas au milieu. -->
+    <div class="card">
+      <h3 style="margin-top:0" id="t-supp-title"></h3>
+      <p class="muted" id="t-supp-help"></p>
+      <textarea id="suppText" placeholder="email1@exemple.fr&#10;email2@exemple.fr" style="min-height:60px"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn danger" onclick="pushSuppression()" id="t-supp-btn"></button></div>
     </div>
   </section>
 
