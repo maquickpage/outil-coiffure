@@ -81,6 +81,9 @@
   .tl .approx { color:var(--muted); font-size:11px; }
   .res-tabs { display:flex; gap:6px; margin:6px 0 10px; }
   .res-tabs .chip.on { background:var(--ink); color:#fff; }
+  .chip:focus-visible, tr.lead-row:focus-visible, th.sortable:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .empty { padding:18px 6px; color:var(--muted); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  th.sortable .dir.idle { opacity:.35; }
   .b-active{color:var(--accent);border-color:#c7d7fb}.b-queued{color:var(--muted)}.b-replied{color:var(--green);border-color:#bfe6c9}
   .b-stopped,.b-failed,.b-unsubscribed{color:var(--red);border-color:#f3c6c6}.b-completed{color:#111;background:#eef1f4}
   .b-ok{color:var(--green);border-color:#bfe6c9}.b-down{color:var(--red);border-color:#f3c6c6}.b-pending{color:var(--amber);border-color:#f5deb8}
@@ -324,7 +327,14 @@ var T = {
     tl_ev_preview_ouvert: "maquette ouverte", tl_ev_paywall_peek_viewed: "prix vu", tl_ev_pricing_ouvert: "page tarifs ouverte", tl_ev_scroll_max: "a scrollé jusqu'en bas", tl_ev_editeur_ouvert: "éditeur ouvert", tl_ev_editeur_modifie: "site édité",
     tl_desinscription: "désinscription ({src})", tl_reponse: "réponse détectée", tl_arret: "arrêt (suppression / stop)", tl_approx: "≈ heure de la dernière écriture, le nœud n'horodate pas cet événement",
     tl_off: "+{m} min", tl_off_h: "+{h} h {m} min", tl_off_d: "+{d} j {h} h", tl_off_before: "avant l'envoi",
-    src_oneclick: "un clic", src_manual: "ajouté par nous", src_link: "lien", th_unsub_etat: "État",
+    src_oneclick: "un clic", src_manual: "ajouté par nous", src_link: "lien",
+    /* --- tracking P3 : polish --- */
+    lead_none_filtered: "Aucun lead pour ces filtres.", clear_filters: "effacer les filtres",
+    rel_in_min: "dans {n} min", rel_in_h: "dans {n} h", rel_in_d: "dans {n} j",
+    tip_eng_contacted: "Salons distincts ayant reçu au moins un email.", tip_eng_ouvert: "Ont ouvert leur maquette après l'envoi (bots et trafic interne exclus).", tip_eng_prix_vu: "Ont affiché le prix (aperçu ou page tarifs) après l'envoi.", tip_eng_inconnu: "Envoyés mais sans horodatage d'envoi côté nœud : inconnus, pas « non envoyés ».",
+    tip_eng_humaine: "Prix vu, scroll ou édition, ou au moins deux passages après l'envoi.", tip_eng_non_confirmee: "Une seule ouverture nue : les scanners de messagerie ouvrent les liens avec un navigateur ordinaire.", tip_eng_pas_de_trace: "Aucun événement après l'envoi : inconnu, pas « robot ».", tip_eng_slug_incoherent: "Le slug du nœud diffère du registre du portail : jointure impossible.",
+    tip_issue_repondu: "Réponse détectée par le nœud — les auto-réponses (absence, etc.) sont incluses.", tip_issue_desinscrit: "Présents dans la liste centrale de désinscription (bouton un clic ou lien).", tip_issue_en_cours: "Séquence en cours ou terminée depuis moins de 3 jours.", tip_issue_silence: "Séquence terminée depuis 3 jours ou plus, sans réponse ni trace.", tip_issue_stoppe: "Arrêtés par nous : suppression poussée ou Stop manuel.",
+    tip_status_queued: "En file, aucun email envoyé.", tip_status_active: "Au moins un email envoyé, séquence en cours.", tip_status_completed: "Tous les emails de la séquence envoyés.", tip_status_failed: "Erreur d'envoi côté nœud (voir « ! » sur la ligne).", th_unsub_etat: "État",
     unsub_verdict_help: "« activité humaine » = prix vu, scroll ou édition, ou au moins deux passages après l'envoi. « ouverture non confirmée » = une seule ouverture nue (les scanners de messagerie ouvrent les liens avec un navigateur ordinaire). « sans trace » ne veut PAS dire robot : inconnu.",
     import_title: "Import de leads (CSV)",
     import_help: "Colonnes requises : email, salon_slug. Optionnelles : first_name, salon_name, city, preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide, déjà importé, sur suppression) rejette le fichier ENTIER du nœud concerné, sans écriture.",
@@ -417,7 +427,14 @@ var T = {
     tl_ev_preview_ouvert: "preview opened", tl_ev_paywall_peek_viewed: "price seen", tl_ev_pricing_ouvert: "pricing page opened", tl_ev_scroll_max: "scrolled to the bottom", tl_ev_editeur_ouvert: "editor opened", tl_ev_editeur_modifie: "site edited",
     tl_desinscription: "unsubscribed ({src})", tl_reponse: "reply detected", tl_arret: "stopped (suppression / stop)", tl_approx: "≈ time of the last write, the node does not timestamp this event",
     tl_off: "+{m} min", tl_off_h: "+{h} h {m} min", tl_off_d: "+{d} d {h} h", tl_off_before: "before the send",
-    src_oneclick: "one click", src_manual: "added by us", src_link: "link", th_unsub_etat: "State",
+    src_oneclick: "one click", src_manual: "added by us", src_link: "link",
+    /* --- tracking P3 : polish --- */
+    lead_none_filtered: "No lead matches these filters.", clear_filters: "clear filters",
+    rel_in_min: "in {n} min", rel_in_h: "in {n} h", rel_in_d: "in {n} d",
+    tip_eng_contacted: "Distinct salons that received at least one email.", tip_eng_ouvert: "Opened their preview after the send (bots and internal traffic excluded).", tip_eng_prix_vu: "Displayed the price (peek or pricing page) after the send.", tip_eng_inconnu: "Sent but with no send timestamp on the node: unknown, not \"not sent\".",
+    tip_eng_humaine: "Price seen, scroll or edit, or at least two visits after the send.", tip_eng_non_confirmee: "A single bare open: mail scanners fetch links with an ordinary browser.", tip_eng_pas_de_trace: "No event after the send: unknown, not \"bot\".", tip_eng_slug_incoherent: "Node slug differs from the portal registry: cannot join.",
+    tip_issue_repondu: "Reply detected by the node — auto-replies (out of office, etc.) are included.", tip_issue_desinscrit: "Present in the central unsubscribe list (one-click button or link).", tip_issue_en_cours: "Sequence in progress, or finished less than 3 days ago.", tip_issue_silence: "Sequence finished 3+ days ago, no reply, no trace.", tip_issue_stoppe: "Stopped by us: pushed suppression or manual Stop.",
+    tip_status_queued: "Queued, no email sent yet.", tip_status_active: "At least one email sent, sequence in progress.", tip_status_completed: "Every email of the sequence sent.", tip_status_failed: "Send error on the node (see \"!\" on the row).", th_unsub_etat: "State",
     unsub_verdict_help: "\"human activity\" = price seen, scroll or edit, or at least two visits after the send. \"unconfirmed open\" = a single bare open (mail scanners fetch links with an ordinary browser). \"no trace\" does NOT mean bot: unknown.",
     import_title: "Import leads (CSV)",
     import_help: "Required columns: email, salon_slug. Optional: first_name, salon_name, city, preview_url, preview_image_url, admin_url. Any dirty row (blank/duplicate email, blank salon_slug, already imported, suppressed) rejects that node's WHOLE file with no writes.",
@@ -510,7 +527,14 @@ var T = {
     tl_ev_preview_ouvert: "打开了 maquette", tl_ev_paywall_peek_viewed: "看过价格", tl_ev_pricing_ouvert: "打开了价格页", tl_ev_scroll_max: "滚动到底部", tl_ev_editeur_ouvert: "打开了编辑器", tl_ev_editeur_modifie: "编辑了站点",
     tl_desinscription: "退订（{src}）", tl_reponse: "检测到回复", tl_arret: "已停止（屏蔽／手动）", tl_approx: "≈ 最后一次写入时间，节点不记录此事件的时间戳",
     tl_off: "+{m} 分钟", tl_off_h: "+{h} 小时 {m} 分钟", tl_off_d: "+{d} 天 {h} 小时", tl_off_before: "发送之前",
-    src_oneclick: "一键", src_manual: "我方添加", src_link: "链接", th_unsub_etat: "状态",
+    src_oneclick: "一键", src_manual: "我方添加", src_link: "链接",
+    /* --- tracking P3 : 打磨 --- */
+    lead_none_filtered: "没有符合这些筛选条件的线索。", clear_filters: "清除筛选",
+    rel_in_min: "{n} 分钟后", rel_in_h: "{n} 小时后", rel_in_d: "{n} 天后",
+    tip_eng_contacted: "至少收到一封邮件的不同沙龙。", tip_eng_ouvert: "发送后打开了自己的 maquette（已排除机器人和内部流量）。", tip_eng_prix_vu: "发送后显示过价格（预览或价格页）。", tip_eng_inconnu: "已发送但节点没有发送时间戳：未知，而非「未发送」。",
+    tip_eng_humaine: "看过价格、滚动或编辑，或发送后至少两次访问。", tip_eng_non_confirmee: "仅一次裸打开：邮件扫描器会用普通浏览器打开链接。", tip_eng_pas_de_trace: "发送后没有任何事件：未知，而非「机器人」。", tip_eng_slug_incoherent: "节点的 slug 与后台登记不一致：无法关联。",
+    tip_issue_repondu: "节点检测到回复——包含自动回复（外出等）。", tip_issue_desinscrit: "在中央退订名单中（一键按钮或链接）。", tip_issue_en_cours: "序列进行中，或结束不到 3 天。", tip_issue_silence: "序列结束 3 天以上，无回复无痕迹。", tip_issue_stoppe: "我方停止：推送屏蔽或手动 Stop。",
+    tip_status_queued: "排队中，尚未发送邮件。", tip_status_active: "至少发送了一封邮件，序列进行中。", tip_status_completed: "序列中的所有邮件都已发送。", tip_status_failed: "节点发送错误（见该行的「!」）。", th_unsub_etat: "状态",
     unsub_verdict_help: "「真人活动」= 看过价格、滚动或编辑，或发送后至少两次访问。「未确认打开」= 仅一次裸打开（邮件扫描器会用普通浏览器打开链接）。「无痕迹」不等于机器人：未知。",
     import_title: "导入线索（CSV）",
     import_help: "必需列：email、salon_slug。可选列：first_name、salon_name、city、preview_url、preview_image_url、admin_url。任何脏行（邮箱为空/重复、salon_slug 为空、已导入、在屏蔽名单）都会导致该节点整个文件被拒绝，不写入任何数据。",
@@ -797,7 +821,10 @@ var SORT_DIRTY = true;
 function pct(n, d){ return d ? Math.round(100*n/d) + ' %' : '—'; }
 function chip(kind, val, label, n, extraCls){
   var on = FILTER[kind] === val;
-  return '<span class="chip'+(on?' on':'')+(extraCls?' '+extraCls:'')+'" onclick="goLeads(\''+kind+'\',\''+val+'\')">'
+  var tipKey = 'tip_' + kind + '_' + val, tip = T[lang] && T[lang][tipKey] ? t(tipKey) : (T.fr[tipKey] ? t(tipKey) : '');
+  return '<span class="chip'+(on?' on':'')+(extraCls?' '+extraCls:'')+'" role="button" tabindex="0" aria-pressed="'+(on?'true':'false')+'"'
+    + (tip ? ' title="'+esc(tip)+'"' : '')
+    + ' onclick="goLeads(\''+kind+'\',\''+val+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();goLeads(\''+kind+'\',\''+val+'\');}">'
     + '<b>'+n+'</b> '+esc(label)+'</span>';
 }
 function renderChips(){
@@ -827,7 +854,7 @@ function renderChips(){
   if (lc) {
     var any = FILTER.status || FILTER.eng || FILTER.issue;
     lc.innerHTML = lbl('lbl_filtres')
-      + '<span class="chip'+(any?'':' on')+'" onclick="clearChips()">'+esc(t('chip_tout'))+'</span>'
+      + '<span class="chip'+(any?'':' on')+'" role="button" tabindex="0" onclick="clearChips()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();clearChips();}">'+esc(t('chip_tout'))+'</span>'
       + chip('eng','contacted', t('f_contactes'), f.contactes||0)
       + chip('eng','ouvert', t('f_ouvert'), f.ouvert||0)
       + chip('eng','prix_vu', t('f_prix'), f.prix_vu||0)
@@ -857,13 +884,23 @@ function setSort(key){
   if (SORT.key === key) SORT.dir = SORT.dir === 'desc' ? 'asc' : 'desc'; else { SORT.key = key; SORT.dir = 'desc'; }
   SORT_DIRTY = true; renderLeads();
 }
+function clearAll(){ FILTER.status = FILTER.eng = FILTER.issue = FILTER.box = FILTER.q = ''; var b = document.getElementById('leadBox'); if (b) b.value = ''; var i = document.getElementById('leadSearch'); if (i) i.value = ''; syncHash(); SORT_DIRTY = true; renderChips(); renderLeads(); }
+function rowKey(ev, tr){
+  if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleTimeline(null, tr); }
+}
+document.addEventListener('keydown', function(ev){
+  var tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (ev.key === 'Escape') { var any = Object.keys(OPEN_TL).some(function(k){ return OPEN_TL[k]; }); if (any) { OPEN_TL = {}; syncHash(); renderLeads(); renderResultats(); } }
+  if (ev.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) { var s = document.getElementById('leadSearch'); if (s && !document.getElementById('leads').classList.contains('hide')) { ev.preventDefault(); s.focus(); } }
+});
 function syncHash(){
   var q = []; ['status','eng','issue','box'].forEach(function(k){ if (FILTER[k]) q.push(k+'='+encodeURIComponent(FILTER[k])); });
+  var open = Object.keys(OPEN_TL).filter(function(k){ return OPEN_TL[k]; }); if (open.length) q.push('open='+encodeURIComponent(open[open.length-1]));
   try { history.replaceState(null, '', location.pathname + (q.length ? '#leads?'+q.join('&') : '')); } catch(e){}
 }
 function readHash(){
   var m = /^#leads\?(.*)$/.exec(location.hash || ''); if (!m) return;
-  m[1].split('&').forEach(function(kv){ var p = kv.split('='); if (p[0] in FILTER) FILTER[p[0]] = decodeURIComponent(p[1]||''); });
+  m[1].split('&').forEach(function(kv){ var p = kv.split('='); if (p[0] in FILTER) FILTER[p[0]] = decodeURIComponent(p[1]||''); if (p[0] === 'open' && p[1]) OPEN_TL[decodeURIComponent(p[1]).toLowerCase()] = true; });
   var btn = document.querySelector('.seq-tabs button[data-tab="leads"]'); if (btn) tab(btn);
 }
 
@@ -883,10 +920,18 @@ function parisOffsetMin(ms){
 }
 function rel(str){
   var ms = parisMs(str); if (ms == null) return t('rel_never');
-  var d = Math.max(0, Date.now() - ms), mn = Math.floor(d/60000);
+  var diff = Date.now() - ms;
+  if (diff < -60000) {                                   // futur (prochain envoi) : « dans … »
+    var fm = Math.floor(-diff/60000);
+    if (fm < 60) return t('rel_in_min', {n: fm});
+    var fh = Math.floor(fm/60); if (fh < 48) return t('rel_in_h', {n: fh});
+    return t('rel_in_d', {n: Math.floor(fh/24)});
+  }
+  var mn = Math.floor(Math.max(0, diff)/60000);
   if (mn < 1) return t('rel_now'); if (mn < 60) return t('rel_min', {n: mn});
   var h = Math.floor(mn/60); if (h < 48) return t('rel_h', {n: h});
-  return t('rel_d', {n: Math.floor(h/24)});
+  var days = Math.floor(h/24); if (days <= 30) return t('rel_d', {n: days});
+  return str.slice(0, 10);                               // au-delà d'un mois, la date exacte parle mieux
 }
 function dots(step){ var o = ''; for (var i = 1; i <= 5; i++) o += (i <= step ? '<i>●</i>' : '○'); return '<span class="dots" title="'+step+'/5">'+o+'</span>'; }
 function actCell(l){
@@ -953,8 +998,9 @@ function renderLeads(){
   document.querySelectorAll('#leadTbl th.sortable').forEach(function(th){
     var key = th.getAttribute('onclick').match(/setSort\('(\w+)'\)/)[1];
     var base = th.textContent.replace(/[▲▼]\s*$/, '').trim();
-    th.innerHTML = esc(base) + (SORT.key === key ? '<span class="dir">'+(SORT.dir === 'desc' ? '▼' : '▲')+'</span>' : '');
-    th.title = t('sort_hint');
+    th.innerHTML = esc(base) + (SORT.key === key ? '<span class="dir">'+(SORT.dir === 'desc' ? '▼' : '▲')+'</span>' : '<span class="dir idle">↕</span>');
+    th.title = t('sort_hint'); th.setAttribute('tabindex', '0'); th.setAttribute('role', 'button');
+    th.onkeydown = function(ev){ if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setSort(key); } };
   });
   var rows = [], total = all.length, shown = 0;
   LEAD_ORDER.forEach(function(k){
@@ -967,19 +1013,23 @@ function renderLeads(){
               + (l.hors_portail ? ' <span class="muted" title="'+esc(t('hors_portail_row'))+'">⚠</span>' : '');
     var key = String(l.email||'').toLowerCase();
     var isOpen = OPEN_TL[key];
-    rows.push('<tr class="lead-row'+(isOpen?' open':'')+'" data-email="'+esc(key)+'" onclick="toggleTimeline(event, this)">'
+    rows.push('<tr class="lead-row'+(isOpen?' open':'')+'" data-email="'+esc(key)+'" tabindex="0" role="button" aria-expanded="'+(isOpen?'true':'false')+'" onclick="toggleTimeline(event, this)" onkeydown="rowKey(event, this)">'
       +'<td class="tgl" title="'+esc(t(isOpen?'tl_close':'tl_open'))+'">'+(isOpen?'▾':'▸')+'</td><td class="muted">'+it.rang+'</td>'
       +'<td>'+esc(l.salon_name||'-')+flags+'<span class="sub">'+esc(l.email)+'</span></td>'
       +'<td>'+esc(String(l.mailbox||'').split('@')[0])+'</td>'
       +'<td>'+dots(Number(l.current_step)||0)+'</td>'
       +'<td title="'+esc(l.first_sent_at||'')+'">'+esc(l.first_sent_at ? rel(l.first_sent_at) : t('rel_never'))
-        +(l.next_send_at ? '<span class="sub">'+esc(t('next_send'))+' '+esc(l.next_send_at)+'</span>' : '')+'</td>'
+        +(l.next_send_at ? '<span class="sub" title="'+esc(l.next_send_at)+'">'+esc(t('next_send'))+' '+esc(rel(l.next_send_at))+'</span>' : '')+'</td>'
       +'<td>'+actCell(l)+'</td>'
       +'<td><span class="badge b-'+esc(l.status)+'">'+esc(l.status)+'</span> '+etatChip
         +(l.last_error?' <span class="muted" title="'+esc(l.last_error)+'">!</span>':'')+'</td>'
       +'<td>'+(canStop?'<button class="btn danger small" onclick="event.stopPropagation();stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
     if (isOpen) rows.push('<tr class="tl-row" data-for="'+esc(key)+'"><td colspan="9">'+(TL_CACHE[key] ? renderTimeline(TL_CACHE[key]) : '<span class="muted">'+esc(t('tl_loading'))+'</span>')+'</td></tr>');
   });
+  if (!rows.length && total) {
+    rows.push('<tr><td colspan="9"><div class="empty">'+esc(t('lead_none_filtered'))
+      +' <span class="chip" role="button" tabindex="0" onclick="clearAll()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();clearAll();}">'+esc(t('clear_filters'))+'</span></div></td></tr>');
+  }
   document.querySelector('#leadTbl tbody').innerHTML = rows.join('');
   // les tiroirs ouverts sans données en cache se chargent après le rendu (à la demande, jamais inliné)
   Object.keys(OPEN_TL).forEach(function(k){ if (OPEN_TL[k] && !TL_CACHE[k]) fetchTimeline(k); });
@@ -1216,7 +1266,7 @@ function toggleTimeline(ev, tr){
   if (ev && ev.target && /^(BUTTON|A|INPUT|SELECT)$/.test(ev.target.tagName)) return;
   var key = tr.getAttribute('data-email'); if (!key) return;
   OPEN_TL[key] = !OPEN_TL[key];
-  renderLeads(); renderResultats();
+  syncHash(); renderLeads(); renderResultats();
 }
 function fetchTimeline(key){
   api('/lead/' + encodeURIComponent(key) + '/timeline').then(function(tl){
@@ -1290,7 +1340,7 @@ function renderResultats(){
   document.querySelector('#resTbl tbody').innerHTML = rows.map(function(r){
     var key = String(r.email).toLowerCase(), isOpen = OPEN_TL[key];
     var l = byE[key] || {};
-    var tr = '<tr class="lead-row'+(isOpen?' open':'')+'" data-email="'+esc(key)+'" onclick="toggleTimeline(event, this)">'
+    var tr = '<tr class="lead-row'+(isOpen?' open':'')+'" data-email="'+esc(key)+'" tabindex="0" role="button" aria-expanded="'+(isOpen?'true':'false')+'" onclick="toggleTimeline(event, this)" onkeydown="rowKey(event, this)">'
       + '<td class="tgl">'+(isOpen?'▾':'▸')+'</td>'
       + '<td>'+esc(r.salon||'-')+'<span class="sub">'+esc(r.email)+'</span></td>'
       + '<td>'+esc(r.date)+(r.approx?' <span class="approx" title="'+esc(t('tl_approx'))+'">≈</span>':'')+'</td>'
