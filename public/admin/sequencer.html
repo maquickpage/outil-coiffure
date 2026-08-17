@@ -149,8 +149,11 @@
       <h3 style="margin-top:0" id="t-unsub-title"></h3>
       <p class="muted" id="t-unsub-help"></p>
       <p id="unsubCounts" class="muted"></p>
+      <p id="unsubVerdicts" class="muted"></p>
+      <p id="unsubVerdictHelp" class="muted" style="font-size:12px"></p>
       <div class="scroll"><table id="unsubTbl"><thead><tr>
         <th id="th-unsub-email"></th><th id="th-unsub-source"></th><th id="th-unsub-date"></th>
+        <th id="th-unsub-activite"></th><th id="th-unsub-verdict"></th>
       </tr></thead><tbody></tbody></table></div>
       <p class="muted" id="unsubEmpty"></p>
       <p class="muted" id="unsubRecon"></p>
@@ -251,6 +254,12 @@ var T = {
     unsub_empty: "Aucune désinscription enregistrée.",
     unsub_recon: "Réconciliation : {n} adresse(s) présente(s) sur un nœud mais absente(s) de la liste centrale (entrées d'avant la table, ou écrites à la main dans le Sheet).",
     unsub_recon_none: "Réconciliation : chaque adresse présente sur un nœud figure dans la liste centrale.",
+    th_unsub_activite: "Activité maquette", th_unsub_verdict: "Verdict",
+    unsub_v_humain: "humain confirmé", unsub_v_verifier: "à vérifier",
+    unsub_act_none: "aucune trace",
+    unsub_act_fmt: "{o} ouverture(s){p}{s}{e} · {d} · {last}",
+    unsub_verdicts: "{h} humain(s) confirmé(s), {v} à vérifier",
+    unsub_verdict_help: "« humain confirmé » = cette adresse a ouvert sa maquette (ou vu le prix / scrollé / édité). « à vérifier » ne veut PAS dire robot : cela veut dire aucune trace, donc inconnu.",
     import_title: "Import de leads (CSV)",
     import_help: "Colonnes requises : email, salon_slug. Optionnelles : first_name, salon_name, city, preview_url, preview_image_url, admin_url. Toute ligne sale (email vide/en double, salon_slug vide, déjà importé, sur suppression) rejette le fichier ENTIER du nœud concerné, sans écriture.",
     import_dest: "Destination", import_rr: "Répartir sur tous les nœuds actifs (round-robin)",
@@ -324,6 +333,12 @@ var T = {
     unsub_empty: "No unsubscribe recorded.",
     unsub_recon: "Reconciliation: {n} address(es) present on a node but missing from the central list (pre-table entries, or hand-written in the Sheet).",
     unsub_recon_none: "Reconciliation: every address present on a node is in the central list.",
+    th_unsub_activite: "Preview activity", th_unsub_verdict: "Verdict",
+    unsub_v_humain: "confirmed human", unsub_v_verifier: "to check",
+    unsub_act_none: "no trace",
+    unsub_act_fmt: "{o} open(s){p}{s}{e} · {d} · {last}",
+    unsub_verdicts: "{h} confirmed human, {v} to check",
+    unsub_verdict_help: "\"confirmed human\" = this address opened its preview (or saw the price / scrolled / edited). \"to check\" does NOT mean bot: it means no trace, therefore unknown.",
     import_title: "Import leads (CSV)",
     import_help: "Required columns: email, salon_slug. Optional: first_name, salon_name, city, preview_url, preview_image_url, admin_url. Any dirty row (blank/duplicate email, blank salon_slug, already imported, suppressed) rejects that node's WHOLE file with no writes.",
     import_dest: "Destination", import_rr: "Split across all active nodes (round-robin)",
@@ -397,6 +412,12 @@ var T = {
     unsub_empty: "暂无退订记录。",
     unsub_recon: "对账：{n} 个地址存在于某节点但不在中央名单中（建表前的条目，或手写进 Sheet 的）。",
     unsub_recon_none: "对账：节点上的每个地址都在中央名单中。",
+    th_unsub_activite: "maquette 活动", th_unsub_verdict: "判定",
+    unsub_v_humain: "确认真人", unsub_v_verifier: "待核实",
+    unsub_act_none: "无痕迹",
+    unsub_act_fmt: "{o} 次打开{p}{s}{e} · {d} · {last}",
+    unsub_verdicts: "{h} 个确认真人，{v} 个待核实",
+    unsub_verdict_help: "「确认真人」= 该地址打开过自己的 maquette（或看过价格／滚动／编辑）。「待核实」不等于机器人：它表示没有任何痕迹，因此未知。",
     import_title: "导入线索（CSV）",
     import_help: "必需列：email、salon_slug。可选列：first_name、salon_name、city、preview_url、preview_image_url、admin_url。任何脏行（邮箱为空/重复、salon_slug 为空、已导入、在屏蔽名单）都会导致该节点整个文件被拒绝，不写入任何数据。",
     import_dest: "目标", import_rr: "在所有启用节点间轮流分配（round-robin）",
@@ -469,6 +490,8 @@ function applyStatic(){
     'th-lastsend':'th_lastsend', 'th-nextsend':'th_nextsend', 'leadEmpty':'lead_empty',
     't-supp-title':'supp_title', 't-supp-help':'supp_help', 't-supp-btn':'supp_btn',
     't-unsub-title':'unsub_title', 't-unsub-help':'unsub_help', 'th-unsub-email':'th_unsub_email',
+    'th-unsub-activite':'th_unsub_activite', 'th-unsub-verdict':'th_unsub_verdict',
+    'unsubVerdictHelp':'unsub_verdict_help',
     'th-unsub-source':'th_unsub_source', 'th-unsub-date':'th_unsub_date', 'unsubEmpty':'unsub_empty',
     't-import-title':'import_title', 't-import-help':'import_help', 't-import-dest':'import_dest',
     't-import-file':'import_file', 'importBtn':'import_btn',
@@ -932,8 +955,23 @@ function loadUnsubscribes(){
       var src = u.source === 'one-click' ? t('unsub_src_oneclick')
               : u.source === 'suppression_manuelle' ? t('unsub_src_manual') : esc(u.source || '?');
       var cls = u.source === 'one-click' ? 'b-unsubscribed' : 'b-stopped';
-      return '<tr><td>'+esc(u.email)+'</td><td><span class="badge '+cls+'">'+src+'</span></td><td>'+esc(u.created_at)+'</td></tr>';
+      var e = u.engagement;
+      var act = e ? t('unsub_act_fmt', {
+            o: e.ouvertures,
+            p: e.prix_vu ? ' · prix vu' : '',
+            s: e.scrolls ? ' · scroll' : '',
+            e: e.editions ? ' · édité' : '',
+            d: e.appareil, last: e.dernier })
+        : '<span class="muted">' + t('unsub_act_none') + '</span>';
+      var human = u.verdict === 'humain_confirme';
+      var vlabel = human ? t('unsub_v_humain') : t('unsub_v_verifier');
+      var vcls = human ? 'b-ok' : 'b-stopped';
+      return '<tr><td>'+esc(u.email)+'</td><td><span class="badge '+cls+'">'+src+'</span></td><td>'+esc(u.date_paris||u.created_at)+'</td>'
+        +'<td>'+act+'</td><td><span class="badge '+vcls+'">'+vlabel+'</span></td></tr>';
     }).join('');
+    var pv = r.par_verdict || {};
+    document.getElementById('unsubVerdicts').textContent =
+      t('unsub_verdicts', { h: pv.humain_confirme || 0, v: pv.a_verifier || 0 });
     document.getElementById('unsubEmpty').style.display = rows.length ? 'none' : 'block';
   }).catch(function(){ /* silencieux : la carte reste vide, /overview n'est pas affecté */ });
 }
