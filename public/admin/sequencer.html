@@ -799,7 +799,7 @@ function renderChips(){
     + chip('issue','desinscrit', t('o_desinscrit'), o.desinscrit||0)
     + chip('issue','en_cours', t('o_encours'), o.en_cours||0)
     + chip('issue','silence', t('o_silence'), o.silence||0)
-    + chip('issue','stoppe', t('o_stoppe'), s.stopped||0, 'dim');
+    + chip('issue','stoppe', t('o_stoppe'), o.stoppe||0, 'dim');
   document.getElementById('statusBar').innerHTML = lbl('lbl_file')
     + chip('status','queued', t('stat_queued'), s.queued||0)
     + chip('status','active', t('stat_active'), s.active||0)

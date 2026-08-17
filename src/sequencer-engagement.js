@@ -85,8 +85,12 @@ export function etatDepuisEvents(evs) {
  * @param registre [{email, salon_slug}] — sequencer_leads.
  * @param nowMs    horloge injectée (tests).
  */
-export function calculerEngagement({ leads, events, registre, nowMs = Date.now() }) {
+export function calculerEngagement({ leads, events, registre, desinscrits = [], nowMs = Date.now() }) {
   const reg = new Map(registre.map(r => [normaliserEmail(r.email), r.salon_slug || '']));
+  // La liste centrale (sequencer_unsubscribes) est la vérité pour « désinscrit » : les
+  // opt-outs antérieurs au champ `reason` sont restés `stopped` côté nœuds, et les compter
+  // comme « arrêtés par nous » est faux.
+  const optOut = new Set((desinscrits || []).map(normaliserEmail));
 
   // events humains par slug, triés
   const evBySlug = new Map();
@@ -108,7 +112,7 @@ export function calculerEngagement({ leads, events, registre, nowMs = Date.now()
 
   const par_email = {};
   const funnelSlugs = { contactes: new Set(), ouvert: new Set(), prix_vu: new Set() };
-  const outcomes = { repondu: 0, desinscrit: 0, en_cours: 0, silence: 0, inconnu: 0 };
+  const outcomes = { repondu: 0, desinscrit: 0, en_cours: 0, silence: 0, stoppe: 0, inconnu: 0 };
   let hors_portail = 0, slug_incoherent = 0;
   const seen = new Set();
 
@@ -157,9 +161,9 @@ export function calculerEngagement({ leads, events, registre, nowMs = Date.now()
     // issues (à côté de l'entonnoir, pas dedans)
     const st = String(l.status || '');
     let issue = '';
-    if (st === 'replied') { outcomes.repondu++; issue = 'repondu'; }
-    else if (st === 'unsubscribed') { outcomes.desinscrit++; issue = 'desinscrit'; }
-    else if (st === 'stopped') { issue = 'stoppe'; /* arrêt manuel/suppression : ni succès ni silence */ }
+    if (st === 'unsubscribed' || optOut.has(email)) { outcomes.desinscrit++; issue = 'desinscrit'; }
+    else if (st === 'replied') { outcomes.repondu++; issue = 'repondu'; }
+    else if (st === 'stopped') { outcomes.stoppe++; issue = 'stoppe'; /* arrêt manuel/suppression : ni succès ni silence */ }
     else if (st === 'completed') {
       const lastSent = parisToEpoch(l.last_sent_at) ?? sent;
       const silent = lastSent != null && (nowMs - lastSent) >= SILENCE_APRES_MS && evs.length === 0;
