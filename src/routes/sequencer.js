@@ -370,7 +370,8 @@ function engagementDepuis(results) {
     for (const l of r.leads) leads.push({ ...l, node_id: r.node_id, mailbox: r.mailbox });
   }
   const registre = db.prepare('SELECT email, salon_slug FROM sequencer_leads').all();
-  const value = calculerEngagement({ leads, events: eventsHumains(), registre, nowMs: now });
+  const desinscrits = db.prepare('SELECT email FROM sequencer_unsubscribes').all().map(r => r.email);
+  const value = calculerEngagement({ leads, events: eventsHumains(), registre, desinscrits, nowMs: now });
   engagementCache = { at: now, key, value };
   return value;
 }

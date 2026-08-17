@@ -116,3 +116,15 @@ test('silence = completed + 3 jours sans activité ; avant, en_cours', () => {
   assert.equal(r.outcomes.silence, 1);
   assert.equal(r.outcomes.en_cours, 1);
 });
+
+test('désinscrit vient de la liste centrale : un opt-out historique resté `stopped` sur le nœud est compté désinscrit, pas « arrêté par nous »', () => {
+  const leads = [
+    { email: 'old@x.fr', salon_slug: 'old', status: 'stopped', current_step: 1, first_sent_at: '2026-08-14 16:55' },
+    { email: 'seed@x.fr', salon_slug: 'seed', status: 'stopped', current_step: 1, first_sent_at: '2026-08-03 16:47' },
+  ];
+  const reg = [{ email: 'old@x.fr', salon_slug: 'old' }, { email: 'seed@x.fr', salon_slug: 'seed' }];
+  const r = calculerEngagement({ leads, events: [], registre: reg, desinscrits: ['OLD@x.fr'] });
+  assert.equal(r.par_email['old@x.fr'].issue, 'desinscrit');
+  assert.equal(r.par_email['seed@x.fr'].issue, 'stoppe');
+  assert.equal(r.outcomes.desinscrit, 1);
+});
