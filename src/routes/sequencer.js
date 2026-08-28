@@ -8,9 +8,10 @@ import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
 import db from '../db.js';
 import { COLONNES_IMPORT, normaliserEmail, filtrerLot, repartir, estUnRejeuIdentique } from '../sequencer-filters.js';
-import { resoudreSignature, neutraliserSignature } from '../sequencer-signature.js';
+import { resoudreSignature, neutraliserSignature, prenomNoeud, SENDER_TAG } from '../sequencer-signature.js';
 import { creerClassifieur } from '../suivi-classifier.js';
 import { calculerEngagement, construireTimeline, HUMAN_EVENTS, epochToParis, utcToEpoch } from '../sequencer-engagement.js';
+import { validerTemplate, verifierEligibilite, verifierQuota } from '../sequencer-manual-followup.js';
 
 const router = express.Router();
 router.use(express.json({ limit: '20mb' }));
@@ -22,7 +23,7 @@ const RETRY_BASE_MS = 2000;    // base du backoff exponentiel entre deux essais
 // Actions autorisées côté nœud — tout le reste est refusé avant de sortir du portail.
 const NODE_ACTIONS = new Set(['health', 'dashboard', 'uploadCsv', 'saveSteps',
   'saveMailbox', 'setCampaign', 'stopLead', 'addSuppression',
-  'listSuppression', 'removeSuppression', 'sendTest']);
+  'listSuppression', 'removeSuppression', 'sendTest', 'sendManualFollowup']);
 
 function listNodes(onlyEnabled = false) {
   const rows = db.prepare('SELECT * FROM sequencer_nodes ORDER BY mailbox').all();
@@ -169,7 +170,8 @@ router.get('/api/sequencer/overview', async (req, res) => {
     }
   }
   const agg = { total: 0, queued: 0, active: 0, replied: 0, stopped: 0, unsubscribed: 0,
-                failed: 0, completed: 0, step1: 0, step2: 0, step3: 0, step4: 0, step5: 0 };
+                failed: 0, completed: 0, manual_followup: 0,
+                step1: 0, step2: 0, step3: 0, step4: 0, step5: 0 };
   for (const r of results) {
     if (r.ok && r.stat) for (const k of Object.keys(agg)) agg[k] += Number(r.stat[k]) || 0;
   }
@@ -417,6 +419,137 @@ router.get('/api/sequencer/lead/:email/timeline', async (req, res) => {
   const desinscription = db.prepare('SELECT source, created_at FROM sequencer_unsubscribes WHERE lower(email) = ?').get(email) || null;
   const tl = construireTimeline({ lead, events, desinscription, contactsSurSlug });
   res.json({ ...tl, mailbox, salon_name: lead.salon_name || '', current_step: Number(lead.current_step) || 0 });
+});
+
+// ---------- Relance manuelle (V1) ----------
+// UN modèle central (sequencer_settings), UN bouton par lead éligible, UN envoi maximum
+// par lead. Ce n'est pas le Step 2 automatique : le modèle ne touche jamais les steps
+// des nœuds, et l'envoi passe par l'action dédiée sendManualFollowup du nœud, qui
+// répond dans le thread Gmail d'origine et pose le statut `manual_followup`.
+const CLE_MODELE_RELANCE = 'manual_followup_template';
+
+// Messages de refus lisibles (le code `raison` part aussi au client pour l'i18n).
+const RAISONS_RELANCE = {
+  modele_vide: 'modèle de relance vide — le renseigner dans l\'onglet Séquence',
+  variable_inconnue: 'variable inconnue ou mal écrite dans le modèle de relance',
+  accolades_orphelines: 'accolades {{ }} mal fermées dans le modèle de relance',
+  lead_introuvable: 'lead introuvable sur le nœud',
+  deja_relance: 'relance déjà envoyée',
+  desinscrit: 'désinscrit — aucune relance possible',
+  repondu: 'a répondu — répondre à la main dans Gmail',
+  echec_envoi: 'échec/bounce enregistré sur ce lead',
+  stoppe: 'lead stoppé (stop manuel ou suppression)',
+  step1_non_envoye: 'le step 1 n\'est pas encore parti',
+  hors_portail: 'lead importé hors portail — attribution impossible',
+  sans_engagement: 'aucune activité mesurée pour ce lead',
+  slug_partage: 'slug partagé entre plusieurs contacts — attribution impossible',
+  slug_incoherent: 'slug incohérent entre nœud et portail',
+  activite_insuffisante: 'ni prix vu ni activité humaine confirmée',
+  deja_client: 'paiement ou inscription existants — plus une cible de relance',
+  quota_manuel_atteint: 'quota atteint : 2 relances manuelles/jour pour cette boîte',
+  quota_total_atteint: 'quota atteint : 10 envois/jour (auto + manuel) pour cette boîte'
+};
+function refusRelance(res, raison, extra) {
+  return res.status(409).json({ error: RAISONS_RELANCE[raison] || raison, raison, ...(extra || {}) });
+}
+
+router.get('/api/sequencer/manual-followup-template', (req, res) => {
+  const row = db.prepare('SELECT value, updated_at FROM sequencer_settings WHERE key = ?').get(CLE_MODELE_RELANCE);
+  res.json({ template: row ? String(row.value || '') : '', updated_at: row ? row.updated_at : null });
+});
+
+router.put('/api/sequencer/manual-followup-template', (req, res) => {
+  const texte = String((req.body || {}).template || '');
+  // Enregistrer un modèle vide est permis (état initial, retrait volontaire) : c'est
+  // l'ENVOI qui refuse un modèle vide. Une variable inconnue, elle, est refusée dès
+  // l'enregistrement — la faute de frappe se voit tout de suite, pas au premier envoi.
+  if (texte.trim()) {
+    const v = validerTemplate(texte);
+    if (!v.ok) return res.status(400).json({ error: RAISONS_RELANCE[v.raison] + (v.inconnues ? ' : {{' + v.inconnues.join('}}, {{') + '}}' : ''), raison: v.raison });
+  }
+  db.prepare(`INSERT INTO sequencer_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`)
+    .run(CLE_MODELE_RELANCE, texte);
+  res.json({ ok: true });
+});
+
+// Verrou en mémoire par email : deux clics/onglets simultanés sur le même lead ne
+// partent pas en parallèle depuis CE processus. Le nœud reste l'arbitre final
+// (LockService + événement manual_followup_sent relu avant tout envoi).
+const relancesEnCours = new Set();
+
+router.post('/api/sequencer/lead/:email/manual-followup', async (req, res) => {
+  const email = normaliserEmail(req.params.email);
+  if (!email.includes('@')) return res.status(400).json({ error: 'email invalide' });
+  if (relancesEnCours.has(email)) return res.status(409).json({ error: 'relance déjà en cours pour ce lead', raison: 'en_cours' });
+  relancesEnCours.add(email);
+  try {
+    // 1. Modèle central — jamais de corps fourni par le client.
+    const row = db.prepare('SELECT value FROM sequencer_settings WHERE key = ?').get(CLE_MODELE_RELANCE);
+    const template = row ? String(row.value || '') : '';
+    const vt = validerTemplate(template);
+    if (!vt.ok) return refusRelance(res, vt.raison);
+
+    // 2. Attribution : boîte/nœud/slug viennent du registre portail, pas du client.
+    const reg = db.prepare('SELECT * FROM sequencer_leads WHERE email = ?').get(email);
+    if (!reg) return refusRelance(res, 'hors_portail');
+    const node = db.prepare('SELECT * FROM sequencer_nodes WHERE id = ?').get(reg.node_id)
+      || db.prepare('SELECT * FROM sequencer_nodes WHERE mailbox = ?').get(String(reg.mailbox || '').toLowerCase());
+    if (!node || !node.enabled) return res.status(409).json({ error: 'nœud du lead inconnu ou désactivé', raison: 'noeud_inconnu' });
+
+    const desinscrit = !!db.prepare('SELECT 1 FROM sequencer_unsubscribes WHERE lower(email) = ?').get(email);
+    const salon = reg.salon_slug
+      ? db.prepare('SELECT plan, stripe_subscription_id, signed_up_at FROM salons WHERE slug = ?').get(reg.salon_slug) || null
+      : null;
+
+    // 3. État FRAIS du nœud cible (jamais le cache seul pour décider d'un envoi).
+    const frais = await callNode(node, { action: 'dashboard' });
+    if (!frais.ok) return res.status(502).json({ error: 'nœud injoignable : ' + (frais.error || ''), raison: 'noeud_injoignable' });
+    cacheDashboard.set(node.id, { at: Date.now(), mailbox: node.mailbox, label: node.label || null, res: frais });
+    const lead = (frais.leads || []).find(l => normaliserEmail(l.email) === email) || null;
+
+    // Cohérence expéditeur, fail-closed : le compte Google qui exécute le nœud
+    // (node_owner), la boîte enregistrée côté portail et la boîte du lead sur la
+    // feuille du nœud doivent être LA MÊME adresse. Un registre ou un Sheet qui a
+    // dérivé enverrait sinon depuis le mauvais expéditeur.
+    const boiteNoeud = String(node.mailbox || '').toLowerCase();
+    const boiteOwner = String(frais.node_owner || '').toLowerCase();
+    const boiteLead = lead ? String(lead.mailbox || '').toLowerCase() : boiteNoeud;
+    if (!boiteOwner || boiteOwner !== boiteNoeud || boiteLead !== boiteNoeud) {
+      return res.status(409).json({
+        error: `boîtes incohérentes (nœud ${boiteNoeud || '?'} / compte ${boiteOwner || '?'} / lead ${boiteLead || '?'}) — envoi refusé`,
+        raison: 'boite_incoherente'
+      });
+    }
+
+    // 4. Engagement recalculé (le nœud cible vient d'être rafraîchi dans le cache).
+    const results = await dashboardNodes({});
+    const eng = engagementDepuis(results).par_email[email] || null;
+
+    const elig = verifierEligibilite({ lead, engagement: eng, desinscrit, salon, enregistre: true });
+    if (!elig.ok) {
+      if (elig.deja) return res.json({ ok: true, already: true, mailbox: node.mailbox,
+        manual_followup_at: (lead && lead.manual_followup_at) || '' });
+      return refusRelance(res, elig.raison);
+    }
+
+    // 5. Pré-contrôle quota côté portail ; le contrôle qui fait foi est dans le nœud.
+    const mb = (frais.mailboxes || []).find(m => String(m.address).toLowerCase() === String(node.mailbox).toLowerCase());
+    const q = verifierQuota({ manuelAujourdhui: mb ? Number(mb.manual_sent_today) || 0 : 0,
+                              autoAujourdhui: mb ? Number(mb.sent_today) || 0 : 0 });
+    if (!q.ok) return refusRelance(res, q.raison);
+
+    // 6. {{sender_name}} résolu ici (même mécanisme que la séquence) ; le nœud résout
+    //    les variables du lead et refuse tout {{...}} restant.
+    const texte = String(template).split(SENDER_TAG).join(prenomNoeud(node));
+
+    const out = await callNode(node, { action: 'sendManualFollowup', leadId: lead.lead_id, template: texte });
+    invaliderDashboard(node.id);
+    if (!out.ok) return res.status(409).json({ error: out.error || 'refus du nœud', raison: 'refus_noeud' });
+    res.json({ ok: true, already: !!out.already, mailbox: node.mailbox, manual_followup_at: out.manual_followup_at || '' });
+  } finally {
+    relancesEnCours.delete(email);
+  }
 });
 
 // Qui s'est désinscrit, quand, et par quel chemin. Sur les nœuds, un lead passe à

@@ -516,6 +516,16 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_sequencer_leads_slug ON sequencer_leads(salon_slug);
   CREATE INDEX IF NOT EXISTS idx_sequencer_leads_node ON sequencer_leads(node_id);
+
+  -- Réglages du séquenceur côté portail (clé → valeur). Première clé :
+  -- 'manual_followup_template' = modèle UNIQUE du bouton « Envoyer la relance ».
+  -- Volontairement pas une table de templates : la V1 n'a qu'un modèle central,
+  -- distinct des steps des nœuds (il ne doit jamais écraser la séquence automatique).
+  CREATE TABLE IF NOT EXISTS sequencer_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 initSchema();

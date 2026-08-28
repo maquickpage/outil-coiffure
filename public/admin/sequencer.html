@@ -88,6 +88,8 @@
   .chip:focus-visible, tr.lead-row:focus-visible, th.sortable:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .empty { padding:18px 6px; color:var(--muted); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   th.sortable .dir.idle { opacity:.35; }
+  .b-manual_followup{color:#7c3aed;border-color:#ddd0f7}
+  .tl .what.relance { color:#7c3aed; font-weight:600; }
   .b-active{color:var(--accent);border-color:#c7d7fb}.b-queued{color:var(--muted)}.b-replied{color:var(--green);border-color:#bfe6c9}
   .b-stopped,.b-failed,.b-unsubscribed{color:var(--red);border-color:#f3c6c6}.b-completed{color:#111;background:#eef1f4}
   .b-ok{color:var(--green);border-color:#bfe6c9}.b-down{color:var(--red);border-color:#f3c6c6}.b-pending{color:var(--amber);border-color:#f5deb8}
@@ -245,6 +247,19 @@
       <button class="btn primary" id="saveStepsBtn" onclick="saveSteps()"></button>
       <span id="unsavedFlag" class="muted hide" style="margin-left:10px;color:#b45309"></span>
     </div>
+    <!-- Relance manuelle : modèle CENTRAL du bouton « Envoyer la relance » (onglet Leads).
+         Stocké côté portail (sequencer_settings), jamais dans les steps des nœuds. -->
+    <div class="card">
+      <h3 style="margin-top:0" id="t-relance-title"></h3>
+      <p class="muted" id="t-relance-help"></p>
+      <textarea id="relanceTpl" style="min-height:140px"></textarea>
+      <p class="muted" style="margin:6px 0 0">{{first_name}} · {{salon_name}} · {{city}} · {{salon_slug}} · {{preview_url}} · {{preview_image_url}} · {{admin_url}} · {{sender_name}}</p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="saveRelanceBtn" onclick="saveRelanceTpl()"></button>
+        <span class="muted" id="relanceTplInfo"></span>
+      </div>
+      <p class="muted" id="t-relance-quota-note" style="margin:8px 0 0;font-size:0.75rem"></p>
+    </div>
   </section>
 
   <!-- BOÎTES -->
@@ -384,7 +399,20 @@ var T = {
     fail_on: "Échec sur : ", lead_stopped: "Lead stoppé",
     stop_confirm: "Stopper ce lead ? Il ne recevra plus aucun envoi.",
     err: "Erreur : ", load_fail: "Chargement échoué : ", failed: "Échec", stat_queued: "En file", stat_active: "Actifs", stat_failed: "Échecs", stat_completed: "Terminés",
-    stopped_n: "stoppé(s)"
+    stopped_n: "stoppé(s)",
+    /* --- relance manuelle (V1) --- */
+    relance_title: "Relance manuelle",
+    relance_help: "Modèle utilisé par le bouton « Envoyer la relance » de l'onglet Leads. Ce modèle n'affecte pas la séquence automatique : il n'écrit jamais dans les steps des nœuds. {{sender_name}} = prénom de la boîte du lead. Vide = le bouton refuse d'envoyer.",
+    relance_save: "Enregistrer le modèle", relance_saved: "Modèle de relance enregistré",
+    relance_tpl_empty: "⚠ Modèle vide : le bouton « Envoyer la relance » est bloqué tant qu'un modèle n'est pas enregistré.",
+    relance_tpl_updated: "enregistré le {d} (UTC)",
+    relance_btn: "Envoyer la relance",
+    relance_confirm: "Envoyer la relance manuelle à ce lead ? Elle part de sa boîte d'origine, dans le fil Gmail d'origine, avec le modèle central. 1 seule relance par lead, max 2/jour par boîte.",
+    relance_sent: "Relance envoyée", relance_sent_at: "Relance envoyée · {d}",
+    relance_quota: "relance {n}/{max}",
+    relance_quota_note: "Seules les relances envoyées par ce bouton sont comptées : sendTest et les emails écrits à la main dans Gmail n'entrent pas dans ce compteur.",
+    tl_relance: "relance manuelle envoyée",
+    stat_manual: "Relances envoyées"
   },
   en: {
     title: "Cold-email sequencer", refresh: "Refresh",
@@ -484,7 +512,20 @@ var T = {
     fail_on: "Failed on: ", lead_stopped: "Lead stopped",
     stop_confirm: "Stop this lead? It will never be emailed again.",
     err: "Error: ", load_fail: "Load failed: ", failed: "Failed", stat_queued: "Queued", stat_active: "Active", stat_failed: "Failed", stat_completed: "Completed",
-    stopped_n: "stopped"
+    stopped_n: "stopped",
+    /* --- manual follow-up (V1) --- */
+    relance_title: "Manual follow-up",
+    relance_help: "Template used by the “Send follow-up” button in the Leads tab. It does not affect the automatic sequence: it never writes into the nodes' steps. {{sender_name}} = first name of the lead's mailbox. Empty = the button refuses to send.",
+    relance_save: "Save template", relance_saved: "Manual follow-up template saved",
+    relance_tpl_empty: "⚠ Empty template: the “Send follow-up” button is blocked until a template is saved.",
+    relance_tpl_updated: "saved {d} (UTC)",
+    relance_btn: "Send follow-up",
+    relance_confirm: "Send the manual follow-up to this lead? It goes out from its original mailbox, in the original Gmail thread, with the central template. 1 follow-up per lead, max 2/day per mailbox.",
+    relance_sent: "Follow-up sent", relance_sent_at: "Follow-up sent · {d}",
+    relance_quota: "manual {n}/{max}",
+    relance_quota_note: "Only follow-ups sent by this button are counted: sendTest and hand-written Gmail emails do not enter this counter.",
+    tl_relance: "manual follow-up sent",
+    stat_manual: "Follow-ups sent"
   },
   zh: {
     title: "冷邮件序列发送器", refresh: "刷新",
@@ -584,7 +625,20 @@ var T = {
     fail_on: "失败节点：", lead_stopped: "线索已停止",
     stop_confirm: "停止该线索？之后不会再向其发送任何邮件。",
     err: "错误：", load_fail: "加载失败：", failed: "失败", stat_queued: "排队", stat_active: "进行中", stat_failed: "失败", stat_completed: "已完成",
-    stopped_n: "已停止"
+    stopped_n: "已停止",
+    /* --- 人工 follow-up（V1） --- */
+    relance_title: "人工 follow-up",
+    relance_help: "「发送 follow-up」按钮（线索页）使用的模板。不影响自动序列：永远不会写入节点的 steps。{{sender_name}} = 该线索邮箱的名字。模板为空时按钮拒绝发送。",
+    relance_save: "保存模板", relance_saved: "人工 follow-up 模板已保存",
+    relance_tpl_empty: "⚠ 模板为空：保存模板之前「发送 follow-up」按钮被禁用。",
+    relance_tpl_updated: "保存于 {d}（UTC）",
+    relance_btn: "发送 follow-up",
+    relance_confirm: "向该线索发送人工 follow-up？将从其原邮箱、在原 Gmail 会话中用中央模板发送。每个线索仅 1 封，每箱每天最多 2 封。",
+    relance_sent: "Follow-up 已发送", relance_sent_at: "Follow-up 已发送 · {d}",
+    relance_quota: "人工 {n}/{max}",
+    relance_quota_note: "仅统计此按钮发出的 follow-up：sendTest 和在 Gmail 手写的邮件不计入。",
+    tl_relance: "人工 follow-up 已发送",
+    stat_manual: "已发 follow-up"
   }
 };
 var lang = (function(){ try { var s = localStorage.getItem('outil-coiffure-lang'); return T[s] ? s : 'fr'; } catch(e){ return 'fr'; } })();
@@ -617,6 +671,8 @@ function applyStatic(){
     't-import-file':'import_file', 'importBtn':'import_btn',
     't-steps-title':'steps_title', 't-steps-help':'steps_help', 'saveStepsBtn':'steps_save',
     'unsavedFlag':'unsaved',
+    't-relance-title':'relance_title', 't-relance-help':'relance_help',
+    'saveRelanceBtn':'relance_save', 't-relance-quota-note':'relance_quota_note',
     't-nodes-title':'nodes_title', 't-nodes-help':'nodes_help',
     'th-node-mb':'th_node_mb', 'th-node-label':'th_node_label', 'th-node-enabled':'th_node_enabled',
     'th-node-health':'th_node_health', 'nodeFormTitle':'node_add_title',
@@ -802,10 +858,13 @@ function renderOverview(){
     }
     (n.mailboxes || []).forEach(function(m){
       var over = m.sent_today >= m.daily_cap;
+      // Relance manuelle : usage du jour (n'existe que sur un nœud à jour du code).
+      var relQ = (m.manual_sent_today != null)
+        ? '<span class="sub">'+esc(t('relance_quota', { n: m.manual_sent_today, max: m.manual_daily_max || 2 }))+'</span>' : '';
       rows.push('<tr><td>'+esc(m.address)+'</td>'
         +'<td><span class="badge b-ok">'+t('badge_ok')+'</span></td>'
         +'<td><span class="pill '+esc(n.campaign_status)+'">'+esc(n.campaign_status)+'</span></td>'
-        +'<td'+(over?' style="color:var(--amber)"':'')+'>'+m.sent_today+' / '+m.daily_cap+'</td>'
+        +'<td'+(over?' style="color:var(--amber)"':'')+'>'+m.sent_today+' / '+m.daily_cap+relQ+'</td>'
         +'<td>'+esc(m.window_start)+'–'+esc(m.window_end)+'</td>'
         +'<td>'+esc(m.send_days)+'</td>'
         +'<td>'+(n.campaign_status==='running'
@@ -850,6 +909,7 @@ function renderChips(){
     + chip('status','queued', t('stat_queued'), s.queued||0)
     + chip('status','active', t('stat_active'), s.active||0)
     + chip('status','completed', t('stat_completed'), s.completed||0, 'dim')
+    + (s.manual_followup ? chip('status','manual_followup', t('stat_manual'), s.manual_followup) : '')
     + (s.failed ? chip('status','failed', t('stat_failed'), s.failed, 'err') : '')
     + (e.hors_portail ? '<span class="chip static warn" title="'+esc(t('hors_portail_row'))+'"><b>'+e.hors_portail+'</b> '+esc(t('hors_portail'))+'</span>' : '')
     + (e.slug_incoherent ? chip('eng','slug_incoherent', t('slug_incoherent'), e.slug_incoherent, 'err') : '');
@@ -1037,7 +1097,7 @@ function renderLeads(){
       +'<td>'+actCell(l)+'</td>'
       +'<td><span class="badge b-'+esc(l.status)+'">'+esc(l.status)+'</span> '+etatChip
         +(l.last_error?' <span class="muted" title="'+esc(l.last_error)+'">!</span>':'')+'</td>'
-      +'<td>'+(canStop?'<button class="btn danger small" onclick="event.stopPropagation();stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
+      +'<td>'+relanceCell(l)+(canStop?'<button class="btn danger small" onclick="event.stopPropagation();stopLead('+n.node_id+',\''+esc(l.lead_id)+'\')">Stop</button>':'')+'</td></tr>');
     if (isOpen) rows.push('<tr class="tl-row" data-for="'+esc(key)+'"><td colspan="9">'+(TL_CACHE[key] ? renderTimeline(TL_CACHE[key]) : '<span class="muted">'+esc(t('tl_loading'))+'</span>')+'</td></tr>');
   });
   if (!rows.length && total) {
@@ -1274,6 +1334,66 @@ function loadUnsubRecon(){
   }).catch(function(){ document.getElementById('unsubRecon').textContent = ''; });
 }
 
+// ---------- Relance manuelle (V1) ----------
+// Le client n'envoie QUE l'email du lead : boîte, destinataire et thread sont relus
+// côté serveur. L'affichage ci-dessous n'est qu'un pré-filtre ; le refus qui fait foi
+// vient du portail puis du nœud (état frais, quota, modèle).
+function relanceEligible(l){
+  return (l.status === 'active' || l.status === 'completed')
+    && Number(l.current_step) >= 1 && Number(l.sends) >= 1
+    && l.etat === 'activite_humaine' && !l.slug_partage && !l.hors_portail
+    && !l.manual_followup_at;
+}
+function relanceCell(l){
+  if (l.status === 'manual_followup' || l.manual_followup_at) {
+    return '<span class="muted" title="'+esc(l.manual_followup_at||'')+'">'
+      +esc(t('relance_sent_at', { d: l.manual_followup_at ? rel(l.manual_followup_at) : '' }))+'</span> ';
+  }
+  if (!relanceEligible(l)) return '';
+  // L'email ne passe JAMAIS dans un handler inline : esc() n'échappe pas l'apostrophe,
+  // et un email contenant ' (légal en RFC) terminerait la chaîne JavaScript. Il voyage
+  // en data-attribute (esc() échappe bien les guillemets doubles) et un listener
+  // délégué le relit via getAttribute — aucune interpolation de code.
+  return '<button class="btn small btn-relance" data-email="'
+    +esc(String(l.email||'').toLowerCase())+'">'+esc(t('relance_btn'))+'</button> ';
+}
+// Listener délégué : les lignes sont re-rendues en innerHTML à chaque poll, un listener
+// par bouton ne survivrait pas. toggleTimeline ignore déjà les clics sur BUTTON, donc
+// pas de conflit avec l'ouverture du tiroir.
+document.addEventListener('click', function(ev){
+  var b = ev.target && ev.target.closest ? ev.target.closest('.btn-relance') : null;
+  if (b) envoyerRelance(b.getAttribute('data-email') || '');
+});
+var RELANCE_BUSY = {};
+function envoyerRelance(email){
+  if (BUSY || RELANCE_BUSY[email]) return;
+  if (!confirm(t('relance_confirm'))) return;
+  RELANCE_BUSY[email] = true; setBusy(true);
+  api('/lead/' + encodeURIComponent(email) + '/manual-followup', { method:'POST', body:{} }).then(function(r){
+    delete RELANCE_BUSY[email];
+    if (r.ok) { toast(t('relance_sent') + (r.manual_followup_at ? ' · ' + r.manual_followup_at : '')); load(); }
+    else { toast(r.error || t('failed'), true); setBusy(false); }
+  }).catch(function(e){ delete RELANCE_BUSY[email]; toast(t('err')+e.message, true); setBusy(false); });
+}
+function loadRelanceTpl(){
+  api('/manual-followup-template').then(function(r){
+    var el = document.getElementById('relanceTpl');
+    if (el && document.activeElement !== el) el.value = r.template || '';
+    var info = document.getElementById('relanceTplInfo');
+    if (info) info.textContent = String(r.template||'').trim()
+      ? (r.updated_at ? t('relance_tpl_updated', { d: r.updated_at }) : '')
+      : t('relance_tpl_empty');
+  }).catch(function(){});
+}
+function saveRelanceTpl(){
+  if (BUSY) return; setBusy(true);
+  api('/manual-followup-template', { method:'PUT', body:{ template: document.getElementById('relanceTpl').value } })
+    .then(function(r){
+      toast(r.ok ? t('relance_saved') : (r.error||t('failed')), !r.ok);
+      setBusy(false); if (r.ok) loadRelanceTpl();
+    }).catch(function(e){ toast(t('err')+e.message, true); setBusy(false); });
+}
+
 // ---------- Tiroir : parcours d'un lead, à la demande ----------
 var OPEN_TL = {}, TL_CACHE = {};
 function toggleTimeline(ev, tr){
@@ -1315,6 +1435,7 @@ function renderTimeline(tl){
     var what = '';
     if (it.type === 'envoi') what = it.step && it.step > 1 ? t('tl_envoi', {s: it.step}) : t('tl_envoi_first');
     else if (it.type === 'maquette') what = t('tl_ev_' + it.event) + ' ' + (it.device === 'mobile' ? '📱' : '💻');
+    else if (it.type === 'relance') what = t('tl_relance') + (it.mailbox ? ' — ' + it.mailbox : '');
     else if (it.type === 'desinscription') what = t('tl_desinscription', {src: srcLabel(it.source)});
     else if (it.type === 'reponse') what = t('tl_reponse');
     else if (it.type === 'arret') what = t('tl_arret');
@@ -1387,6 +1508,7 @@ applyStatic();
 readHash();
 load();
 loadUnsubRecon();
+loadRelanceTpl();
 setInterval(function(){
   if (BUSY || anyDirty() || document.hidden) return;
   var a = document.activeElement;

@@ -206,6 +206,10 @@ export function construireTimeline({ lead, events, desinscription = null, contac
 
   if (sent != null) items.push({ t: sent, type: 'envoi', step: 1, detail: '' });
   if (lastSent != null && lastSent !== sent) items.push({ t: lastSent, type: 'envoi', step: Number(lead.current_step) || null, detail: '' });
+  // Relance manuelle : horodatée par le nœud (événement manual_followup_sent), jamais
+  // présentée comme un step automatique — le type est distinct des `envoi`.
+  const relance = parisToEpoch(lead.manual_followup_at);
+  if (relance != null) items.push({ t: relance, type: 'relance', mailbox: String(lead.mailbox || '') });
 
   let ignoresAvantEnvoi = 0;
   for (const ev of events || []) {
