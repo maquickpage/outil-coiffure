@@ -23,19 +23,30 @@
   Array.prototype.forEach.call(document.querySelectorAll('.anav-tab'), function (t) {
     var p = (t.getAttribute('data-path') || '').replace(/\/+$/, '');
     if (!p) return;
-    // Traduit le libellé de l'onglet selon la langue courante.
-    var lbl = NAV_LABELS[p];
-    if (lbl && lbl[curLang]) t.textContent = lbl[curLang];
-    // Surligne l'onglet courant (data-path le plus spécifique gagne).
     if ((path === p || path.indexOf(p + '/') === 0 || path.indexOf(p) === 0) && p.length > bestLen) {
       best = t; bestLen = p.length;
     }
   });
   if (best) best.classList.add('active');
 
+  function applyLanguage(nextLang) {
+    curLang = nextLang;
+    Array.prototype.forEach.call(document.querySelectorAll('.anav-tab'), function (t) {
+      var p = (t.getAttribute('data-path') || '').replace(/\/+$/, '');
+      var lbl = NAV_LABELS[p];
+      if (lbl && lbl[curLang]) t.textContent = lbl[curLang];
+    });
+    var logout = document.getElementById('anav-logout');
+    if (logout && LOGOUT_LABEL[curLang]) logout.textContent = LOGOUT_LABEL[curLang];
+    Array.prototype.forEach.call(document.querySelectorAll('.anav .lang-btn'), function (b) {
+      b.classList.toggle('active', b.getAttribute('data-lang') === curLang);
+    });
+  }
+  window.applyAdminLanguage = applyLanguage;
+  applyLanguage(curLang);
+
   var lo = document.getElementById('anav-logout');
   if (lo) {
-    if (LOGOUT_LABEL[curLang]) lo.textContent = LOGOUT_LABEL[curLang];
     lo.addEventListener('click', function (e) {
       e.preventDefault();
       fetch('/admin/logout', { method: 'POST', credentials: 'same-origin' })
@@ -45,10 +56,12 @@
   }
 
   Array.prototype.forEach.call(document.querySelectorAll('.anav .lang-btn'), function (b) {
-    b.classList.toggle('active', b.getAttribute('data-lang') === curLang);
     b.addEventListener('click', function () {
-      try { localStorage.setItem(LANG_KEY, b.getAttribute('data-lang')); } catch (e) {}
-      location.reload();
+      var nextLang = b.getAttribute('data-lang');
+      try { localStorage.setItem(LANG_KEY, nextLang); } catch (e) {}
+      applyLanguage(nextLang);
+      var changeEvent = new CustomEvent('outil-coiffure-language-change', { cancelable: true, detail: { lang: nextLang } });
+      if (window.dispatchEvent(changeEvent)) location.reload();
     });
   });
 })();

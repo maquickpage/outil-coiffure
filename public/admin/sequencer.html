@@ -12,8 +12,21 @@
   html { font-size:18px; }
   * { box-sizing:border-box; }
   body { margin:0; font:.875rem/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  .anav{position:sticky;top:0;z-index:50;background:#1a1a1a;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .anav-inner{max-width:1200px;margin:0 auto;padding:0 18px;min-height:58px;display:flex;align-items:center;gap:22px}
+  .anav-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:1.12rem;color:#c9a96e;text-decoration:none;white-space:nowrap;letter-spacing:-.01em}
+  .anav-logo{height:30px;width:auto;display:block;flex:0 0 auto}
+  .anav-tabs{display:flex;align-items:stretch;gap:2px;align-self:stretch}
+  .anav-tab{display:inline-flex;align-items:center;padding:0 15px;color:rgba(255,255,255,.78);text-decoration:none;font-size:.95rem;font-weight:500;border-bottom:3px solid transparent;white-space:nowrap}
+  .anav-tab:hover,.anav-tab.active{color:#fff}.anav-tab.active{border-bottom-color:#c9a96e;font-weight:600}
+  .anav-spacer{flex:1}.anav-right{display:flex;align-items:center;gap:10px}
+  .anav-logout{background:transparent;border:1px solid rgba(255,255,255,.32);color:#fff;padding:6px 13px;border-radius:8px;font-size:.85rem;font-weight:500;cursor:pointer}
+  .anav-logout:hover,.anav .lang-btn:hover{background:rgba(255,255,255,.12)}
+  .anav .lang-switcher{display:inline-flex;gap:4px;align-items:center}
+  .anav .lang-btn{border:1px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.82);padding:4px 8px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;line-height:1;font-family:inherit}
+  .anav .lang-btn.active{background:#c9a96e;color:#1a1a1a;border-color:#c9a96e}
   .seq-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 18px; background:var(--card); border-bottom:1px solid var(--line); }
-  .seq-head h1 { font-size:1rem; margin:0; }
+  .seq-head h1 { font-size:1.25rem; font-weight:700; letter-spacing:-.02em; margin:0; }
   .pill { font-size:0.75rem; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
   .pill.running { color:#fff; background:var(--green); border-color:var(--green); }
   .pill.paused  { color:#fff; background:var(--amber); border-color:var(--amber); }
@@ -105,9 +118,15 @@
   #toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 16px; border-radius:8px; font-size:0.8125rem; max-width:90%; white-space:pre-wrap; display:none; z-index:130; }
   #toast.err { background:var(--red); }
   .hide { display:none; }
+  @media (max-width:720px){
+    .anav-inner{flex-wrap:wrap;padding:8px 12px;gap:6px 14px;min-height:0}
+    .anav-tabs{order:3;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .anav-tab{padding:9px 11px;font-size:.88rem;border-bottom:none;border-radius:7px}
+    .anav-tab.active{background:rgba(201,169,110,.18);border-bottom:none}
+  }
   @media (max-width:640px){ .grid2{grid-template-columns:1fr;} }
 </style>
-<link rel="stylesheet" href="/admin/admin-nav.css">
+<link rel="stylesheet" href="/admin/admin-nav.css?v=20260829-sequencer-nav">
 <link rel="icon" type="image/png" href="/admin/picto-coif.png">
 </head>
 <body>
@@ -134,7 +153,7 @@
     </div>
   </div>
 </header>
-<script src="/admin/admin-nav.js"></script>
+<script src="/admin/admin-nav.js?v=20260829-sequencer-nav"></script>
 
 <div class="seq-head">
   <h1 id="t-title">Séquenceur cold-email</h1>
@@ -643,6 +662,13 @@ var T = {
 };
 var lang = (function(){ try { var s = localStorage.getItem('outil-coiffure-lang'); return T[s] ? s : 'fr'; } catch(e){ return 'fr'; } })();
 function t(k, p){ var s = (T[lang] && T[lang][k]) || T.fr[k] || k; if (p) for (var x in p) s = s.split('{'+x+'}').join(p[x]); return s; }
+window.addEventListener('outil-coiffure-language-change', function(e){
+  var nextLang = e.detail && e.detail.lang;
+  if (!T[nextLang]) return;
+  lang = nextLang;
+  applyStatic();
+  e.preventDefault();
+});
 
 // Les 4 boîtes validées Gmail (memory.md bibiproject : senders approuvés placement 2026-07-28).
 // Un nœud manquant pour l'une d'elles = setup en attente, affiché dans la bannière.
