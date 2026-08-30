@@ -125,8 +125,9 @@ export function trackingMiddleware(req, res, next) {
       if (m === 'GET') {
         // Landing maquickpage.fr : la home est servie sur l'apex (routingMode
         // 'landing'). GET / = une visite du funnel marketing (anonyme).
-        if (req.routingMode === 'landing' && (p === '/' || p === '/index.html')) {
-          logEvent({ event: 'landing_view', src: req.query.src || null, ip: clientIp(req), ua: req.headers['user-agent'], device });
+        if (req.routingMode === 'landing' && (p === '/' || p === '/index.html' || p === '/en')) {
+          const meta = p === '/en' ? { lang: 'en' } : null;
+          logEvent({ event: 'landing_view', src: req.query.src || null, meta, ip: clientIp(req), ua: req.headers['user-agent'], device });
         }
         let mm = p.match(/^\/preview\/([^/?#]+)/);
         if (mm) {

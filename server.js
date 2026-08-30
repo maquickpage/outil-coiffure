@@ -722,6 +722,12 @@ app.get('/', (req, res) => {
   res.sendFile(join(SITE_DIR, 'home.html'));
 });
 
+// English version of the landing (mirror of home.html, hreflang-linked)
+app.get('/en', (req, res) => {
+  if (req.routingMode === 'admin') return res.redirect('/admin');
+  res.sendFile(join(SITE_DIR, 'home-en.html'));
+});
+
 // 404 fallback
 app.use((req, res) => {
   if (req.path.startsWith('/admin') || req.path.startsWith('/api')) {

@@ -82,6 +82,34 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // === i18n des chaînes runtime (la page porte <html lang="fr"|"en">) ===
+  const LANG = (document.documentElement.lang || 'fr').slice(0, 2);
+  const STRINGS = {
+    fr: {
+      submit: 'Rechercher mon salon',
+      errUrl: 'Collez le lien Google Maps de votre salon.',
+      errNotMaps: 'Ce lien ne semble pas venir de Google Maps. Suivez le mini-tuto ci-dessus.',
+      errEmail: 'Entrez une adresse e-mail valide.',
+      errGeneric: 'Une erreur est survenue. Réessayez dans quelques minutes.',
+      errNetwork: 'Erreur réseau. Vérifiez votre connexion et réessayez.',
+      foundIn: (ville) => ` à ${ville}`,
+      foundReady: 'Votre site démo est prêt.',
+      yourSalon: 'Votre salon',
+    },
+    en: {
+      submit: 'Find my salon',
+      errUrl: "Paste your salon's Google Maps link.",
+      errNotMaps: "This link doesn't look like a Google Maps link. Follow the mini-guide above.",
+      errEmail: 'Enter a valid email address.',
+      errGeneric: 'Something went wrong. Please try again in a few minutes.',
+      errNetwork: 'Network error. Check your connection and try again.',
+      foundIn: (ville) => ` in ${ville}`,
+      foundReady: 'Your demo website is ready.',
+      yourSalon: 'Your salon',
+    },
+  };
+  const T = STRINGS[LANG] || STRINGS.fr;
+
   // === Suivi funnel landing (best-effort, jamais bloquant) ===
   // window.mqsTrack est fourni par /_assets/track.js ; absent → no-op.
   const track = (ev, meta) => { try { window.mqsTrack && window.mqsTrack(ev, meta || null); } catch (e) { /* silencieux */ } };
@@ -164,7 +192,7 @@
       form.reset();
       formError.hidden = true;
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Rechercher mon salon';
+      submitBtn.textContent = T.submit;
       showStep('input');
     }, 280);
   }
@@ -187,13 +215,13 @@
 
     // Validation client-side basique (server-side fait le vrai check)
     if (!googleUrl) {
-      return showError('Collez le lien Google Maps de votre salon.');
+      return showError(T.errUrl);
     }
     if (!/google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs/i.test(googleUrl)) {
-      return showError('Ce lien ne semble pas venir de Google Maps. Suivez le mini-tuto ci-dessus.');
+      return showError(T.errNotMaps);
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return showError('Entrez une adresse e-mail valide.');
+      return showError(T.errEmail);
     }
 
     formError.hidden = true;
@@ -213,15 +241,17 @@
       if (!res.ok) {
         showStep('input');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Rechercher mon salon';
-        return showError(data.error || 'Une erreur est survenue. Réessayez dans quelques minutes.');
+        submitBtn.textContent = T.submit;
+        return showError(data.error || T.errGeneric);
       }
 
       if (data.found) {
         // Salon trouvé : affiche le bouton Visiter
-        const ville = data.ville ? ` à ${data.ville}` : '';
-        foundTitle.textContent = `${data.salon_name || 'Votre salon'}${ville}`;
-        foundMsg.textContent = data.message || 'Votre site démo est prêt.';
+        // data.message vient du serveur en français → sur la version EN on
+        // affiche notre propre chaîne plutôt que le message FR de l'API.
+        const ville = data.ville ? T.foundIn(data.ville) : '';
+        foundTitle.textContent = `${data.salon_name || T.yourSalon}${ville}`;
+        foundMsg.textContent = LANG === 'fr' ? (data.message || T.foundReady) : T.foundReady;
         foundLink.href = data.demo_url;
         showStep('found');
       } else {
@@ -232,8 +262,8 @@
       console.error(err);
       showStep('input');
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Rechercher mon salon';
-      showError('Erreur réseau. Vérifiez votre connexion et réessayez.');
+      submitBtn.textContent = T.submit;
+      showError(T.errNetwork);
     }
   });
 

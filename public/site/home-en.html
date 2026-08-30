@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MaQuickPage — Website for hairdressers, online in 5 minutes</title>
+  <meta name="description" content="Professional websites for hair salons across France. Our teams are working flat out to prepare yours. 2026 stack: SSR, Schema.org, Hetzner EU. From €9.90 incl. VAT/month, domain included.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://maquickpage.fr/en">
+  <link rel="alternate" hreflang="fr" href="https://maquickpage.fr/">
+  <link rel="alternate" hreflang="en" href="https://maquickpage.fr/en">
+  <link rel="alternate" hreflang="x-default" href="https://maquickpage.fr/">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/_assets/landing/pictos/favicon.png">
+  <link rel="apple-touch-icon" href="/_assets/landing/pictos/favicon.png">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:site_name" content="MaQuickPage">
+  <meta property="og:url" content="https://maquickpage.fr/en">
+  <meta property="og:title" content="MaQuickPage — Website for hairdressers, online in 5 minutes">
+  <meta property="og:description" content="Professional websites for hair salons across France. Our teams are working flat out to prepare yours.">
+  <meta property="og:image" content="https://maquickpage.fr/_assets/landing/hero-bg.webp">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Schema.org Organization -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "MaQuickPage",
+    "alternateName": "Quick Site",
+    "url": "https://maquickpage.fr",
+    "logo": "https://maquickpage.fr/_assets/landing/pictos/main-doree.png",
+    "email": "contact@maquickpage.fr",
+    "telephone": "+33749420608",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "61 rue de Lyon",
+      "addressLocality": "Paris",
+      "postalCode": "75012",
+      "addressCountry": "FR"
+    },
+    "founder": {
+      "@type": "Person",
+      "name": "Johann Kaiser"
+    },
+    "sameAs": [
+      "https://maquickpage.fr"
+    ]
+  }
+  </script>
+
+  <!-- Schema.org Service (rich snippet "From €9.90" in Google) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": "Website for hair salons",
+    "serviceType": "Professional website + hosting + domain",
+    "provider": {
+      "@type": "Organization",
+      "name": "MaQuickPage",
+      "url": "https://maquickpage.fr"
+    },
+    "areaServed": {
+      "@type": "Country",
+      "name": "France"
+    },
+    "audience": {
+      "@type": "BusinessAudience",
+      "audienceType": "Hair salons"
+    },
+    "description": "Professional website for hairdressers, online in 5 minutes. SSR + Schema.org + EU hosting. From €9.90 incl. VAT/month, free .fr domain included.",
+    "offers": {
+      "@type": "AggregateOffer",
+      "priceCurrency": "EUR",
+      "lowPrice": "9.90",
+      "highPrice": "29.00",
+      "offerCount": "3",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "2-year commitment",
+          "price": "9.90",
+          "priceCurrency": "EUR",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "9.90",
+            "priceCurrency": "EUR",
+            "unitCode": "MON",
+            "referenceQuantity": {
+              "@type": "QuantitativeValue",
+              "value": "1",
+              "unitCode": "MON"
+            }
+          }
+        },
+        {
+          "@type": "Offer",
+          "name": "1-year commitment",
+          "price": "17.90",
+          "priceCurrency": "EUR"
+        },
+        {
+          "@type": "Offer",
+          "name": "No commitment",
+          "price": "29.00",
+          "priceCurrency": "EUR"
+        }
+      ]
+    }
+  }
+  </script>
+
+  <!-- Schema.org FAQPage (rich snippet questions in Google) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Why did you create a website for my salon without telling me?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Our teams continuously prepare a demo website for every salon that is publicly listed (Google Maps, Pages Jaunes). You remain free to use it or not. No personal data is used until you give us your explicit consent. We fully comply with the GDPR."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How much does it really cost?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "From €9.90 incl. VAT/month (2-year commitment), €17.90 incl. VAT/month (1-year commitment), or €29 incl. VAT/month with no commitment. Free .fr or .com domain for 1 year. No setup fees. Final prices, no surprises, no hidden options."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Why is your price so low?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Because everything is automated. No intermediary agency, no custom quotes, no €80/h project manager. Our teams built an infrastructure capable of generating and maintaining thousands of websites simultaneously. You get industrial efficiency at industrial prices."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need to know how to code?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. The editor is designed to be used from your phone. Editing text or adding a photo works just like Facebook or Instagram."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What if I don't like the result?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "You can visit and try your demo website for free before any payment. You only pay if you decide to put it online. No credit card required at that stage, no hidden commitment."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I cancel?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "On the no-commitment plan, at any time from your account. For 1-year and 2-year commitments, at term or for breach (unpaid invoices). Everything is detailed in our terms and conditions."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is my data protected?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Hosted by Hetzner in Germany (EU), GDPR compliant. No banking data stored with us (handled by Stripe, PCI-DSS Level 1 certified). Privacy policy compliant with the 2022 Omnibus directive."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "I already have a website but lost my access link",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No problem. Go to your account page, enter the email you signed up with, and you will receive an automatic login link valid for 10 minutes."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Performance + Bauhaus fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Space+Grotesk:wght@400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/_assets/home.css?v=20">
+</head>
+<body>
+
+<!-- ====================== MARQUEE TOP ====================== -->
+<div class="hp-marquee" aria-hidden="true">
+  <div class="hp-marquee-track">
+    <span>11,000 salons covered</span>
+    <span>Free .fr domain</span>
+    <span>Hetzner EU 🇪🇺</span>
+    <span>€9.90/month</span>
+    <span>GDPR by design</span>
+    <span>Online in 5 minutes</span>
+    <span>2026 stack</span>
+    <span>Automatic SSL</span>
+    <span>French support 🇫🇷</span>
+    <span>11,000 salons covered</span>
+    <span>Free .fr domain</span>
+    <span>Hetzner EU 🇪🇺</span>
+    <span>€9.90/month</span>
+    <span>GDPR by design</span>
+    <span>Online in 5 minutes</span>
+    <span>2026 stack</span>
+    <span>Automatic SSL</span>
+    <span>French support 🇫🇷</span>
+  </div>
+</div>
+
+<!-- ====================== NAVBAR ====================== -->
+<nav class="hp-nav">
+  <div class="hp-nav-inner">
+    <a class="hp-logo" href="/en">
+      <img class="hp-logo-mark-img" src="/_assets/landing/pictos/main-doree.png" alt="" width="64" height="64">
+      <span class="hp-logo-text">MaQuickPage</span>
+    </a>
+    <div class="hp-nav-right">
+      <a href="#tarifs" class="hp-nav-link">Pricing</a>
+      <a href="#stack" class="hp-nav-link">Our stack</a>
+      <a href="/" class="hp-nav-link" lang="fr" hreflang="fr" aria-label="Version française">FR</a>
+      <button class="hp-btn hp-btn-primary" id="hp-cta-nav" type="button">Check if my salon is covered</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ====================== HERO ====================== -->
+<header class="hp-hero">
+  <div class="hp-hero-content">
+    <span class="hp-eyebrow">Premium websites for hairdressers · All of France</span>
+    <h1 class="hp-h1">
+      We've already built<br>
+      <em>your website.</em>
+    </h1>
+    <p class="hp-sub">
+      Our teams are working flat out to cover every hair salon in France
+      with a professional website, ready to go live in 5 minutes. Cutting-edge
+      2026 tech stack, prices that break the market. <strong>Yours may already be ready.</strong>
+    </p>
+    <div class="hp-hero-cta">
+      <button class="hp-btn hp-btn-primary hp-btn-lg" id="hp-cta-hero" type="button">
+        Check if my salon is covered →
+      </button>
+      <p class="hp-hero-trust">
+        🇪🇺 Hosted in the EU · 🛡️ GDPR by design · 🇫🇷 French support
+      </p>
+    </div>
+  </div>
+</header>
+
+<!-- ====================== COVERAGE ====================== -->
+<section class="hp-coverage">
+  <div class="hp-container">
+    <div class="hp-coverage-grid">
+      <div class="hp-coverage-text">
+        <span class="hp-eyebrow">Nationwide coverage</span>
+        <h2 class="hp-h2">Over 11,000 salons already covered.</h2>
+        <p class="hp-p">
+          From Paris to Marseille, from Strasbourg to Bordeaux — our teams
+          are working flat out to prepare a free demo website
+          for every professional hair salon listed in France.
+          Each website is unique, pre-filled with your real information.
+          Check whether yours is part of the current coverage.
+        </p>
+        <button class="hp-btn hp-btn-secondary hp-btn-lg" id="hp-cta-coverage" type="button">
+          Check my salon →
+        </button>
+      </div>
+      <div class="hp-coverage-img">
+        <img src="/_assets/landing/france-coverage.webp" alt="Stylized map of France showing the cities covered by MaQuickPage" loading="lazy" width="1200" height="800">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== HOW IT WORKS ====================== -->
+<section class="hp-how">
+  <div class="hp-container">
+    <div class="hp-section-head">
+      <span class="hp-eyebrow">How it works</span>
+      <h2 class="hp-h2">Three steps, five minutes.</h2>
+    </div>
+    <div class="hp-how-grid">
+      <article class="hp-how-card">
+        <div class="hp-how-bg-num" aria-hidden="true">1</div>
+        <img class="hp-how-img" src="/_assets/landing/pictos/clef-doree.webp" alt="" loading="lazy" width="96" height="96">
+        <h3 class="hp-how-title">We build your website, for free</h3>
+        <p class="hp-p">Our teams are working flat out to generate your website
+          from your salon's public information (Google Maps, Pages Jaunes).
+          <strong>Zero effort on your side</strong>, zero commitment, zero credit card at this stage.</p>
+      </article>
+      <article class="hp-how-card">
+        <div class="hp-how-bg-num" aria-hidden="true">2</div>
+        <img class="hp-how-img" src="/_assets/landing/pictos/loupe-doree.webp" alt="" loading="lazy" width="96" height="96">
+        <h3 class="hp-how-title">You discover it in one click</h3>
+        <p class="hp-p">You receive an email with your demo website, already filled with your
+          services, photos, opening hours and Google reviews. You see it exactly as it will
+          look in production. You can edit everything from your phone, just like
+          Facebook or Instagram.</p>
+      </article>
+      <article class="hp-how-card">
+        <div class="hp-how-bg-num" aria-hidden="true">3</div>
+        <img class="hp-how-img" src="/_assets/landing/pictos/activer-doree.webp" alt="" loading="lazy" width="96" height="96">
+        <h3 class="hp-how-title">You activate it in 5 minutes</h3>
+        <p class="hp-p">Choose your plan, we give you your .fr or .com domain name
+          for free, and your website is <strong>online in under 5 minutes</strong>
+          with an SSL certificate, European hosting, and GDPR compliance.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== MARQUEE BLUE (between how & stack) ====================== -->
+<div class="hp-marquee hp-marquee--blue" aria-hidden="true">
+  <div class="hp-marquee-track">
+    <span>11,000 salons covered</span>
+    <span>Free .fr domain</span>
+    <span>Hetzner EU 🇪🇺</span>
+    <span>€9.90/month</span>
+    <span>GDPR by design</span>
+    <span>Online in 5 minutes</span>
+    <span>2026 stack</span>
+    <span>Automatic SSL</span>
+    <span>French support 🇫🇷</span>
+    <span>11,000 salons covered</span>
+    <span>Free .fr domain</span>
+    <span>Hetzner EU 🇪🇺</span>
+    <span>€9.90/month</span>
+    <span>GDPR by design</span>
+    <span>Online in 5 minutes</span>
+    <span>2026 stack</span>
+    <span>Automatic SSL</span>
+    <span>French support 🇫🇷</span>
+  </div>
+</div>
+
+<!-- ====================== TECH STACK ====================== -->
+<section class="hp-stack" id="stack">
+  <div class="hp-container">
+    <div class="hp-section-head">
+      <span class="hp-eyebrow">Our tech stack</span>
+      <h2 class="hp-h2">Cutting-edge, 2026.</h2>
+      <p class="hp-p hp-section-sub">
+        We don't stop at a pretty design. Under the hood, your website runs on an
+        infrastructure few web agencies charging €1,500 can match.
+      </p>
+    </div>
+    <div class="hp-stack-grid">
+      <div class="hp-stack-item">
+        <img class="hp-stack-icon" src="/_assets/landing/pictos/globe-doree.webp" alt="" loading="lazy" width="64" height="64">
+        <strong>Cloudflare global CDN</strong>
+        <p>Your website loads in under 100&nbsp;ms anywhere in France. 200+ datacenters worldwide, anti-DDoS included.</p>
+      </div>
+      <div class="hp-stack-item">
+        <img class="hp-stack-icon" src="/_assets/landing/pictos/graphique-doree.webp" alt="" loading="lazy" width="64" height="64">
+        <strong>Premium SEO built in</strong>
+        <p>Server-Side Rendering, Schema.org HairSalon (stars + opening hours right in Google), dynamic sitemap. Compliant with Google 2026 best practices.</p>
+      </div>
+      <div class="hp-stack-item">
+        <img class="hp-stack-icon" src="/_assets/landing/pictos/europe-doree.webp" alt="" loading="lazy" width="64" height="64">
+        <strong>Hetzner EU hosting</strong>
+        <p>Your data stored in Germany (Hetzner Falkenstein), GDPR compliance by design. No unregulated transfers outside the EU.</p>
+      </div>
+      <div class="hp-stack-item">
+        <img class="hp-stack-icon" src="/_assets/landing/pictos/cadenas-doree.webp" alt="" loading="lazy" width="64" height="64">
+        <strong>Automatic SSL + backups</strong>
+        <p>Let's Encrypt SSL certificate renewed automatically, encrypted daily backups, 24/7 monitoring.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== PRICING ====================== -->
+<section class="hp-pricing" id="tarifs">
+  <div class="hp-container">
+    <div class="hp-section-head">
+      <span class="hp-eyebrow">Pricing</span>
+      <h2 class="hp-h2">Prices that break the market.</h2>
+      <p class="hp-p hp-section-sub">
+        Traditional agencies charge between <strong>€1,000 and €3,000</strong> for setup,
+        plus <strong>€50 to €150/month</strong> in miscellaneous fees. Low-cost services like Wix or
+        Squarespace run between €11 and €149/month with a generic design, and
+        <strong>you do all the work yourself</strong>. At MaQuickPage everything is included
+        <strong>from €9.90</strong>, with no hidden fees. Your custom pre-filled website,
+        hosted in Europe, with <strong>domain and setup fees included</strong>.
+      </p>
+    </div>
+    <div class="hp-pricing-grid">
+
+      <div class="hp-plan">
+        <span class="hp-plan-eyebrow">2-year commitment</span>
+        <div class="hp-plan-price">
+          <span class="hp-plan-amount">€9.90</span>
+          <span class="hp-plan-period">incl. VAT/month</span>
+        </div>
+        <p class="hp-plan-desc">The best price over 24 months.</p>
+        <ul class="hp-plan-feats">
+          <li>100% customizable website</li>
+          <li>Free .fr or .com domain</li>
+          <li>High-performance hosting</li>
+        </ul>
+      </div>
+
+      <div class="hp-plan hp-plan-popular">
+        <span class="hp-plan-badge">Most popular</span>
+        <span class="hp-plan-eyebrow">1-year commitment</span>
+        <div class="hp-plan-price">
+          <span class="hp-plan-amount">€17.90</span>
+          <span class="hp-plan-period">incl. VAT/month</span>
+        </div>
+        <p class="hp-plan-desc">The right balance over 12 months.</p>
+        <ul class="hp-plan-feats">
+          <li>100% customizable website</li>
+          <li>Free .fr or .com domain</li>
+          <li>High-performance hosting</li>
+        </ul>
+      </div>
+
+      <div class="hp-plan">
+        <span class="hp-plan-eyebrow">No commitment</span>
+        <div class="hp-plan-price">
+          <span class="hp-plan-amount">€29</span>
+          <span class="hp-plan-period">incl. VAT/month</span>
+        </div>
+        <p class="hp-plan-desc">Cancel anytime.</p>
+        <ul class="hp-plan-feats">
+          <li>100% customizable website</li>
+          <li>Free .fr or .com domain</li>
+          <li>High-performance hosting</li>
+        </ul>
+      </div>
+
+    </div>
+    <p class="hp-pricing-cta">
+      <button class="hp-btn hp-btn-primary hp-btn-lg" id="hp-cta-pricing" type="button">
+        Check if my salon is already ready →
+      </button>
+    </p>
+    <p class="hp-pricing-fineprint">Prices incl. VAT. Offer intended for professionals (B2B). No setup fees.</p>
+  </div>
+</section>
+
+<!-- ====================== FAQ ====================== -->
+<section class="hp-faq">
+  <div class="hp-container">
+    <div class="hp-section-head">
+      <span class="hp-eyebrow">Frequently asked questions</span>
+      <h2 class="hp-h2">Your questions, our answers.</h2>
+    </div>
+    <div class="hp-faq-list">
+
+      <details class="hp-faq-item">
+        <summary>Why did you create a website for my salon without telling me?</summary>
+        <p>Our teams continuously prepare a demo website for every salon that is publicly listed (Google Maps, Pages Jaunes), exactly the way a directory does. You remain free to use it or not. No personal data is used until you give us your explicit consent, and we fully comply with the GDPR.</p>
+      </details>
+
+      <details class="hp-faq-item">
+        <summary>How much does it really cost?</summary>
+        <p>From €9.90 incl. VAT/month (2-year commitment), €17.90 incl. VAT/month (1-year commitment), or €29 incl. VAT/month with no commitment. Free .fr or .com domain for 1 year. No setup fees. Final prices, no surprises, no hidden options.</p>
+      </details>
+
+      <details class="hp-faq-item">
+        <summary>Why is your price so low?</summary>
+        <p>Because everything is automated. No intermediary agency, no custom quotes, no €80/h project manager. Our development teams built an infrastructure capable of generating and maintaining thousands of websites simultaneously. You get industrial efficiency at industrial prices.</p>
+      </details>
+
+      <details class="hp-faq-item">
+        <summary>Do I need to know how to code?</summary>
+        <p>No. The editor is designed to be used from your phone. Editing text or adding a photo works just like Facebook or Instagram.</p>
+      </details>
+
+      <details class="hp-faq-item">
+        <summary>What if I don't like the result?</summary>
+        <p>You can visit and try your demo website for free before any payment. You only pay if you decide to put it online. No credit card required at that stage, no hidden commitment.</p>
+      </details>
+
+      <details class="hp-faq-item">
+        <summary>How do I cancel?</summary>
+        <p>All three plans can be cancelled within 30 days of the first payment: no further charges, and the 12/24-month commitment is fully waived. The first month's payment remains due. After 30 days, the rules of your chosen plan apply. <a href="/faq#resiliation">See all the details</a> (in French).</p>
+      </details>
+
+      <details class="hp-faq-item">
+        <summary>Is my data protected?</summary>
+        <p>Yes. Hosted by Hetzner in Germany (EU), GDPR compliant. No banking data stored with us (handled by Stripe, PCI-DSS Level 1 certified). Privacy policy compliant with the 2022 Omnibus directive. See our <a href="/legal/privacy.html">privacy policy</a> (in French).</p>
+      </details>
+
+      <details class="hp-faq-item">
+        <summary>I already have a website but lost my access link</summary>
+        <p>No problem. Go to the <a href="/recover">recovery page</a>, enter the email you signed up with, and you will receive an automatic login link valid for 10 minutes.</p>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====================== TRUST FOOTER ====================== -->
+<section class="hp-trust">
+  <div class="hp-container">
+    <div class="hp-trust-grid">
+      <div class="hp-trust-item">
+        <strong>🇪🇺 European hosting</strong>
+        <span>Hetzner, Germany</span>
+      </div>
+      <div class="hp-trust-item">
+        <strong>🛡️ GDPR-compliant</strong>
+        <span>Compliant with French law</span>
+      </div>
+      <div class="hp-trust-item">
+        <strong>💳 Secure payment</strong>
+        <span>Stripe, PCI-DSS Level 1</span>
+      </div>
+      <div class="hp-trust-item">
+        <strong>🇫🇷 French support</strong>
+        <span>contact@maquickpage.fr</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== FOOTER ====================== -->
+<footer class="hp-footer">
+  <div class="hp-container">
+    <div class="hp-footer-top">
+      <div class="hp-footer-brand">
+        <img class="hp-footer-logo" src="/_assets/landing/pictos/quick-blanc.png" alt="" width="48" height="48" aria-hidden="true">
+        <strong>MaQuickPage</strong>
+        <p>Professional websites for hair salons across France.</p>
+      </div>
+      <div class="hp-footer-links">
+        <h4>Company</h4>
+        <a href="/faq">FAQ (French)</a>
+        <a href="/legal/mentions-legales.html">Legal notice</a>
+        <a href="/legal/cgv.html">Terms &amp; conditions</a>
+        <a href="/legal/privacy.html">Privacy</a>
+      </div>
+      <div class="hp-footer-links">
+        <h4>Customer area</h4>
+        <a href="/recover">I lost my access link</a>
+        <a href="mailto:contact@maquickpage.fr">contact@maquickpage.fr</a>
+      </div>
+      <div class="hp-footer-links">
+        <h4>Address</h4>
+        <span>61 rue de Lyon</span>
+        <span>75012 Paris, France</span>
+      </div>
+    </div>
+    <div class="hp-footer-bottom">
+      <span>© 2026 KAISER CO · SIREN 791 069 610 · VAT FR52791069610 · <a href="/" lang="fr" hreflang="fr">Version française</a></span>
+    </div>
+  </div>
+</footer>
+
+<!-- ====================== MODAL : LOOKUP ====================== -->
+<div class="hp-modal" id="hp-modal" role="dialog" aria-modal="true" aria-labelledby="hp-modal-title" hidden>
+  <div class="hp-modal-card">
+    <button class="hp-modal-close" id="hp-modal-close" type="button" aria-label="Close">×</button>
+
+    <!-- STEP 1 — input -->
+    <div class="hp-modal-step" data-step="input">
+      <h3 class="hp-modal-title" id="hp-modal-title">Check if your salon is already covered</h3>
+      <p class="hp-modal-sub">Paste your salon's Google Maps link + your email. If we've already built it, we'll send you the link right away.</p>
+
+      <form id="hp-form" class="hp-form" novalidate>
+        <label class="hp-field">
+          <span class="hp-field-label">Your salon's Google Maps link</span>
+          <input
+            type="url"
+            id="hp-input-url"
+            class="hp-input"
+            placeholder="https://maps.app.goo.gl/..."
+            autocomplete="off"
+            required
+          />
+        </label>
+
+        <details class="hp-tuto">
+          <summary>📍 How do I find this link? (1 min)</summary>
+          <div class="hp-tuto-body">
+            <ol class="hp-tuto-steps">
+              <li><strong>Open Google Maps</strong> on your phone or computer.</li>
+              <li><strong>Type your salon's name</strong> in the search bar.</li>
+              <li><strong>Click your salon</strong> in the results.</li>
+              <li><strong>Click "Share"</strong> and copy the suggested link.</li>
+            </ol>
+            <img src="/_assets/landing/google-maps-steps.webp" alt="Illustration of the 4 steps to get the Google Maps link" class="hp-tuto-img" loading="lazy" width="1200" height="800">
+          </div>
+        </details>
+
+        <label class="hp-field">
+          <span class="hp-field-label">Your email</span>
+          <input
+            type="email"
+            id="hp-input-email"
+            class="hp-input"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          />
+          <span class="hp-field-help">We'll also send you the demo link by email (just in case).</span>
+        </label>
+
+        <div class="hp-form-error" id="hp-form-error" hidden></div>
+
+        <button type="submit" class="hp-btn hp-btn-primary hp-btn-lg hp-btn-full" id="hp-submit">
+          Find my salon
+        </button>
+
+        <p class="hp-form-fineprint">
+          By clicking, you accept our <a href="/legal/privacy.html" target="_blank">privacy policy</a>.
+          Lost your access link? <a href="/recover">Recover it here</a>.
+        </p>
+      </form>
+    </div>
+
+    <!-- STEP 2 — loading -->
+    <div class="hp-modal-step" data-step="loading" hidden>
+      <div class="hp-spinner"></div>
+      <h3 class="hp-modal-title">Looking for your salon…</h3>
+      <p class="hp-modal-sub">Just a few seconds.</p>
+    </div>
+
+    <!-- STEP 3a — found -->
+    <div class="hp-modal-step" data-step="found" hidden>
+      <div class="hp-success-icon">✓</div>
+      <h3 class="hp-modal-title" id="hp-found-title">Good news!</h3>
+      <p class="hp-modal-sub" id="hp-found-msg">Your demo website is ready.</p>
+      <a class="hp-btn hp-btn-primary hp-btn-lg hp-btn-full" id="hp-found-link" href="#" target="_blank" rel="noopener">
+        Visit my demo website →
+      </a>
+      <p class="hp-found-extra">We've also just sent you the link by email.</p>
+    </div>
+
+    <!-- STEP 3b — not found -->
+    <div class="hp-modal-step" data-step="notfound" hidden>
+      <div class="hp-info-icon">⏳</div>
+      <h3 class="hp-modal-title">Your salon is coming soon</h3>
+      <p class="hp-modal-sub">
+        Our teams are continuously extending the coverage. Your request has been recorded:
+        <strong>we'll build your website and email it to you within 48h</strong>, free of charge.
+      </p>
+      <button class="hp-btn hp-btn-secondary hp-btn-full" id="hp-notfound-close" type="button">
+        Got it, see you soon
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script src="/_assets/track.js?v=1"></script>
+<script src="/_assets/home.js?v=10"></script>
+</body>
+</html>
