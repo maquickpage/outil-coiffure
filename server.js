@@ -755,6 +755,15 @@ app.get('/faq', brandPageOnly, (req, res) => {
   res.sendFile(join(SITE_DIR, 'faq.html'));
 });
 
+// Page pilier SEO « site internet pour coiffeur » (WP2). Page de marque : même
+// gate d'hôte que /faq et /en, aucune condition recopiée. Le CTA réutilise la
+// modale de recherche de la home (/_assets/home.js), donc le POST
+// /api/landing/check part avec Referer = cette page et l'attribution WP1
+// enregistre landing_path = /site-internet-coiffeur sans code supplémentaire.
+app.get('/site-internet-coiffeur', brandPageOnly, (req, res) => {
+  res.sendFile(join(SITE_DIR, 'site-internet-coiffeur.html'));
+});
+
 app.get('/', (req, res) => {
   if (req.routingMode === 'admin') return res.redirect('/admin');
   res.sendFile(join(SITE_DIR, 'home.html'));
