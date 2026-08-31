@@ -8,8 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "init-db": "node src/db.js init",
-    "test": "node --test tests/",
-    "test:prod": "BASE_URL=https://maquickpage.fr ADMIN_BASE_URL=https://outil.maquickpage.fr node --test tests/"
+    "test": "node --test tests/*.test.mjs",
+    "test:prod": "BASE_URL=https://maquickpage.fr ADMIN_BASE_URL=https://outil.maquickpage.fr node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1041.0",

@@ -64,6 +64,15 @@
     },
   ];
 
+  // Jeton d'attribution transporté par l'URL (?mqa=…) — jamais un cookie, et
+  // jamais créé côté client : il est émis par le serveur au moment du lookup.
+  function attributionToken() {
+    try {
+      const v = new URLSearchParams(window.location.search).get('mqa');
+      return v && /^[0-9a-f]{32}\.[A-Za-z0-9_-]{1,64}$/.test(v) ? v : null;
+    } catch (e) { return null; }
+  }
+
   // === Version des CGV en cours ===
   // Bumper cette version à chaque modification substantielle des CGV pour forcer
   // une nouvelle acceptation explicite (et tracer l'historique en base).
@@ -328,7 +337,12 @@
       <div class="mqs-plans-heading"><h3>Combien de temps ?</h3></div>
 
       <div class="mqs-plan-options">${PLANS.map(renderPlanOption).join('')}</div>
-      <p class="mqs-plans-footnote">Vous pouvez tout annuler sous 30 jours, sans frais.</p>
+      <!-- CGA Art. 5.1 bis : la demande faite dans les 30 jours ne rend PAS la
+           première mensualité gratuite. Elle reste due et non remboursée ;
+           c'est le prélèvement suivant et l'engagement qui tombent. -->
+      <p class="mqs-plans-footnote">Résiliation possible dans les 30 jours suivant le premier paiement : la première mensualité reste due, aucun prélèvement ensuite, et l’engagement 12 ou 24 mois est entièrement levé.</p>
+      <!-- CGA Art. 5.2 / 5.3 / 5.4 : reconduction tacite, préavis, indemnité. -->
+      <p class="mqs-plans-footnote">Formules 12 et 24 mois : à l’issue de la période ferme, le contrat se reconduit tacitement par périodes de 12 mois, sauf résiliation avec un préavis d’1 mois (formule 12 mois) ou de 2 mois (formule 24 mois). Passé les 30 premiers jours, une résiliation avant le terme donne lieu à une indemnité de 50 % des mensualités restant dues jusqu’au terme de la période ferme, majorée du coût réel du nom de domaine si elle intervient dans les 6 premiers mois (12 premiers mois pour la formule 24 mois), plafonné à 50 € TTC.</p>
 
       <!-- Même barre collante qu'à l'étape 1 : le bouton de validation reste
            atteignable quelle que soit la position de scroll. -->
@@ -481,6 +495,18 @@
       ? 'sans engagement'
       : state.selectedPlan === 'TWO_YEAR' ? '24 mois' : '12 mois';
 
+    // Divulgation contractuelle des formules engagées, sur le parcours d'achat.
+    // Texte strictement dérivé des CGA de la formule choisie :
+    //   Art. 5.2 — reconduction tacite par périodes de 12 mois
+    //   Art. 5.3 — préavis (1 mois en 12 mois, 2 mois en 24 mois)
+    //   Art. 5.4 — indemnité de résiliation anticipée (50 % du restant dû
+    //              + coût réel du domaine, plafonné à 50 € TTC)
+    const engagementDisclosure = state.selectedPlan === 'FLEX' ? null : (
+      state.selectedPlan === 'TWO_YEAR'
+        ? 'Engagement ferme de 24 mois, puis reconduction tacite par périodes de 12 mois, sauf résiliation avec un préavis de 2 mois. Passé les 30 premiers jours, une résiliation avant le terme de la période ferme donne lieu à une indemnité de 50 % des mensualités restant dues, majorée du coût réel du nom de domaine si elle intervient dans les 12 premiers mois (plafonné à 50 € TTC).'
+        : 'Engagement ferme de 12 mois, puis reconduction tacite par périodes de 12 mois, sauf résiliation avec un préavis d’1 mois. Passé les 30 premiers jours, une résiliation avant le terme de la période ferme donne lieu à une indemnité de 50 % des mensualités restant dues, majorée du coût réel du nom de domaine si elle intervient dans les 6 premiers mois (plafonné à 50 € TTC).'
+    );
+
     // Prestations incluses : rattachées à la ligne « Abonnement » qu'elles
     // détaillent, en puces à coche sur 2 lignes plutôt qu'en liste verticale.
     const includes = [
@@ -523,8 +549,9 @@
           <p class="mqs-ticket-note">Site en ligne dès le paiement. ${
             state.selectedPlan === 'FLEX'
               ? 'Résiliable à tout moment.'
-              : 'Annulable sans frais sous 30 jours.'
+              : 'Résiliation possible dans les 30 jours suivant le premier paiement : la première mensualité reste due, aucun prélèvement ensuite, et l’engagement ' + commitmentDuration + ' est entièrement levé.'
           }</p>
+          ${engagementDisclosure ? `<p class="mqs-ticket-note">${engagementDisclosure}</p>` : ''}
         </section>
 
         <section class="mqs-checkout-card" aria-label="Coordonnées et paiement">
@@ -986,6 +1013,11 @@
           cgv_accepted: true,
           cgv_version: CGV_VERSION,
           checkout_demo: isCheckoutDemoMode(),
+          // Attribution : jeton signé par le serveur, présent dans l'URL du
+          // preview (?mqa=…). Le serveur le vérifie et ne l'accepte que s'il
+          // référence un enregistrement existant. Absent ou invalide →
+          // l'attribution manque, le paiement se déroule normalement.
+          attribution_token: attributionToken(),
         }),
       });
       const data = await res.json();

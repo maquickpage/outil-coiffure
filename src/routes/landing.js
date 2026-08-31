@@ -21,6 +21,7 @@ import express from 'express';
 import db from '../db.js';
 // (l'envoi du lien de démo se fait via sendDemoLinkEmail, défini plus bas)
 import { logEvent, clientIp } from './tracking.js';
+import { createAttribution, signToken } from '../attribution.js';
 
 const router = express.Router();
 
@@ -183,12 +184,28 @@ router.post('/landing/check', express.json({ limit: '10kb' }), async (req, res) 
   // Cherche le salon
   const salon = findSalon({ rawUrl: resolvedUrl, placeName, placeId });
 
+  // === Attribution de paiement (WP1) ===================================
+  // C'EST ICI, et nulle part plus tôt, que l'enregistrement est créé : à la
+  // soumission du lookup, côté serveur. Aucun cookie de parcours n'est posé.
+  // - `pageUrl` = header Referer de la requête XHR = l'URL de la page d'où le
+  //   formulaire est envoyé (même origine → query string ?src=/?utm_* incluse).
+  // - `ref` = hostname du referrer externe, fourni par la page, normalisé et
+  //   validé côté serveur. Aucune URL complète n'est conservée.
+  // Best-effort : un échec renvoie null et la suite se déroule normalement.
+  const attributionId = createAttribution({
+    pageUrl: req.headers.referer || null,
+    referrerHost: req.body?.ref || null,
+    salonSlug: salon?.slug || null,
+    found: !!salon,
+  });
+  const attributionToken = attributionId ? signToken(attributionId) : null;
+
   // Stocke le lead dans tous les cas
   try {
     db.prepare(`
-      INSERT INTO landing_leads (email, google_maps_url, salon_slug, found, ip, user_agent)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(email, resolvedUrl, salon?.slug || null, salon ? 1 : 0, ip || null, userAgent);
+      INSERT INTO landing_leads (email, google_maps_url, salon_slug, found, ip, user_agent, attribution_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(email, resolvedUrl, salon?.slug || null, salon ? 1 : 0, ip || null, userAgent, attributionId);
   } catch (err) {
     console.error('[landing/check] DB insert lead error:', err.message);
   }
@@ -199,7 +216,10 @@ router.post('/landing/check', express.json({ limit: '10kb' }), async (req, res) 
   if (salon) {
     // === SALON TROUVÉ ===
     const baseUrl = process.env.PUBLIC_BASE_URL || 'https://maquickpage.fr';
-    const demoUrl = `${baseUrl}/preview/${encodeURIComponent(salon.slug)}`;
+    // Le token signé assure la continuité d'attribution jusqu'au preview, puis
+    // jusqu'à Stripe. Il ne donne AUCUN droit : ni édition, ni propriété.
+    const demoUrl = `${baseUrl}/preview/${encodeURIComponent(salon.slug)}`
+      + (attributionToken ? `?mqa=${encodeURIComponent(attributionToken)}` : '');
     const salonName = salon.nom_clean || salon.nom;
 
     // On RE-envoie l'email avec le lien démo (utile si le coiffeur l'avait perdu).
@@ -274,7 +294,7 @@ async function sendDemoLinkEmail({ to, salonName, demoUrl, ville }) {
     <a href="${escapeHtml(demoUrl)}" style="display: inline-block; background: #0a0a0a; color: white; padding: 12px 28px; text-decoration: none; border-radius: 999px; font-weight: 600; font-size: 14px;">Voir mon site démo →</a>
   </div>
   <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
-    À partir de 9,90 € HT/mois. Domaine .fr ou .com offert.
+    À partir de 9,90 € TTC/mois. Domaine .fr ou .com offert.
     Aucun frais d'installation.
   </p>
   <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 28px 0;">
@@ -290,7 +310,7 @@ async function sendDemoLinkEmail({ to, salonName, demoUrl, ville }) {
 Voici le site web qu'on a créé pour ${salonName}${ville ? ` à ${ville}` : ''} :
 ${demoUrl}
 
-C'est gratuit pour le découvrir. À partir de 9,90 € HT/mois, domaine offert, aucun frais d'installation.
+C'est gratuit pour le découvrir. À partir de 9,90 € TTC/mois, domaine offert, aucun frais d'installation.
 
 MaQuickPage — contact@maquickpage.fr`;
 

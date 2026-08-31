@@ -141,6 +141,9 @@
 
   var T={
     fr:{brand:'Suivi landing',refresh:'Actualiser',maj:'maj',loading:'Chargement…',
+      attr_title:'Attribution des paiements',attr_sub:'source → lead → maquette → Checkout → paiement',attr_none:'Aucune attribution enregistrée sur la période.',
+      th_source:'Source',th_lead:'Lead',th_preview:'Maquette',th_checkout:'Checkout',th_payment:'Paiement',
+      a_paid:'✅ Payé',a_pending:'⏳ En attente',a_nocheckout:'—',a_seen:'vue',
       sub:'Funnel de la page marketing maquickpage.fr',
       k_real:'Vrais visiteurs',k_real_sub:'JS confirmé (navigateur réel)',k_uniq:'Visiteurs bruts (serveur)',k_uniq_sub:'bots & sans-JS inclus',k_view:'Visites (pages vues)',k_scroll:'Scroll 50%+',k_cta:'CTA cliqué',k_open:'Couverture ouverte',k_submit:'Formulaire envoyé',
       k_found:'Salon couvert',k_notfound:'Pas trouvé (48h)',k_human:'Trafic humain',k_human_sub:'{n} bots filtrés',
@@ -162,6 +165,9 @@
       d_ip:'IP',d_ua:'Navigateur (UA)',u_min:'min',u_h:'h',u_d:'j',
       none:'Aucune visite enregistrée pour le moment.',auth:'Connecte-toi d\'abord à l\'admin, puis recharge cette page.',signin:'→ Se connecter',err:'Erreur de chargement : '},
     en:{brand:'Landing tracking',refresh:'Refresh',maj:'upd.',loading:'Loading…',
+      attr_title:'Payment attribution',attr_sub:'source → lead → preview → Checkout → payment',attr_none:'No attribution recorded in this period.',
+      th_source:'Source',th_lead:'Lead',th_preview:'Preview',th_checkout:'Checkout',th_payment:'Payment',
+      a_paid:'✅ Paid',a_pending:'⏳ Pending',a_nocheckout:'—',a_seen:'opened',
       sub:'Marketing page funnel · maquickpage.fr',
       k_real:'Real visitors',k_real_sub:'JS confirmed (real browser)',k_uniq:'Raw visitors (server)',k_uniq_sub:'incl. bots & no-JS',k_view:'Visits (page views)',k_scroll:'Scroll 50%+',k_cta:'Clicked CTA',k_open:'Opened coverage',k_submit:'Submitted form',
       k_found:'Salon covered',k_notfound:'Not found (48h)',k_human:'Human traffic',k_human_sub:'{n} bots filtered',
@@ -183,6 +189,9 @@
       d_ip:'IP',d_ua:'Browser (UA)',u_min:'min',u_h:'h',u_d:'d',
       none:'No visits recorded yet.',auth:'Log into the admin first, then reload this page.',signin:'→ Sign in',err:'Load error: '},
     zh:{brand:'落地页追踪',refresh:'刷新',maj:'更新',loading:'加载中…',
+      attr_title:'付款归因',attr_sub:'来源 → 线索 → demo → Checkout → 付款',attr_none:'该时间段内暂无归因记录。',
+      th_source:'来源',th_lead:'线索',th_preview:'demo',th_checkout:'Checkout',th_payment:'付款',
+      a_paid:'✅ 已付款',a_pending:'⏳ 待付款',a_nocheckout:'—',a_seen:'已打开',
       sub:'营销主页漏斗 · maquickpage.fr',
       k_real:'真实访客',k_real_sub:'JS 已确认（真实浏览器）',k_uniq:'原始访客（服务器）',k_uniq_sub:'含机器人/无 JS',k_view:'访问（页面浏览）',k_scroll:'滚动 50%+',k_cta:'点击 CTA',k_open:'打开覆盖查询',k_submit:'提交表单',
       k_found:'已覆盖',k_notfound:'未找到 (48h)',k_human:'真人流量',k_human_sub:'已过滤 {n} 个机器人',
@@ -336,6 +345,39 @@
           +'<td class="when" title="'+esc(l.last)+'">'+fmtDate(l.last)+'<div style="font-size:11px">'+fmtWhen(l.last)+'</div></td>'
           +'</tr>';
         if(open)html+=detailCell(l,5);
+      });
+      html+='</tbody></table></div>';
+    }
+
+    // === ATTRIBUTION DES PAIEMENTS (WP1) ===
+    // Lecture manuelle minimale : d'où vient le parcours, quel lead, quelle
+    // maquette, quel Checkout, payé ou non. Pas de dashboard séparé.
+    var attrs=d.attributions||[];
+    html+='<div class="section-title">'+t('attr_title')+' ('+attrs.length+') · <span style="text-transform:none;font-weight:600">'+t('attr_sub')+'</span></div>';
+    if(!attrs.length)html+='<div class="card"><div class="msg" style="padding:20px">'+t('attr_none')+'</div></div>';
+    else{
+      html+='<div class="tbl-wrap"><table><thead><tr>'
+        +'<th>'+t('th_source')+'</th><th>'+t('th_lead')+'</th><th>'+t('th_preview')+'</th>'
+        +'<th class="hide-sm">'+t('th_checkout')+'</th><th>'+t('th_payment')+'</th></tr></thead><tbody>';
+      attrs.forEach(function(a){
+        var src=a.first_source||a.utm_source||(a.referrer_host?t('via',{s:a.referrer_host}):t('src_direct'));
+        var srcSub=[a.landing_path,a.utm_campaign?('utm:'+a.utm_campaign):''].filter(Boolean).map(esc).join(' · ');
+        var prev=a.salon_slug?esc(a.salon_slug):'—';
+        if(a.preview_seen_at)prev+='<div class="loc">'+t('a_seen')+' · '+fmtDate(a.preview_seen_at)+'</div>';
+        var ck=a.stripe_session_id
+          ?'<span class="dmono" style="margin:0">'+esc(a.stripe_session_id)+'</span>'
+            +(a.plan?'<div class="loc">'+esc(a.plan)+(a.hostname?' · '+esc(a.hostname):'')+'</div>':'')
+          :t('a_nocheckout');
+        var pay=a.paid_at
+          ?'<span class="badge b-found">'+t('a_paid')+'</span><div class="when">'+fmtDate(a.paid_at)+'</div>'
+          :(a.stripe_session_id?'<span class="badge b-nf">'+t('a_pending')+'</span>':t('a_nocheckout'));
+        html+='<tr>'
+          +'<td><span class="email">'+esc(src)+'</span>'+(srcSub?'<div class="loc">'+srcSub+'</div>':'')+'</td>'
+          +'<td>'+(a.lead_email?esc(a.lead_email):'—')+'<div class="when">'+fmtDate(a.created_at)+'</div></td>'
+          +'<td>'+prev+'</td>'
+          +'<td class="hide-sm">'+ck+'</td>'
+          +'<td>'+pay+'</td>'
+          +'</tr>';
       });
       html+='</tbody></table></div>';
     }

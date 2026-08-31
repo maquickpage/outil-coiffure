@@ -118,10 +118,13 @@
   // (JS exécuté) du bruit serveur (bots/scanners qui ne lancent jamais le JS —
   // le landing_view serveur les compte tous). Porte la provenance : hostname du
   // referrer (null = accès direct / favori / lien app).
+  const referrerHost = () => {
+    try { return document.referrer ? new URL(document.referrer).hostname : null; }
+    catch (e) { return null; }
+  };
+
   (function trackReady() {
-    let ref = null;
-    try { if (document.referrer) ref = new URL(document.referrer).hostname; } catch (e) { /* silencieux */ }
-    track('landing_ready', { ref });
+    track('landing_ready', { ref: referrerHost() });
   })();
 
   // Profondeur de scroll : renvoie le maximum seulement s'il a progressé depuis
@@ -234,7 +237,10 @@
       const res = await fetch('/api/landing/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ google_maps_url: googleUrl, email }),
+        // `ref` = hostname du referrer (jamais l'URL complète). Le serveur le
+        // normalise et le valide avant de l'enregistrer : c'est la seule
+        // provenance externe qu'une requête XHR de même origine ne porte pas.
+        body: JSON.stringify({ google_maps_url: googleUrl, email, ref: referrerHost() }),
       });
       const data = await res.json().catch(() => ({}));
 
