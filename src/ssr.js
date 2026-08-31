@@ -20,7 +20,7 @@
  *   - renderSitemap(host, salon?) : sitemap.xml dynamique
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -388,24 +388,45 @@ export function renderRobotsTxt(host) {
  * @param {string} [options.salonUpdatedAt] - ISO datetime de la dernière maj
  *   (= overrides_updated_at) pour le <lastmod>
  */
+// Date de modification réelle d'un fichier de public/site/, en YYYY-MM-DD.
+// Retourne null si le fichier est absent ou illisible : le <lastmod> est alors
+// omis du sitemap. Mis en cache par chemin (les mtimes ne changent qu'au deploy).
+const SITE_FILES_DIR = join(__dirname, '..', 'public', 'site');
+const lastmodCache = new Map();
+export function fileLastmod(relPath) {
+  if (lastmodCache.has(relPath)) return lastmodCache.get(relPath);
+  let iso = null;
+  try {
+    iso = statSync(join(SITE_FILES_DIR, relPath)).mtime.toISOString().slice(0, 10);
+  } catch { iso = null; }
+  lastmodCache.set(relPath, iso);
+  return iso;
+}
+
 export function renderSitemap(host, options = {}) {
   const isMain = isMainDomainHost(host);
   const safeHost = (host || 'maquickpage.fr').toLowerCase();
-  const todayIso = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
   const urls = [];
 
   if (isMain) {
-    urls.push({ loc: `https://maquickpage.fr/`, changefreq: 'weekly', priority: '1.0', lastmod: todayIso });
-    urls.push({ loc: `https://maquickpage.fr/legal/cgv.html`, changefreq: 'monthly', priority: '0.5', lastmod: todayIso });
-    urls.push({ loc: `https://maquickpage.fr/legal/cgv-2y.html`, changefreq: 'monthly', priority: '0.4', lastmod: todayIso });
-    urls.push({ loc: `https://maquickpage.fr/legal/cgv-1y.html`, changefreq: 'monthly', priority: '0.4', lastmod: todayIso });
-    urls.push({ loc: `https://maquickpage.fr/legal/cgv-flex.html`, changefreq: 'monthly', priority: '0.4', lastmod: todayIso });
-    urls.push({ loc: `https://maquickpage.fr/legal/privacy.html`, changefreq: 'monthly', priority: '0.5', lastmod: todayIso });
-    urls.push({ loc: `https://maquickpage.fr/legal/mentions-legales.html`, changefreq: 'monthly', priority: '0.4', lastmod: todayIso });
+    // <lastmod> = date de modification RÉELLE du fichier servi. Jamais la date
+    // du jour : un sitemap qui se redate tout seul chaque matin ment aux
+    // moteurs sur chaque URL et finit par être ignoré. Fichier illisible →
+    // lastmod omis (une balise absente est valide, une balise fausse non).
+    urls.push({ loc: `https://maquickpage.fr/`, changefreq: 'weekly', priority: '1.0', lastmod: fileLastmod('home.html') });
+    urls.push({ loc: `https://maquickpage.fr/faq`, changefreq: 'monthly', priority: '0.7', lastmod: fileLastmod('faq.html') });
+    urls.push({ loc: `https://maquickpage.fr/en`, changefreq: 'weekly', priority: '0.7', lastmod: fileLastmod('home-en.html') });
+    urls.push({ loc: `https://maquickpage.fr/legal/cgv.html`, changefreq: 'monthly', priority: '0.5', lastmod: fileLastmod('legal/cgv.html') });
+    urls.push({ loc: `https://maquickpage.fr/legal/cgv-2y.html`, changefreq: 'monthly', priority: '0.4', lastmod: fileLastmod('legal/cgv-2y.html') });
+    urls.push({ loc: `https://maquickpage.fr/legal/cgv-1y.html`, changefreq: 'monthly', priority: '0.4', lastmod: fileLastmod('legal/cgv-1y.html') });
+    urls.push({ loc: `https://maquickpage.fr/legal/cgv-flex.html`, changefreq: 'monthly', priority: '0.4', lastmod: fileLastmod('legal/cgv-flex.html') });
+    urls.push({ loc: `https://maquickpage.fr/legal/privacy.html`, changefreq: 'monthly', priority: '0.5', lastmod: fileLastmod('legal/privacy.html') });
+    urls.push({ loc: `https://maquickpage.fr/legal/mentions-legales.html`, changefreq: 'monthly', priority: '0.4', lastmod: fileLastmod('legal/mentions-legales.html') });
   } else {
-    // Custom hostname : home seule (one-pager).
-    const lastmod = (options.salonUpdatedAt && options.salonUpdatedAt.slice(0, 10)) || todayIso;
+    // Custom hostname : home seule (one-pager). Pas de date de maj connue →
+    // lastmod omis plutôt que daté d'aujourd'hui.
+    const lastmod = (options.salonUpdatedAt && options.salonUpdatedAt.slice(0, 10)) || null;
     urls.push({ loc: `https://${safeHost}/`, changefreq: 'weekly', priority: '1.0', lastmod });
   }
 

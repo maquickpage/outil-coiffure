@@ -13,6 +13,7 @@ import unsubscribeRouter from './src/routes/unsubscribe.js';
 import { buildSalonView } from './src/defaults.js';
 import { renderSalonHtml, renderRobotsTxt, renderSitemap, isMainDomainHost, isPaidStatus } from './src/ssr.js';
 import { isTemplateId, TEMPLATES } from './src/templates.js';
+import { touchPreviewSeen } from './src/attribution.js';
 
 // === TENANT_ONLY mode ===
 // Sur Falkenstein (= sites coiffeurs payants) on désactive :
@@ -375,6 +376,38 @@ app.use((req, res, next) => {
   next();
 });
 
+// ====================================================================
+// BRAND HOST GATE — pages de marque (SEO) réservées au domaine de marque
+// ====================================================================
+// `/faq`, `/en` et TOUTE future page SEO de marque ne doivent exister que sur
+// maquickpage.fr. Sur un hostname client (salon-jean.fr), elles renverraient un
+// contenu MaQuickPage sous le domaine du coiffeur : fuite de marque + contenu
+// dupliqué indexable.
+//
+// TENANT_ONLY ne suffit PAS comme garde : sur Falkenstein un hostname client
+// n'est ni le landing host, ni le public host, ni l'admin host — il tombe donc
+// en routingMode 'mixed', exactement comme un poste de dev. Le gate teste donc
+// explicitement le mode 'landing', avec une exception nominative pour les hôtes
+// de développement local.
+//
+// UN SEUL mécanisme réutilisable : toute nouvelle page de marque s'enregistre
+// avec `brandPageOnly` en middleware, sans recopier de condition.
+const DEV_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+function isBrandHost(req) {
+  if (req.routingMode === 'landing') return true;
+  const host = (req.hostname || '').toLowerCase();
+  return DEV_HOSTS.has(host) || host.endsWith('.localhost');
+}
+
+function brandPageOnly(req, res, next) {
+  // Admin agence : comportement historique conservé (redirection vers /admin),
+  // aucune page de marque n'y est servie.
+  if (req.routingMode === 'admin') return res.redirect('/admin');
+  if (isBrandHost(req)) return next();
+  return res.status(404).sendFile(join(SITE_DIR, '404.html'));
+}
+
 // === Tracking funnel maquettes (observe-only, JAMAIS bloquant) ===
 // Middleware : log preview_ouvert / editeur_ouvert / editeur_modifie (gated
 // routingMode==='public' → uniquement le funnel prospect). Router : POST
@@ -576,6 +609,12 @@ app.get('/preview/:slug', (req, res) => {
   const slug = req.params.slug;
   if (RESERVED_PATHS.has(slug)) return res.status(404).sendFile(join(SITE_DIR, '404.html'));
 
+  // Continuité d'attribution : ?mqa=<token signé> horodate le retour sur la
+  // maquette. Le token ne référence qu'un enregistrement DÉJÀ créé au lookup ;
+  // une signature invalide est ignorée sans rien écrire. Il n'ouvre AUCUN
+  // droit : ni édition, ni propriété, ni contournement de l'edit_token.
+  if (req.query.mqa) touchPreviewSeen(req.query.mqa);
+
   let salon;
   try {
     salon = db.prepare('SELECT * FROM salons WHERE slug = ?').get(slug);
@@ -712,8 +751,7 @@ if (TENANT_ONLY) {
 //   - host=maquickpage.fr        → landing (home.html)
 //   - host=monsitehq.com (legacy)→ 301 via LEGACY_HOST_REDIRECTS middleware en amont
 //   - local dev / autre host     → landing par défaut
-app.get('/faq', (req, res) => {
-  if (req.routingMode === 'admin') return res.redirect('/admin');
+app.get('/faq', brandPageOnly, (req, res) => {
   res.sendFile(join(SITE_DIR, 'faq.html'));
 });
 
@@ -723,8 +761,7 @@ app.get('/', (req, res) => {
 });
 
 // English version of the landing (mirror of home.html, hreflang-linked)
-app.get('/en', (req, res) => {
-  if (req.routingMode === 'admin') return res.redirect('/admin');
+app.get('/en', brandPageOnly, (req, res) => {
   res.sendFile(join(SITE_DIR, 'home-en.html'));
 });
 

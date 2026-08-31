@@ -180,6 +180,12 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_landing_leads_email ON landing_leads(email);
     CREATE INDEX IF NOT EXISTS idx_landing_leads_salon ON landing_leads(salon_slug);
   `);
+  // Lien vers l'enregistrement d'attribution créé au même instant (WP1). C'est
+  // ici, et non dans payment_attributions, que le rapprochement avec un email
+  // existe : la table d'attribution reste sans donnée personnelle.
+  const leadCols = db.prepare("PRAGMA table_info(landing_leads)").all().map(c => c.name);
+  if (!leadCols.includes('attribution_id')) db.exec("ALTER TABLE landing_leads ADD COLUMN attribution_id TEXT");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_landing_leads_attribution ON landing_leads(attribution_id) WHERE attribution_id IS NOT NULL");
 
   // === Salons demandés mais pas encore scrappés (waitlist) ===
   // Quand un coiffeur arrive sur la landing mais qu'on ne trouve pas son salon
@@ -200,6 +206,59 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_pending_demos_status ON pending_demos(status);
     CREATE INDEX IF NOT EXISTS idx_pending_demos_email ON pending_demos(email);
   `);
+
+  // === Attribution minimale de paiement (WP1) ==============================
+  // Un enregistrement est créé CÔTÉ SERVEUR au moment de la soumission du
+  // lookup (POST /api/landing/check) — jamais avant, jamais par le client.
+  // L'`id` est opaque (16 octets aléatoires en hex) : il ne dérive d'aucun
+  // email, IP, User-Agent ni slug. Le rattachement au parcours suivant
+  // (preview → Checkout) passe par un token signé HMAC, cf. src/attribution.js.
+  //
+  // Deux tables et non une colonne sur `salons` : un même salon peut lancer
+  // plusieurs Checkouts, et chaque Session doit conserver SA propre attribution
+  // (une colonne serait écrasée par la dernière Session).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS payment_attributions (
+      id TEXT PRIMARY KEY,
+      first_source TEXT,
+      landing_path TEXT,
+      referrer_host TEXT,
+      utm_source TEXT,
+      utm_medium TEXT,
+      utm_campaign TEXT,
+      utm_term TEXT,
+      utm_content TEXT,
+      salon_slug TEXT,
+      lead_found INTEGER DEFAULT 0,
+      preview_seen_at TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_payment_attributions_created ON payment_attributions(created_at);
+    CREATE INDEX IF NOT EXISTS idx_payment_attributions_slug ON payment_attributions(salon_slug);
+
+    -- 1 ligne par Stripe Checkout Session. La clé primaire = l'ID de Session :
+    -- le rejeu d'un webhook est donc idempotent, et une Session antérieure à
+    -- l'attribution s'enregistre normalement avec attribution_id NULL.
+    CREATE TABLE IF NOT EXISTS attribution_checkouts (
+      stripe_session_id TEXT PRIMARY KEY,
+      attribution_id TEXT,
+      salon_slug TEXT,
+      plan TEXT,
+      hostname TEXT,
+      template TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      paid_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_attribution_checkouts_attr ON attribution_checkouts(attribution_id);
+    CREATE INDEX IF NOT EXISTS idx_attribution_checkouts_created ON attribution_checkouts(created_at);
+  `);
+  // Migrations additives idempotentes (BDD créée avant l'ajout d'une colonne).
+  const attrCols = db.prepare("PRAGMA table_info(payment_attributions)").all().map(c => c.name);
+  if (!attrCols.includes('preview_seen_at')) db.exec("ALTER TABLE payment_attributions ADD COLUMN preview_seen_at TEXT");
+  if (!attrCols.includes('lead_found')) db.exec("ALTER TABLE payment_attributions ADD COLUMN lead_found INTEGER DEFAULT 0");
+  const ckCols = db.prepare("PRAGMA table_info(attribution_checkouts)").all().map(c => c.name);
+  if (!ckCols.includes('paid_at')) db.exec("ALTER TABLE attribution_checkouts ADD COLUMN paid_at TEXT");
+  if (!ckCols.includes('template')) db.exec("ALTER TABLE attribution_checkouts ADD COLUMN template TEXT");
 
   // === Domain suggestions (pré-générées par GPT, sans extension TLD) ===
   // Format JSON : [{"name":"salonjean","rank":1}, ...] (10 entries)

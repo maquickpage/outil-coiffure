@@ -14,6 +14,7 @@ import Stripe from 'stripe';
 import db from '../db.js';
 import { startProvisioning, syncSalonToFalkenstein } from '../provisioning-worker.js';
 import { isTemplateId } from '../templates.js';
+import { markCheckoutPaid } from '../attribution.js';
 
 const router = express.Router();
 
@@ -90,6 +91,28 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
 });
 
 async function onCheckoutCompleted(session) {
+  // === Attribution (WP1) : marquage « payé » PAR ID DE SESSION STRIPE ========
+  // Isolé dans son propre try/catch et volontairement placé AVANT toute
+  // validation : cette écriture ne doit JAMAIS faire échouer le handler.
+  // Un throw ici mènerait au `DELETE FROM stripe_events` ci-dessus, Stripe
+  // rejouerait l'event et relancerait startProvisioning — donc un second achat
+  // de domaine. markCheckoutPaid() n'émet aucune exception (best-effort), le
+  // try/catch est une seconde barrière.
+  // Rejeu : `paid_at` conserve sa première valeur → idempotent.
+  // Session antérieure à l'attribution : la ligne est créée avec NULL.
+  try {
+    markCheckoutPaid({
+      sessionId: session.id,
+      attributionId: session.metadata?.attribution_id || null,
+      salonSlug: session.metadata?.slug || null,
+      plan: session.metadata?.plan || null,
+      hostname: session.metadata?.hostname || null,
+      template: session.metadata?.template || null,
+    });
+  } catch (err) {
+    console.error('[stripe-webhook] attribution non enregistrée (non bloquant):', err.message);
+  }
+
   // session.metadata = { slug, hostname, plan, supplementEurTtc }
   const slug = session.metadata?.slug;
   if (!slug) {

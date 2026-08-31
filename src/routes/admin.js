@@ -577,12 +577,38 @@ router.get('/api/landing-stats.json', (req, res) => {
     const d = dailyMap[day];
     daily.push({ day, views: d ? d.views : 0, real: d ? d.realKeys.size : 0, cta: d ? d.ctaKeys.size : 0, submit: d ? d.submitKeys.size : 0 });
   }
+  // === Attribution de paiement (WP1) — visibilité minimale ==================
+  // Une ligne par (attribution × Checkout) : deux Checkouts d'un même parcours
+  // apparaissent séparément, chacun avec son propre statut de paiement.
+  // Best-effort : un échec de lecture laisse simplement la liste vide.
+  let attributions = [];
+  try {
+    attributions = db.prepare(`
+      SELECT a.id, a.first_source, a.landing_path, a.referrer_host,
+             a.utm_source, a.utm_medium, a.utm_campaign,
+             a.salon_slug, a.lead_found, a.preview_seen_at, a.created_at,
+             l.email AS lead_email,
+             c.stripe_session_id, c.created_at AS checkout_at, c.paid_at,
+             c.plan, c.hostname
+        FROM payment_attributions a
+        LEFT JOIN landing_leads l ON l.attribution_id = a.id
+        LEFT JOIN attribution_checkouts c ON c.attribution_id = a.id
+       WHERE a.created_at >= datetime('now', '-${period.days} days')
+       ORDER BY a.created_at DESC, c.created_at ASC
+       LIMIT 300
+    `).all();
+  } catch (e) {
+    console.error('[landing-stats] attributions read failed:', e.message);
+    attributions = [];
+  }
+
   const visibleLeadRows = leadRows.filter(l => !isBot(l.user_agent));
   const uniqueLeadEmails = new Set(visibleLeadRows.map(l => String(l.email || '').trim().toLowerCase()).filter(Boolean)).size;
   res.setHeader('Cache-Control', 'no-store, private, max-age=0');
   res.json({
     funnel, visitorFunnel: vf, cta, daily, sources,
     leads, engaged: engaged.slice(0, 200), engagedTotal: engaged.length,
+    attributions,
     periodDays: period.days,
     leadMetrics: { submissions: visibleLeadRows.length, uniqueEmails: uniqueLeadEmails, found: visibleLeadRows.filter(l => l.found).length, notfound: visibleLeadRows.filter(l => !l.found).length },
     bots, humans: total - bots, total,

@@ -22,6 +22,7 @@ import { checkDomainsParallel, checkDomainAvailability } from '../ovh-client.js'
 import { getProvisioningStatus } from '../provisioning-worker.js';
 import Stripe from 'stripe';
 import { isTemplateId, normalizeTemplateId } from '../templates.js';
+import { resolveAttribution, recordCheckout } from '../attribution.js';
 
 const router = express.Router();
 const CURRENT_CGV_VERSION = '1.1';
@@ -389,6 +390,15 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
   // === BRANCHE NORMALE : Stripe checkout =========================================
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' });
 
+  // === Attribution (WP1) ====================================================
+  // Le token n'est accepté que s'il est signé par le serveur ET s'il référence
+  // un enregistrement déjà existant : un client ne peut ni en créer un, ni en
+  // écraser un. Un token forgé, expiré ou inconnu est simplement ignoré —
+  // l'attribution manque, le Checkout continue (jamais bloquant).
+  // Ce token ne remplace aucune vérification de propriété : il ne conditionne
+  // rien d'autre que ce qui est écrit ici en metadata.
+  const attribution = resolveAttribution(req.body?.attribution_token);
+
   // line_items : juste l'abonnement. Le domaine est offert (1 an), absorbé sur la marge.
   const lineItems = [{ price: plan.priceId, quantity: 1 }];
 
@@ -424,6 +434,12 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
         template,
         first_month_cancellation_days: '30',
         first_month_refundable: 'false',
+        // Attribution : identifiant opaque + source normalisée UNIQUEMENT.
+        // Jamais d'email, d'IP, de User-Agent ni de referrer complet.
+        ...(attribution ? {
+          attribution_id: attribution.id,
+          attribution_source: attribution.first_source || 'direct',
+        } : {}),
       },
     });
   } catch (err) {
@@ -445,6 +461,17 @@ router.post('/checkout/create-session', express.json(), async (req, res) => {
         updated_at = datetime('now')
     WHERE slug = ?
   `).run(session.id, email, planKey, hostname, plan.commitmentMonths, CURRENT_CGV_VERSION, clientIp, slug);
+
+  // Une ligne par Session Stripe : deux Checkouts successifs conservent chacun
+  // leur propre attribution. Écriture best-effort — jamais bloquante.
+  recordCheckout({
+    sessionId: session.id,
+    attributionId: attribution?.id || null,
+    salonSlug: slug,
+    plan: planKey,
+    hostname,
+    template,
+  });
 
   res.json({ url: session.url, sessionId: session.id });
 });
