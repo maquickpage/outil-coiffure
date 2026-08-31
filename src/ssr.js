@@ -416,6 +416,7 @@ export function renderSitemap(host, options = {}) {
     // lastmod omis (une balise absente est valide, une balise fausse non).
     urls.push({ loc: `https://maquickpage.fr/`, changefreq: 'weekly', priority: '1.0', lastmod: fileLastmod('home.html') });
     urls.push({ loc: `https://maquickpage.fr/site-internet-coiffeur`, changefreq: 'monthly', priority: '0.8', lastmod: fileLastmod('site-internet-coiffeur.html') });
+    urls.push({ loc: `https://maquickpage.fr/guides/prix-site-internet-coiffeur`, changefreq: 'monthly', priority: '0.7', lastmod: fileLastmod('guides/prix-site-internet-coiffeur.html') });
     urls.push({ loc: `https://maquickpage.fr/faq`, changefreq: 'monthly', priority: '0.7', lastmod: fileLastmod('faq.html') });
     urls.push({ loc: `https://maquickpage.fr/en`, changefreq: 'weekly', priority: '0.7', lastmod: fileLastmod('home-en.html') });
     urls.push({ loc: `https://maquickpage.fr/legal/cgv.html`, changefreq: 'monthly', priority: '0.5', lastmod: fileLastmod('legal/cgv.html') });

@@ -771,6 +771,15 @@ app.get('/site-internet-coiffeur', brandPageOnly, (req, res) => {
   res.sendFile(join(SITE_DIR, 'site-internet-coiffeur.html'));
 });
 
+// Guide BOFU « prix » (WP3). Une seule page, servie exactement comme la page
+// pilier : même middleware brandPageOnly, même modale de lookup, donc même
+// chaîne d'attribution WP1 avec landing_path = /guides/prix-site-internet-coiffeur.
+// Le chemin est nommé en dur : pas de paramètre, pas de registre de pages, pas
+// d'index /guides (une seule route, un seul fichier).
+app.get('/guides/prix-site-internet-coiffeur', brandPageOnly, (req, res) => {
+  res.sendFile(join(SITE_DIR, 'guides', 'prix-site-internet-coiffeur.html'));
+});
+
 app.get('/', (req, res) => {
   if (req.routingMode === 'admin') return res.redirect('/admin');
   res.sendFile(join(SITE_DIR, 'home.html'));
