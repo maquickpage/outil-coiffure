@@ -594,7 +594,14 @@ app.get('/_assets/template-config.js', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.send(`window.__MQS_TEMPLATES__=${JSON.stringify(TEMPLATES).replace(/</g, '\\u003c')};`);
 });
-app.use('/_assets', express.static(SITE_DIR, { maxAge: '1d' }));
+// SITE_DIR contient aussi les pages de marque (home, faq, page pilier) : sans ce
+// garde-fou, /_assets/home.html les rendrait accessibles depuis un domaine client.
+// Les assets restent servis normalement ; seul le HTML est refusé.
+app.use('/_assets', (req, res, next) => {
+  if (req.path.endsWith('/') || /\.html?$/i.test(req.path)) return res.status(404).end();
+  next();
+});
+app.use('/_assets', express.static(SITE_DIR, { maxAge: '1d', index: false }));
 
 // Assets des templates du design kit (styles.css / hydrate.js par template).
 // Le HTML, lui, passe par le SSR (src/ssr.js) qui réécrit les chemins relatifs

@@ -497,3 +497,70 @@ describe('WP2 — régression de contenu', () => {
     assert.ok(!/\bHT\b/.test(pageText), 'aucun tarif ne doit être présenté hors taxes');
   });
 });
+
+// =============================================================================
+// Exposition HTML par les routes d'assets
+// =============================================================================
+// SITE_DIR contient à la fois les assets publics et les pages de marque. Le
+// montage /_assets les servait donc sur n'importe quel hôte, y compris un
+// domaine client — le gate brandPageOnly ne couvrant que les chemins propres.
+describe('/_assets ne sert jamais de HTML', () => {
+  const HTML_UNDER_ASSETS = [
+    '/_assets/site-internet-coiffeur.html',
+    '/_assets/home.html',
+    '/_assets/home-en.html',
+    '/_assets/faq.html',
+    '/_assets/index.html',
+    '/_assets/legal/privacy.html',
+  ];
+
+  for (const path of HTML_UNDER_ASSETS) {
+    test(`404 sur le domaine de marque : ${path}`, async () => {
+      const r = await request({ path, host: BRAND_HOST });
+      assert.equal(r.status, 404, `${path} ne doit pas être servi`);
+    });
+
+    test(`404 sur un hostname client : ${path}`, async () => {
+      const r = await request({ path, host: CUSTOMER_HOST });
+      assert.equal(r.status, 404, `${path} ne doit pas fuiter sur un domaine client`);
+    });
+  }
+
+  test('/_assets/ ne renvoie pas d\'index HTML', async () => {
+    for (const host of [BRAND_HOST, CUSTOMER_HOST]) {
+      const r = await request({ path: '/_assets/', host });
+      assert.equal(r.status, 404, `/_assets/ doit être refusé (host ${host})`);
+      assert.ok(!/<html/i.test(r.body), 'aucun index HTML ne doit être servi');
+    }
+  });
+
+  test('les assets légitimes restent servis', async () => {
+    const assets = [
+      '/_assets/home.css',
+      '/_assets/home.js',
+      '/_assets/template-config.js',
+      '/_assets/gallery-defaults/coiffeur-homme.jpg',
+      '/_assets/landing/france-coverage.webp',
+    ];
+    for (const path of assets) {
+      for (const host of [BRAND_HOST, CUSTOMER_HOST]) {
+        const r = await request({ path, host });
+        assert.equal(r.status, 200, `${path} doit rester servi (host ${host})`);
+      }
+    }
+  });
+
+  test('les chemins propres ne sont pas affectés', async () => {
+    const brand = await request({ path: PAGE_PATH, host: BRAND_HOST });
+    assert.equal(brand.status, 200, 'la page pilier reste servie sur le domaine de marque');
+
+    const customer = await request({ path: PAGE_PATH, host: CUSTOMER_HOST });
+    assert.equal(customer.status, 404, 'la page pilier reste inaccessible sur un domaine client');
+
+    const faq = await request({ path: '/faq', host: BRAND_HOST });
+    assert.equal(faq.status, 200, '/faq reste servi sur le domaine de marque');
+
+    const legal = await request({ path: '/legal/privacy.html', host: BRAND_HOST });
+    assert.equal(legal.status, 200, '/legal/* garde son propre montage');
+  });
+});
