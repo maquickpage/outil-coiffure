@@ -11,6 +11,7 @@ name: Deploy to Coolify
 on:
   push:
     branches: [main]
+  pull_request: {}
   workflow_dispatch: {}
 
 concurrency:
@@ -18,7 +19,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Porte d'entree : les tests hors-ligne (sequencer, checkout, tracking, suivi)
+  # tournent sur chaque PR et chaque push main. Rouge = pas de deploiement.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+
   deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
       COOLIFY_HOST: http://app.3high.fr:8000
@@ -53,3 +69,13 @@ jobs:
             sleep 15
           done
           echo "⏱️ Timeout : le déploiement n'a pas fini à temps"; exit 1
+
+      # Verification post-deploiement : les routes publiques de prod repondent
+      # (HEAD/GET uniquement, aucune ecriture). Rouge = le deploiement a casse
+      # quelque chose que le build n'a pas vu.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Smoke tests contre la prod
+        run: npm run test:smoke:prod
